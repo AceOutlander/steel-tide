@@ -15,6 +15,7 @@ import { player } from './sim/player.js';
 import { crew } from './sim/crewpick.js';
 import { wrecks } from './sim/wreck.js';
 import { econ, fmtCredits, PAY } from './core/economy.js';
+import { applyPaint } from './gfx/paint.js';
 import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
@@ -40,6 +41,8 @@ export const app = {
         input.init(canvas); hud.init(); menus.init(app);
         // Credits: only the player's own kills (and assists where they did a fifth of the damage) pay
         world.onBattleStart = () => econ.startBattle();
+        world.onAdd = (u) => { if (!battle.spawning) battle.dressRandom(u); }; // not the unit the player is about to take
+        wrecks.paintFn = applyPaint;
         world.onBattleEnd = (won) => econ.finish(won);
         world.onPay = (u, by) => {
           const pu = player.unit; if (!pu || u.nation === world.playerNation || !(this.state === 'battle' || this.state === 'dead')) return null;

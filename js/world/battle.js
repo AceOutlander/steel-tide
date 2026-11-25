@@ -8,6 +8,8 @@ import { createUnit, BUILDERS } from '../sim/factory.js';
 import { attachAI } from '../sim/ai.js';
 import { weapons } from '../sim/weapons.js';
 import { wrecks } from '../sim/wreck.js';
+import { cosmetics } from '../core/cosmetics.js';
+import { applyPaint } from '../gfx/paint.js';
 import { audio } from '../audio/audio.js';
 
 const sgn = (n) => (n === 'aethia' ? 1 : -1);
@@ -95,7 +97,7 @@ export const battle = {
 
   // ---- the player's unit ---------------------------------------------------------------------------------------------------
   spawnPlayer(type, opts = {}) {
-    const n = world.playerNation, s = sgn(n), def = UNITS[type], cv = world.carriers[n];
+    const n = world.playerNation, s = sgn(n), def = UNITS[type], cv = world.carriers[n]; this.spawning = true;
     let u = null;
     if (def.kind === 'ship' || def.kind === 'sub') {
       // take command of one of our ships of that class if one is afloat, otherwise a fresh one arrives from the home edge
@@ -124,11 +126,19 @@ export const battle = {
       if (cv && cv.alive) { const hp = cv.model.helipads[0].pos; u.placeOn(cv, new V3(hp.x - 9, hp.y, hp.z - 17)); u.look = cv.yaw + Math.PI * 0.85; } else { const p = world.pads[n === 'aethia' ? 0 : 1]; u.placeAt(p.x, world.terrain(p.x, p.z), p.z); }
       world.add(u);
     }
+    this.spawning = false; this.dress(u, cosmetics.paintFor(n, type), cosmetics.outfit(n));
     u.isPlayer = true; u.invuln = world.t + 5; // spawn protection world.player = u;
     save.data.last = { nation: n, unit: type }; save.write();
     return u;
   },
   // hand a unit back to its crew (when the player moves to another unit)
+  // Looks: paint a unit's model (once), or note a marine's outfit. The player's units wear what is equipped in the Hangar;
+  // about one in six of the others wears something too, so the cosmetics are seen in action.
+  dress(u, paint, outfit) {
+    if (u.kind === 'soldier') { if (outfit && u.setOutfit) u.setOutfit(outfit); return; }
+    if (paint && u.paint !== paint && !u.paint) { u.paint = paint; applyPaint(u.lod0, u.nation, paint); }
+  },
+  dressRandom(u) { if (Math.random() > 0.16) return; if (u.kind === 'soldier') this.dress(u, '', cosmetics.randomOutfit()); else this.dress(u, cosmetics.randomPaint(u.type)); },
   // is a deck spot (local point on `ship`) clear of other aircraft of that kind?
   spotFree(ship, local, kind, r) { const p = ship.toWorld(local, new V3()); return !world.units.some((o) => o.kind === kind && o.alive && o.pos.distanceTo(p) < r); },
   releasePlayer(u) { if (!u) return; u.isPlayer = false; if (u.alive && !u.ai) attachAI(u, new V3(rand(-800, 800), 0, -900)); if (world.player === u) world.player = null; },

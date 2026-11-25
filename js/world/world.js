@@ -108,7 +108,7 @@ export const world = {
     ocean.setIslands(ISLANDS);
   },
 
-  add(u) { u.id = this.nextId++; this.units.push(u); if (u.root) gfx.scene.add(u.root); return u; },
+  add(u) { if (this.onAdd) this.onAdd(u); u.id = this.nextId++; this.units.push(u); if (u.root) gfx.scene.add(u.root); return u; },
   remove(u) { const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1); if (u.root && u.root.parent === gfx.scene) gfx.scene.remove(u.root); u.gone = true; },
   clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.lost.length = 0; for (const n of ['aethia', 'extro']) { this.kills[n] = 0; const l = this.losses[n]; l.ships = l.subs = l.aircraft = l.men = 0; } this.hurts.length = 0; this.falls.length = 0; this.hits.t = -9; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
 

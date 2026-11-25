@@ -32,7 +32,7 @@ function scorch(mat) {
 // Rotors and other spinning parts always come away whole. Built once per aircraft type, nation, paint and level.
 function template(type, nation, level, paint = '') {
   const key = `${type}|${nation}|${level}|${paint}`; let t = templates.get(key); if (t) return t;
-  const g = wrecks.builders[type](nation, 0); g.updateMatrixWorld(true);
+  const g = wrecks.builders[type](nation, 0); if (paint && wrecks.paintFn) wrecks.paintFn(g, nation, paint); g.updateMatrixWorld(true); // wreckage wears the aircraft's paint
   const model = g.userData.model, L = model.dims.length, S = model.dims.span || L * 0.8;
   const spin = new Map(); for (const s of model.spinners || []) spin.set(s.node, s);
   const xe = level >= 2 ? [-0.3, -0.1, 0.1, 0.3] : [-0.13, 0.13], ze = level >= 2 ? [-0.17, 0.17] : [0];
@@ -77,7 +77,7 @@ function template(type, nation, level, paint = '') {
 function meshes(piece) { const g = new THREE.Group(); for (const p of piece.parts) { const m = new THREE.Mesh(p.geo, p.mat); m.castShadow = true; g.add(m); } return g; }
 
 export const wrecks = {
-  list: [], chutes: [], max: 46, builders: null,
+  list: [], chutes: [], max: 46, builders: null, paintFn: null,
   init(builders) {
     this.builders = builders; // the unit model builders (handed in to avoid a circular import)
     const geo = new THREE.BoxGeometry(1, 0.12, 0.7), mat = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.9, metalness: 0.3 });

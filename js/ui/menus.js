@@ -5,10 +5,13 @@ import { audio } from '../audio/audio.js';
 import { input } from '../core/input.js';
 import { save } from '../core/save.js';
 import { NATIONS, UNITS, UNIT_ORDER, WEAPONS, QUALITY, DEFAULT_KEYS, KEY_LABELS, VERSION, otherNation } from '../core/config.js';
-import { el, KTS } from '../core/util.js';
+import { el, KTS, clamp } from '../core/util.js';
 import { world } from '../world/world.js';
 import { BUILDERS } from '../sim/factory.js';
 import { econ, fmtCredits, PAY, PAY_TABLE, CREDIT } from '../core/economy.js';
+import { cosmetics, ITEMS, ITEM, TIERS, SLOTS, AIR, PAINT_UNITS, MAX_ACCESSORIES } from '../core/cosmetics.js';
+import { applyPaint } from '../gfx/paint.js';
+import { store } from '../core/store.js';
 import { battle } from '../world/battle.js';
 import { buildSoldier, animateSoldier } from '../units/human.js';
 
@@ -26,7 +29,7 @@ const wallet = () => `<div class="wallet" title="Credits">${CREDIT} ${Math.round
 const SCREENS = {
   title: () => `<div class="screen dim"><div class="title-col">
       <div class="logo">STEEL<br>TIDE<small>MODERN NAVAL WARFARE</small></div>
-      <div class="menu"><button class="btn primary" data-go="nation">Play</button><button class="btn" data-go="settings">Settings</button><button class="btn" data-go="howto">How to Play</button></div>
+      <div class="menu"><button class="btn primary" data-go="nation">Play</button><button class="btn" data-go="hangar">Hangar</button><button class="btn" data-go="settings">Settings</button><button class="btn" data-go="howto">How to Play</button></div>
       ${wallet()}
       ${fastRow()}
       <a class="homelink" href="/">← Back to HunterAceDev</a>
@@ -85,6 +88,17 @@ const SCREENS = {
       <p style="line-height:1.5">Soldiers pay ${fmtCredits(PAY.soldier)} each, up to ${fmtCredits(PAY.infantryCap)} per battle, so going down with a ship doesn't flood your wallet.</p>
       <p style="color:var(--dim);line-height:1.5">That limit counts everyone: marines you shoot, and the crews lost with the ships and aircraft you destroy. Ships and aircraft themselves always pay in full. The meter beside your Credits in battle shows how much infantry pay is left.</p>
       <div class="actions"><button class="btn primary" data-back>Back</button></div></div></div>`,
+  // Hangar: try on, buy and equip looks. Left: tabs and the list; middle: the 3D preview; right: the selected item.
+  hangar: () => {
+    const tabs = [['paint', 'Paint'], ['helmet', 'Helmets'], ['uniform', 'Uniforms'], ['accessory', 'Accessories']], N = NATIONS[hg.nation];
+    const list = ITEMS.filter((i) => i.kind === hg.tab);
+    const row = (i) => { const own = cosmetics.owns(i.id), eq = cosmetics.isEquipped(hg.nation, i.id, hg.unit); return `<button class="hitem${i.id === hg.sel ? ' on' : ''}" data-item="${i.id}" style="--tier:${TIERS[i.tier].color}"><b>${i.name}</b><small>${i.kind === 'accessory' ? SLOTS[i.slot] + ' · ' : ''}${TIERS[i.tier].label}</small><span class="st">${eq ? 'EQUIPPED' : own ? 'OWNED' : '<i class="lock"></i>' + cosmetics.priceText(i)}</span></button>`; };
+    return `<div class="screen"><div class="topbar"><h1>Hangar</h1><span style="display:flex;gap:.8em;align-items:center">${wallet()}<button class="btn small" data-store>Get Credits</button><button class="btn small" data-back>Back</button></span></div>
+      <div class="unitsel"><div class="unitlist"><div class="seg htabs">${tabs.map((t) => `<button data-htab="${t[0]}" class="${hg.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
+        <div class="seg" style="margin:.7em 0">${['aethia', 'extro'].map((n) => `<button data-hnation="${n}" class="${hg.nation === n ? 'on' : ''}" style="color:${NATIONS[n].color}">${NATIONS[n].name}</button>`).join('')}</div>
+        ${hg.tab === 'paint' ? `<label class="hsel">Show on <select data-hunit>${PAINT_UNITS.map((k) => `<option value="${k}"${k === hg.unit ? ' selected' : ''}>${UNITS[k].label}</option>`).join('')}</select></label>` : hg.tab === 'accessory' ? `<p class="hnote">Wear up to ${MAX_ACCESSORIES} at once, one per slot. Wearing now: ${cosmetics.set(hg.nation).acc.length}.</p>` : ''}
+        ${list.map(row).join('')}</div><div class="hdrag" id="hdrag"></div><div class="unitinfo" id="hinfo"></div></div></div>`;
+  },
   // after every battle: what it paid, line by line
   results: () => {
     const r = econ.last || {}, row = (a, b, note = '') => `<div class="stat"><span>${a}${note ? ` <em>${note}</em>` : ''}</span><span>${fmtCredits(b || 0)}</span></div>`;
@@ -100,6 +114,28 @@ const SCREENS = {
       <div style="margin-top:1em;text-align:left">${fastRow().replace('width:24em', '')}</div></div></div>`,
 };
 
+// ---- Hangar ----
+const hg = { tab: 'paint', sel: '', unit: 'fighter', nation: 'aethia', confirm: '', msg: '', spin: 0.6, zoom: 1, drag: false };
+function hangarPreview() {
+  const it = ITEM[hg.sel]; if (!it) return;
+  if (it.kind === 'paint') { if (it.air && !AIR.includes(hg.unit)) hg.unit = 'fighter'; showroomSet({ nation: hg.nation, unit: hg.unit, paint: it.key }); }
+  else { const o = cosmetics.outfit(hg.nation); if (it.kind === 'helmet') o.helmet = it.key; else if (it.kind === 'uniform') o.uniform = it.key; else { o.acc = o.acc.filter((k) => ITEM['acc.' + k].slot !== it.slot); if (o.acc.length >= MAX_ACCESSORIES) o.acc.pop(); o.acc.push(it.key); } showroomSet({ nation: hg.nation, unit: 'marine', outfit: o }); }
+}
+function hangarInfo() {
+  const box = el('hinfo'), it = ITEM[hg.sel]; if (!box || !it) return;
+  const own = cosmetics.owns(it.id), eq = cosmetics.isEquipped(hg.nation, it.id, hg.unit), short = Math.max(0, it.price - econ.credits), T = TIERS[it.tier];
+  let act;
+  if (!own) act = short > 0 ? `<p class="need">Need ${fmtCredits(short)} more</p><button class="btn" data-store>${store.enabled ? 'Get Credits' : 'Get Credits (store coming soon)'}</button>`
+    : `<button class="btn primary" data-buy="${it.id}">${hg.confirm === it.id ? `Confirm: pay ${fmtCredits(it.price)}` : `Buy for ${fmtCredits(it.price)}`}</button>`;
+  else if (it.kind === 'paint') act = `<button class="btn primary" data-equip="${it.id}">${eq ? 'Remove from' : 'Paint'} the ${UNITS[hg.unit].label}</button><button class="btn" data-equip="${it.id}" data-all="1">${it.air ? 'Apply to every aircraft' : 'Apply to all units'}</button>`;
+  else act = `<button class="btn primary" data-equip="${it.id}">${eq ? 'Unequip' : 'Equip'}</button>`;
+  box.innerHTML = `<h2 style="color:${T.color}">${it.name}</h2><div class="cls" style="color:${T.color}">${T.label}${it.kind === 'accessory' ? ' · ' + SLOTS[it.slot] : ''}</div><p>${it.desc}</p>
+    ${it.pair && !own ? `<p>Comes with: ${ITEM[it.pair].name} (${ITEM[it.pair].kind}).</p>` : ''}
+    <div class="stat"><span>Price</span><span>${cosmetics.priceText(it)}</span></div><div class="stat"><span>Status</span><span>${eq ? 'Equipped' : own ? 'Owned' : 'Preview only'}</span></div><div class="stat"><span>Your Credits</span><span>${fmtCredits(econ.credits)}</span></div>
+    <p class="hmsg">${hg.msg || (own ? '' : 'You are trying it on. Looks only: nothing here changes how a unit performs.')}</p>
+    <div class="hact">${act}</div><p class="hnote">Drag to turn, wheel to zoom. Equipped looks are saved for ${NATIONS[hg.nation].name}.</p>`;
+}
+
 function unitInfo() {
   const d = UNITS[unit], N = NATIONS[nation], box = el('unitinfo'); if (!box) return;
   const sp = d.kind === 'soldier' ? `${d.speed.toFixed(0)} m/s running` : `${Math.round(d.speed / KTS)} kn`;
@@ -114,7 +150,8 @@ function unitInfo() {
     <button class="btn primary" data-deploy>Deploy</button>`;
 }
 
-function showroomSet() {
+function showroomSet(custom = null) {
+  const nation_ = custom ? custom.nation : nation, unit_ = custom ? custom.unit : unit;
   if (!show.scene) {
     show.scene = new THREE.Scene(); show.scene.background = new THREE.Color(0x0b1c2b); show.scene.environment = gfx.scene.environment; show.scene.environmentIntensity = 0.6;
     show.scene.fog = new THREE.Fog(0x0b1c2b, 400, 1800);
@@ -123,11 +160,13 @@ function showroomSet() {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.98, 1, 96), new THREE.MeshBasicMaterial({ color: 0x5aa9ff, transparent: true, opacity: 0.5 })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; show.scene.add(ring); show.ring = ring;
     show.cam = new THREE.PerspectiveCamera(32, 1, 0.5, 4000); show.pivot = new THREE.Group(); show.scene.add(show.pivot);
   }
-  const key = nation + ':' + unit;
+  const key = nation_ + ':' + unit_ + (custom ? ':' + (custom.paint || '') + ':' + JSON.stringify(custom.outfit || '') : '');
+  show.unit = unit_;
   if (!show.cache[key]) {
-    let g; if (unit === 'marine') { g = buildSoldier(nation, { role: 'marine' }); g.userData.size = 2.6; g.userData.lift = 0; }
-    else { g = BUILDERS[unit](nation, 0); const m = g.userData.model, d = m.dims; g.userData.size = Math.max(d.length, d.span || 0, d.beam || 0); g.userData.lift = UNITS[unit].kind === 'jet' || UNITS[unit].kind === 'heli' ? m.gearHeight : UNITS[unit].kind === 'sub' ? d.draft + 1 : d.draft + 0.5; if (m.gear) for (const gr of m.gear) gr.visible = true; if (m.burners) for (const b of m.burners) b.visible = false; }
-    show.cache[key] = g;
+    const nation = nation_, unit = unit_; // the build below uses these names
+    let g; if (unit === 'marine') { g = buildSoldier(nation, { role: 'marine', ...(custom && custom.outfit ? custom.outfit : cosmetics.outfit(nation)) }); g.userData.size = 2.6; g.userData.lift = 0; }
+    else { g = BUILDERS[unit](nation, 0); applyPaint(g, nation, custom ? custom.paint : cosmetics.paintFor(nation, unit)); const m = g.userData.model, d = m.dims; g.userData.size = Math.max(d.length, d.span || 0, d.beam || 0); g.userData.lift = UNITS[unit].kind === 'jet' || UNITS[unit].kind === 'heli' ? m.gearHeight : UNITS[unit].kind === 'sub' ? d.draft + 1 : d.draft + 0.5; if (m.gear) for (const gr of m.gear) gr.visible = true; if (m.burners) for (const b of m.burners) b.visible = false; }
+    show.cache[key] = g; show.keys = show.keys || []; show.keys.push(key); if (show.keys.length > 14) delete show.cache[show.keys.shift()]; // keep the cache small
   }
   if (show.model) show.pivot.remove(show.model);
   show.model = show.cache[key]; show.model.position.y = show.model.userData.lift; show.pivot.add(show.model);
@@ -140,18 +179,26 @@ export const menus = {
   init(a) {
     app = a; root = el('screens');
     root.addEventListener('click', (e) => this.click(e));
+    root.addEventListener('pointerdown', (e) => { if (cur === 'hangar' && e.target.id === 'hdrag') { hg.drag = true; hg.px = e.clientX; e.target.setPointerCapture(e.pointerId); } });
+    root.addEventListener('pointermove', (e) => { if (hg.drag && show.pivot) { show.pivot.rotation.y += (e.clientX - hg.px) * 0.01; hg.px = e.clientX; } });
+    root.addEventListener('pointerup', () => { hg.drag = false; }); root.addEventListener('pointercancel', () => { hg.drag = false; });
+    root.addEventListener('wheel', (e) => { if (cur === 'hangar' && e.target.id === 'hdrag') hg.zoom = clamp(hg.zoom * (e.deltaY > 0 ? 1.1 : 0.9), 0.35, 1.6); }, { passive: true });
+    root.addEventListener('change', (e) => { if (e.target.dataset.hunit !== undefined) { hg.unit = e.target.value; this.refresh(); } });
     root.addEventListener('pointerover', (e) => { const b = e.target.closest('button'); if (b && b !== this._hov) { this._hov = b; audio.play('hover'); } else if (!b) this._hov = null; }); root.addEventListener('input', (e) => this.inputEv(e));
     el('notice').addEventListener('click', (e) => { if (e.target.dataset.act && this._noticeFn) this._noticeFn(); el('notice').hidden = true; });
     nation = save.data.last.nation; unit = save.data.last.unit;
   },
   show(name, o = {}) {
-    if (cur && name !== cur && (name === 'settings' || name === 'howto' || name === 'pay')) stack.push(cur); else if (name === 'title' || name === 'pause' || (name === 'units' && o.redeploy)) stack = [];
+    if (cur && name !== cur && (name === 'settings' || name === 'howto' || name === 'pay' || name === 'hangar' || name === 'store')) stack.push(cur); else if (name === 'title' || name === 'pause' || (name === 'units' && o.redeploy)) stack = [];
     if (name === 'results') opts = o;
     if (name === 'units') { opts = o; if (o.redeploy) nation = world.playerNation; }
-    cur = name; root.innerHTML = SCREENS[name](); this.showroomActive = name === 'units';
+    if (name === 'hangar' && !hg.sel) { hg.nation = world.playerNation || nation; hg.sel = ITEMS.find((i) => i.kind === hg.tab).id; }
+    cur = name; root.innerHTML = SCREENS[name](); this.showroomActive = name === 'units' || name === 'hangar';
+    if (name === 'hangar') { hangarPreview(); hangarInfo(); }
     if (name === 'units') { showroomSet(); unitInfo(); document.documentElement.style.setProperty('--nation', NATIONS[nation].color); }
     if (name === 'settings') this.syncFast();
   },
+  refresh() { const st = stack; this.show(cur, opts); stack = st; },
   hide() { cur = null; root.innerHTML = ''; this.showroomActive = false; stack = []; },
   back() { if (cur === 'pause') { app.resume(); return; } const prev = stack.pop(); if (prev) { const s = stack; this.show(prev, opts); stack = s; } else if (cur === 'nation' || cur === 'units') this.show(cur === 'units' ? 'nation' : 'title'); else this.show(app.state === 'paused' ? 'pause' : 'title'); },
   syncFast() {
@@ -168,6 +215,12 @@ export const menus = {
     if (d.unit) { unit = d.unit; root.querySelectorAll('.unitbtn').forEach((b) => b.classList.toggle('on', b.dataset.unit === unit)); showroomSet(); unitInfo(); return; }
     if (d.dock !== undefined) { startDock = d.dock === '1'; unitInfo(); return; }
     if (d.deploy !== undefined) { app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub' }); return; }
+    if (d.htab) { hg.tab = d.htab; hg.sel = ITEMS.find((i) => i.kind === hg.tab).id; hg.confirm = ''; hg.msg = ''; return this.refresh(); }
+    if (d.hnation) { hg.nation = d.hnation; hg.msg = ''; return this.refresh(); }
+    if (d.item) { hg.sel = d.item; hg.confirm = ''; hg.msg = ''; return this.refresh(); }
+    if (d.buy) { if (hg.confirm !== d.buy) { hg.confirm = d.buy; hangarInfo(); return; } const r = cosmetics.buy(d.buy); hg.confirm = ''; hg.msg = r.ok ? 'Bought. It is yours for good.' : ''; return this.refresh(); }
+    if (d.equip) { const r = cosmetics.toggle(hg.nation, d.equip, d.all ? 'all' : hg.unit); hg.msg = r.ok ? '' : r.why; return this.refresh(); }
+    if (d.store !== undefined) { if (store.enabled) this.show('store'); else { hg.msg = 'Store coming soon.'; if (cur === 'hangar') hangarInfo(); else this.notice('Store coming soon.'); } return; }
     if (d.continue !== undefined) { this.show('units', { redeploy: true, next: true }); return; }
     if (d.resume !== undefined) return app.resume();
     if (d.change !== undefined) { app.state = 'select'; this.show('units', { redeploy: true, change: true }); return; }
@@ -184,10 +237,10 @@ export const menus = {
     if (id === 'resScale') gfx.resize(); if (id === 'fov') { gfx.camera.fov = v; gfx.camera.updateProjectionMatrix(); } if (id === 'sfx' || id === 'music') audio.setVolumes(s.sfx, s.music);
   },
   renderShowroom(dt) {
-    if (!show.scene || !show.model) return; show.t += dt; show.pivot.rotation.y += dt * 0.35;
-    const c = show.cam, a = 0.5; c.aspect = gfx.w / gfx.h; c.updateProjectionMatrix();
-    c.position.set(Math.sin(a) * show.dist * 1.25, show.h + show.dist * 0.2, Math.cos(a) * show.dist * 1.25); c.lookAt(0, show.look, 0);
-    if (unit === 'marine') animateSoldier(show.model, 'aim', show.t, 0, 0);
+    if (!show.scene || !show.model) return; show.t += dt; if (!hg.drag) show.pivot.rotation.y += dt * (cur === 'hangar' ? 0.22 : 0.35);
+    const c = show.cam, a = 0.5, z = cur === 'hangar' ? hg.zoom : 1; c.aspect = gfx.w / gfx.h; c.updateProjectionMatrix();
+    c.position.set(Math.sin(a) * show.dist * 1.25 * z, show.h + show.dist * 0.2 * z, Math.cos(a) * show.dist * 1.25 * z); c.lookAt(0, show.look, 0);
+    if (show.unit === 'marine') animateSoldier(show.model, cur === 'hangar' ? 'idle' : 'aim', show.t, 0, 0);
     const m = show.model.userData.model; if (m) for (const s of m.spinners) s.node.rotation[s.axis] += s.speed * dt * (s.blades ? 0.15 : 1);
     gfx.renderer.render(show.scene, c);
   },
