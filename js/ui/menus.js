@@ -103,7 +103,7 @@ function showroomSet() {
   }
   if (show.model) show.pivot.remove(show.model);
   show.model = show.cache[key]; show.model.position.y = show.model.userData.lift; show.pivot.add(show.model);
-  const s = show.model.userData.size; show.ring.scale.setScalar(s * 0.62); show.dist = s * 1.5 + 4; show.h = s * 0.32 + 1.2; show.look = show.model.userData.lift + s * 0.07;
+  const s = show.model.userData.size; show.ring.scale.setScalar(s * 0.62); show.dist = s * 1.0 + 3.5; show.h = s * 0.26 + 1.0; show.look = show.model.userData.lift + s * 0.07;
   show.ring.material.color.set(NATIONS[nation].color);
 }
 

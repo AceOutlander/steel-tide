@@ -64,7 +64,7 @@ export const hud = {
     E.stick.hidden = !(heli && u.state === 'fly'); if (!E.stick.hidden) E.stick.firstChild.style.transform = `translate(${player.stick.x * 3.1}em, ${player.stick.y * 3.1}em)`;
     E.scope.hidden = !player.scopeView;
     u.hitFlash = Math.max(0, (u.hitFlash || 0) - dt * 1.5); E.vig.style.opacity = Math.min(0.8, u.hitFlash + (u.hp < u.maxHp * 0.25 ? 0.25 : 0));
-    E.black.style.opacity = jet ? clamp((u.gSmooth - 6.5) / 3, 0, 0.92) : 0;
+    E.black.style.opacity = jet && u.alive ? clamp((u.gSmooth - 6.5) / 3, 0, 0.92) : 0;
     E.prompt.hidden = !player.prompt; if (player.prompt && E.prompt._t !== player.prompt) { E.prompt.innerHTML = player.prompt; E.prompt._t = player.prompt; }
     if (input.tap('map')) { E.map.hidden = !E.map.hidden; }
     // ---- slower text ----

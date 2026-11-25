@@ -80,7 +80,7 @@ export class Unit {
   kill(attacker) {
     if (!this.alive) return; this.alive = false; this.killedT = world.t;
     const by = attacker && attacker !== this ? attacker : null;
-    const verb = this.kind === 'ship' || this.kind === 'sub' ? 'sunk' : this.kind === 'soldier' ? 'killed' : 'shot down';
+    const verb = this.kind === 'ship' || this.kind === 'sub' ? 'sunk' : this.kind === 'soldier' ? (by ? 'killed' : 'lost') : by ? 'shot down' : 'crashed';
     const mine = by && by.isPlayer, cls = this.isPlayer ? 'bad' : mine ? 'mine' : this.nation === world.playerNation ? 'loss' : 'win';
     world.say(`${this.label} ${verb}${by ? ' by ' + by.label : ''}`, cls);
     if (by) { by.kills++; world.score[by.nation] += this.def.score; if (mine) save.addKill(this.type, this.kind); }
@@ -95,13 +95,13 @@ export class Unit {
     m.scan -= dt;
     const k = m.key, def = m.def;
     if (m.scan <= 0 || (m.target && !m.target.alive)) {
-      m.scan = 0.5 + Math.random() * 0.3; let best = null, bd = this.isPlayer ? def.range : def.aiRange || def.range; m.pos(_a);
+      m.scan = 0.5 + Math.random() * 0.3; let best = null, bd = 1e9; const maxR = this.isPlayer ? def.range : def.aiRange || def.range; m.pos(_a);
       for (const u of world.units) {
         if (!u.alive || u.nation === this.nation || !u.seen) continue;
         if (k === 'ciws' || k === 'sam') { if (!u.isAir) continue; if (k === 'sam' && (u.pos.y < 25 || (u.cloaked && u.pos.distanceTo(_a) > 2600))) continue; }
         else if (k === 'mg' || k === 'chin') { if (u.kind === 'sub' && u.depth > 2) continue; if (u.kind === 'jet') continue; if (u.kind === 'ship' && u.def.armor > 1) continue; }
         else if (u.isAir || (u.kind === 'sub' && u.depth > 4) || u.kind === 'soldier') continue;
-        const d = u.pos.distanceTo(_a) * (u === this.aiTarget ? 0.5 : 1); if (d < bd) { bd = d; best = u; }
+        const d0 = u.pos.distanceTo(_a); if (d0 > maxR) continue; const d = d0 * (u === this.aiTarget ? 0.5 : 1); if (d < bd) { bd = d; best = u; }
       }
       if (best !== m.target) m.lock = 0; m.target = best;
     }
@@ -182,6 +182,7 @@ export class Ship extends Unit {
   effects(dt, hpF) {
     for (const s of this.model.spinners) s.node.rotation[s.axis] += s.speed * dt * (s.prop ? this.throttle : 1);
     const near = (this.camDist || 0) < 3500;
+    if (this.parkedGroup) this.parkedGroup.visible = (this.camDist || 0) < 1700 * gfx.q.lod;
     if (near) {
       this.smokeT -= dt;
       if (this.smokeT <= 0) {

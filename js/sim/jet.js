@@ -83,7 +83,7 @@ export class Jet extends Unit {
       if (this.catLeft <= 0 || !this.carrier.alive) { this.state = 'fly'; this.fwd(_f); _q.setFromAxisAngle(XA, 0.1); this.quat.multiply(_q); this.fwd(_f); this.vel.copy(_f).multiplyScalar(this.catV).add(this.carrier.vel); this.speed = this.vel.length(); this.carrier = null; this.launchT = world.t; }
     } else if (this.state === 'arrest') {
       if (!this.carrier.alive) { this.kill(null); return; }
-      this.catV = Math.max(0, this.catV - 38 * dt); const s = this.catV * dt;
+      this.catV = Math.max(0, this.catV - 52 * dt); const s = this.catV * dt;
       this.deckLocal.x += -Math.sin(this.deckYaw) * s; this.deckLocal.z += -Math.cos(this.deckYaw) * s; this.stick(); this.speed = this.catV;
       if (this.catV <= 0) { this.state = 'deck'; this.landedT = world.t; this.rearm(); if (this.isPlayer) world.say('Trapped. Aircraft re-armed and repaired.', 'good'); }
     } else this.fly(dt);

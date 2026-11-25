@@ -32,7 +32,7 @@ export const gfx = {
     this.sunDir.set(Math.cos(elev) * Math.sin(az), Math.sin(elev), Math.cos(elev) * Math.cos(az)).normalize();
     const mkSky = () => {
       const s = new Sky(); s.scale.setScalar(400000);
-      const u = s.material.uniforms; u.turbidity.value = 5.5; u.rayleigh.value = 1.5; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82; u.sunPosition.value.copy(this.sunDir);
+      const u = s.material.uniforms; u.turbidity.value = 3.6; u.rayleigh.value = 1.9; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82; u.sunPosition.value.copy(this.sunDir);
       return s;
     };
     this.sky = mkSky(); this.sky.renderOrder = -10; this.scene.add(this.sky);

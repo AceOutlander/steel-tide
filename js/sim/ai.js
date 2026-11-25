@@ -31,7 +31,7 @@ class ShipAI {
     const u = this.u, def = u.def, type = u.type, home = ownCarrier(u), foe = enemyCarrier(u);
     const isSurf = (e) => e.kind === 'ship' || (e.kind === 'sub' && e.depth < 4);
     let tg = nearestEnemy(u, isSurf, type === 'battlecruiser' ? 12000 : 7000);
-    if (type === 'battlecruiser' && foe && foe.alive && foe.seen && foe.pos.distanceTo(u.pos) < 11000 && (!tg || tg.def.armor < 2)) tg = foe;
+    if (type === 'battlecruiser' && foe && foe.alive && foe.seen && foe.pos.distanceTo(u.pos) < 6500 && (!tg || tg.def.armor < 2)) tg = foe;
     this.target = tg; u.aiTarget = tg;
     let gx, gz, thr = 0.7;
     if (type === 'carrier') {

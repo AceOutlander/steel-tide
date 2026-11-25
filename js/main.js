@@ -70,7 +70,8 @@ export const app = {
   },
   redeploy() { this.state = 'select'; input.unlock(); hud.show(false); menus.show('units', { redeploy: true }); },
   nextBattle() {
-    const n = world.playerNation; if (player.unit && player.unit.alive) battle.releasePlayer(player.unit); player.unit = null;
+    const n = world.playerNation; if (this.state === 'menu') { battle.start(n); return; } // the title-screen battle just starts over
+    if (player.unit && player.unit.alive) battle.releasePlayer(player.unit); player.unit = null;
     battle.start(n); world.playerKills = 0; hud.clearFeed(); this.state = 'select'; input.unlock(); hud.show(false); menus.show('units', { redeploy: true, next: true });
   },
   setFast(on, silent) { save.settings.fast = on; save.settings.fastAsked = true; save.write(); gfx.applyQuality(); menus.syncFast(); if (!silent) audio.play('click'); },
@@ -83,7 +84,7 @@ export const app = {
     requestAnimationFrame((t) => this.frame(t));
     let dt = (now - last) / 1000; last = now; if (dt > 0.1) dt = 0.1; if (dt <= 0) return;
     fpsT += dt; fpsN++; if (fpsT >= 1) { this.fps = fpsN / fpsT; fpsT = 0; fpsN = 0; this.fpsTick(); }
-    if (this.state === 'select' && menus.showroomActive) { menus.renderShowroom(dt); input.endFrame(); return; }
+    if (menus.showroomActive && (this.state === 'select' || this.state === 'menu')) { menus.renderShowroom(dt); input.endFrame(); return; }
     const sim = this.state !== 'paused' && this.state !== 'boot';
     if (sim) {
       if (this.state === 'battle' || this.state === 'dead') player.update(dt);

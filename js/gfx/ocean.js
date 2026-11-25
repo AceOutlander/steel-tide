@@ -93,7 +93,11 @@ void main(){
   // foam: wave crests, shorelines, hulls and wakes
   float fn = texture2D(uFoamMap, uv * 0.03 + vec2(uTime * 0.01, 0.0)).r;
   float fn2 = texture2D(uFoamMap, uv * 0.11 - vec2(0.0, uTime * 0.02)).r;
+  #ifndef SIMPLE
   float foam = smoothstep(1.5, 2.3, vH + fn * 0.75) * 0.42 * fn2 * (1.0 - smoothstep(1200.0, 4000.0, dist));
+#else
+  float foam = 0.0;
+#endif
   foam += shore * (0.5 + 0.5 * sin(uTime * 0.9 + fn * 6.0)) * 0.9;
   for (int i = 0; i < ${MAX_SHIPS}; i++) {
     if (i >= uShipCount) break;
@@ -154,6 +158,11 @@ export const ocean = {
     this.mesh = new THREE.Mesh(gridGeometry(128), this.mat);
     this.mesh.frustumCulled = false; this.mesh.renderOrder = -2;
     gfx.scene.add(this.mesh);
+    // underwater light shafts: a ring of soft additive blades hanging from the surface around the camera
+    const sc = document.createElement('canvas'); sc.width = 64; sc.height = 64; const sx = sc.getContext('2d'); const gr = sx.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, '#000'); gr.addColorStop(0.5, '#fff'); gr.addColorStop(1, '#000'); sx.fillStyle = gr; sx.fillRect(0, 0, 64, 64); const gv = sx.createLinearGradient(0, 0, 0, 64); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(1, 'rgba(0,0,0,1)'); sx.fillStyle = gv; sx.fillRect(0, 0, 64, 64);
+    const sg = new THREE.Group(), sm = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.8, 0.85), map: new THREE.CanvasTexture(sc), transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    for (let i = 0; i < 14; i++) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(3 + (i % 4) * 2.5, 90), sm); const a = i * 2.4, r = 14 + (i * 37) % 60; pl.position.set(Math.cos(a) * r, -42, Math.sin(a) * r); pl.rotation.set(0, a * 1.7, 0.32); sg.add(pl); }
+    sg.visible = false; this.shafts = sg; this.shaftMat = sm; gfx.scene.add(sg);
     gfx.onQuality((q) => this.setQuality(q));
     this.setQuality(gfx.q);
   },
@@ -173,6 +182,7 @@ export const ocean = {
   update(dt, camera) {
     seaTime += dt;
     const u = this.mat.uniforms; u.uTime.value = seaTime; u.uFogDensity.value = gfx.scene.fog.density; u.uUnder.value = gfx.underwater ? 1 : 0;
+    const sh = this.shafts; sh.visible = gfx.underwater && camera.position.y > -70 && !gfx.q.simpleWater; if (sh.visible) { sh.position.set(camera.position.x, 0, camera.position.z); sh.rotation.y = seaTime * 0.02; this.shaftMat.opacity = 0.16 + 0.05 * Math.sin(seaTime * 1.7); }
     const c = this.cell; this.mesh.position.set(Math.round(camera.position.x / c) * c, 0, Math.round(camera.position.z / c) * c);
   },
 };
