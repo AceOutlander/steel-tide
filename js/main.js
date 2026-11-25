@@ -13,6 +13,8 @@ import { battle } from './world/battle.js';
 import { weapons } from './sim/weapons.js';
 import { player } from './sim/player.js';
 import { crew } from './sim/crewpick.js';
+import { wrecks } from './sim/wreck.js';
+import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
 
@@ -33,7 +35,7 @@ export const app = {
     setTimeout(() => {
       try {
         gfx.init(canvas); prog(45, 'Filling the sea');
-        fx.init(); ocean.init(); weapons.init(); world.buildIslands(); crew.init(); world.missiles = weapons.missiles; world.torps = weapons.torps;
+        fx.init(); ocean.init(); weapons.init(); world.buildIslands(); crew.init(); wrecks.init(BUILDERS); world.missiles = weapons.missiles; world.torps = weapons.torps;
         input.init(canvas); hud.init(); menus.init(app);
         world.onKill = (u, by) => { battle.onKill(u, by); if (by && by.isPlayer) world.playerKills = (world.playerKills || 0) + 1; if (u.isPlayer || (player.soldier === u && player.unit && player.unit.pilot === u)) this.playerDied(u, by); };
         battle.onEnd = () => this.nextBattle();
@@ -70,7 +72,7 @@ export const app = {
   toMenu() { if (player.unit && player.unit.alive) battle.releasePlayer(player.unit); player.unit = null; world.player = null; this.state = 'menu'; hud.show(false); input.unlock(); audio.resume(); audio.music('menu'); menus.show('title'); },
   playerDied(u, by) {
     if (this.state !== 'battle' && this.state !== 'paused') return;
-    save.stats.deaths++; save.write(); deadT = 3.2; this.state = 'dead';
+    save.stats.deaths++; save.write(); deadT = u.isAir ? 5.5 : 3.2; this.state = 'dead'; // long enough to watch the wreck fall
     hud.message(u.kind === 'ship' || u.kind === 'sub' ? 'SHIP LOST' : u.kind === 'soldier' ? 'KILLED IN ACTION' : 'AIRCRAFT LOST', by ? `by ${by.label}` : '', 3);
   },
   redeploy() { this.state = 'select'; input.unlock(); hud.show(false); menus.show('units', { redeploy: true }); },
@@ -133,7 +135,7 @@ export const app = {
     const wy = waveHeight(cp.x, cp.z), under = wy - cp.y;
     gfx.setUnderwater(under > 0.05 ? under : 0); audio.setUnderwater(under > 0.05);
     ocean.update(sim ? dt : 0, cam);
-    if (sim) { fx.update(dt); crew.update(dt, cp); if (under > 0.05 && Math.random() < 0.3) { cam.getWorldDirection(_a); _b.copy(cp).addScaledVector(_a, 6 + Math.random() * 14); _b.x += (Math.random() - 0.5) * 16; _b.y += (Math.random() - 0.5) * 8; _b.z += (Math.random() - 0.5) * 16; fx.bubbles(_b, 0.6); } }
+    if (sim) { fx.update(dt); wrecks.update(dt, cp); crew.update(dt, cp); if (under > 0.05 && Math.random() < 0.3) { cam.getWorldDirection(_a); _b.copy(cp).addScaledVector(_a, 6 + Math.random() * 14); _b.x += (Math.random() - 0.5) * 16; _b.y += (Math.random() - 0.5) * 8; _b.z += (Math.random() - 0.5) * 16; fx.bubbles(_b, 0.6); } }
     const focus = pu && this.state !== 'menu' && this.state !== 'select' ? (pu.kind === 'soldier' && pu.on ? pu.on : pu) : world.carriers[world.playerNation];
     if (focus) gfx.focusShadow(pu && pu.kind === 'soldier' ? pu.pos : focus.pos, focus.dims ? Math.max(focus.dims.length * 0.62, 40) : 60);
     this.audioScene(dt, cam);

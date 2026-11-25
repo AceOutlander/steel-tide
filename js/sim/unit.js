@@ -77,7 +77,7 @@ export class Unit {
     if (!this.alive || amount <= 0) return;
     if (this.invuln > world.t) return;
     if (this.isPlayer && attacker && !attacker.isPlayer) amount *= save.diff.dmgIn;
-    this.hp -= amount; if (attacker && attacker !== this) this.lastHitBy = attacker; this.lastHitT = world.t;
+    this.hp -= amount; if (attacker && attacker !== this) this.lastHitBy = attacker; this.lastHitT = world.t; this.lastHitDef = def || null; this.lastHitAmount = amount;
     if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); gfx.shake(clamp(amount / (this.maxHp * 0.12 + 40), 0.12, 0.7)); if (attacker && attacker !== this) world.hurt(this, attacker, hitPos); }
     if (attacker && attacker.isPlayer && attacker !== this) { attacker.hitMarker = world.t + 0.25; world.struck(this, amount, this.hp - amount <= 0); }
     if (hitPos && amount >= 30 && this.lod0 && (this.kind === 'ship' || this.kind === 'sub')) this.addScorch(hitPos, Math.min(5, 1 + amount * 0.004));

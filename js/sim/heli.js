@@ -8,6 +8,7 @@ import { V3, clamp, damp, approach, wrapPi } from '../core/util.js';
 import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
 import { surfaceBelow } from './surface.js';
+import { wrecks } from './wreck.js';
 
 const _a = new V3(), _b = new V3(), _f = new V3(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const surf = { y: 0, ship: null, type: 'water', localY: 0 };
@@ -68,8 +69,8 @@ export class Heli extends Unit {
     surfaceBelow(p, surf, gh + 4);
     if (p.y - gh <= surf.y) {
       const hard = this.vel.y < -8.5 || Math.abs(this.pitchA) > 0.45 || Math.abs(this.rollA) > 0.45 || this.speed > 22;
-      if (surf.type === 'water') { fx.splash(p, 10); this.kill(this.lastHitBy || null); return; }
-      if (hard) { this.kill(this.lastHitBy || null); return; }
+      if (surf.type === 'water') { this.crashInto = 'water'; this.kill(this.lastHitBy || null); return; }
+      if (hard) { this.crashInto = surf.type === 'deck' ? 'deck' : 'ground'; this.crashShip = surf.ship || null; this.kill(this.lastHitBy || null); return; }
       if (surf.type === 'deck') { const s = surf.ship; s.toLocal(p, _a); _a.y = surf.localY; this.place(s, _a, wrapPi(this.yaw - s.yaw)); }
       else { _a.set(p.x, surf.y, p.z); this.place(null, _a, this.yaw); }
       this.spool = false; if (this.isPlayer || this.pilot) audio.play('hit', { vol: 0.4 });
@@ -84,9 +85,8 @@ export class Heli extends Unit {
   }
   rearm() { for (const k in this.fw) this.fw[k].ammo = this.fw[k].def.ammo ?? Infinity; this.flares = this.def.flares; this.hp = this.maxHp; }
   onKilled(by) {
-    fx.explosion(this.pos, 12);
     for (const s of [...this.passengers]) { s.aboard = null; s.kill(by); } this.passengers.length = 0;
     if (this.pilot) { const s = this.pilot; this.pilot = null; s.aboard = null; s.kill(by); }
-    world.remove(this);
+    wrecks.destroy(this, by, this.crashInto || 'shot'); // breaks up and falls: see wreck.js
   }
 }

@@ -7,6 +7,7 @@ import { V3, rand, pick } from '../core/util.js';
 import { createUnit, BUILDERS } from '../sim/factory.js';
 import { attachAI } from '../sim/ai.js';
 import { weapons } from '../sim/weapons.js';
+import { wrecks } from '../sim/wreck.js';
 import { audio } from '../audio/audio.js';
 
 const sgn = (n) => (n === 'aethia' ? 1 : -1);
@@ -33,7 +34,7 @@ export const battle = {
   },
 
   start(playerNation) {
-    world.clear(); weapons.clear(); this.respawns.length = 0; this.nameIdx = { aethia: 0, extro: 0 }; this.endT = 0; this.active = true; world.t = 0;
+    world.clear(); weapons.clear(); wrecks.clear(); this.respawns.length = 0; this.nameIdx = { aethia: 0, extro: 0 }; this.endT = 0; this.active = true; world.t = 0;
     world.playerNation = playerNation;
     for (const n of ['aethia', 'extro']) this.spawnSide(n);
     world.say(`${NATIONS.aethia.name} and ${NATIONS.extro.name} fleets are closing. Sink the enemy carrier.`, 'info');

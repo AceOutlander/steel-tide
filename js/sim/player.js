@@ -198,7 +198,7 @@ export const player = {
     _d.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp); // look direction from yaw/pitch
     let fov = s.fov, near = 0.5, cockpit = false;
     const scope = u.kind === 'sub' && this.scope && u.scopeA > 0.9;
-    const tag = u.kind + ':' + this.mode + ':' + (u.gun ? 'gun' : u.aboard ? 'ride' : scope ? 'scope' : '') + (u.kind === 'ship' && this.mode === 'gunner' ? u.selKey : '');
+    const tag = u.kind + ':' + (u.alive ? this.mode : 'dead') + ':' + (u.gun ? 'gun' : u.aboard ? 'ride' : scope ? 'scope' : '') + (u.kind === 'ship' && this.mode === 'gunner' ? u.selKey : '');
     const snap = this._camUnit !== u || this._camTag !== tag;
     if (snap) { if (this._camUnit) cut(); this._camUnit = u; this._camTag = tag; this._pullT = 1; }
     fadeVeil(dt);
@@ -224,7 +224,7 @@ export const player = {
       }
       cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     } else if (u.kind === 'jet') {
-      if (this.mode === 'first') { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); if (u.state === 'fly') { _e.set(this.lookPitch, this.lookYaw, 0, 'YXZ'); cam.quaternion.multiply(_q.setFromEuler(_e)); } near = 0.1; cockpit = true; }
+      if (this.mode === 'first' && u.alive) { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); if (u.state === 'fly') { _e.set(this.lookPitch, this.lookYaw, 0, 'YXZ'); cam.quaternion.multiply(_q.setFromEuler(_e)); } near = 0.1; cockpit = true; }
       else {
         const dist = view.chase || 30, h = view.chaseH || 6, fly = u.state === 'fly';
         u.fwd(_f); _b.copy(fly ? _d : _f);
@@ -238,7 +238,7 @@ export const player = {
       }
       fov = s.fov + clamp((u.speed - 150) / 300, 0, 1) * 5;
     } else if (u.kind === 'heli') {
-      if (this.mode === 'first') { u.toWorld(u.model.cockpit || _a.set(0, 0.5, -3), cam.position); cam.quaternion.copy(u.quat); near = 0.1; cockpit = true; }
+      if (this.mode === 'first' && u.alive) { u.toWorld(u.model.cockpit || _a.set(0, 0.5, -3), cam.position); cam.quaternion.copy(u.quat); near = 0.1; cockpit = true; }
       else {
         const dist = view.chase || 28, h = view.chaseH || 8; u.fwd(_f); const yaw = Math.atan2(-_f.x, -_f.z);
         _c.copy(u.pos); _c.y += 1.5; _a.set(u.pos.x + Math.sin(yaw) * dist, u.pos.y + h, u.pos.z + Math.cos(yaw) * dist);

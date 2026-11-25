@@ -11,6 +11,7 @@ import { V3, clamp, damp, rand, approach } from '../core/util.js';
 import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
 import { surfaceBelow } from './surface.js';
+import { wrecks } from './wreck.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _f = new V3(), _u = new V3(), _r = new V3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 const XA = new V3(1, 0, 0), YA = new V3(0, 1, 0), ZA = new V3(0, 0, 1);
@@ -140,14 +141,14 @@ export class Jet extends Unit {
       if (this.gearDown && sink < 11 && rel < 135 && _u.y > 0.9 && sh.nation === this.nation && sh.type === 'carrier') {
         this.carrier = sh; sh.toLocal(p, this.deckLocal); this.deckLocal.y = surf.localY; this.fwd(_f); _q.copy(sh.quat).invert(); _f.applyQuaternion(_q);
         this.deckYaw = Math.atan2(-_f.x, -_f.z); this.catV = rel; this.state = 'arrest'; this.throttle = 0; this.ctl.throttle = 0; audio.play('hit', { pos: p });
-      } else { sh.damage(60, this, p, WEAPONS.bomb); this.crash(); }
+      } else { this.crashInto = 'deck'; this.crashShip = sh; this.crash(); }
       return;
     }
-    if (surf.type !== 'deck' && p.y - (this.gearDown ? gh : 1) < surf.y) { if (surf.type === 'water') fx.splash(p, 12); this.crash(); }
+    if (surf.type !== 'deck' && p.y - (this.gearDown ? gh : 1) < surf.y) { this.crashInto = surf.type === 'water' ? 'water' : 'ground'; this.crash(); }
     if (Math.abs(p.x) > 12500 || Math.abs(p.z) > 12500) { if (this.isPlayer && (this.edgeT || 0) < world.t) { this.edgeT = world.t + 4; world.say('Leaving the battle area: turn back', 'bad'); } if (Math.abs(p.x) > 14500 || Math.abs(p.z) > 14500) this.kill(null); }
   }
   crash() { this.kill(this.lastHitBy && world.t - (this.lastHitT || 0) < 12 ? this.lastHitBy : null); }
-  onKilled() { fx.explosion(this.pos, 13); for (let i = 0; i < 4; i++) fx.stack(this.pos, 6, 0.08, 0.7); world.remove(this); }
+  onKilled(by) { wrecks.destroy(this, by, this.crashInto || 'shot'); } // breaks up and falls: see wreck.js
 
   // weapons ---------------------------------------------------------------------------------------------------------------
   bombImpact(out) { const h = this.pos.y, vy = this.vel.y, t = (vy + Math.sqrt(vy * vy + 2 * 9.81 * Math.max(h, 0))) / 9.81; return out.set(this.pos.x + this.vel.x * t * 0.98, 0, this.pos.z + this.vel.z * t * 0.98); }
