@@ -173,7 +173,7 @@ export const player = {
     const subj = u.kind === 'soldier' && u.aboard ? u.aboard : u;
     if (u.kind === 'ship' || u.kind === 'sub') {
       const scope = u.kind === 'sub' && this.scope && u.scopeA > 0.9;
-      if (scope) { u.toWorld(u.model.scopeTop, cam.position); cam.position.y = Math.max(cam.position.y, waveHeight(cam.position.x, cam.position.z) + 0.9); fov = 32; }
+      if (scope) { u.toWorld(u.model.scopeTop, cam.position); cam.position.y = Math.max(cam.position.y + 1.2, waveHeight(cam.position.x, cam.position.z) + 2.6); fov = 32; }
       else if (this.mode === 'first') { u.toWorld(view.bridge, cam.position); }
       else if (this.mode === 'gunner' && u.mounts.some((m) => m.key === u.selKey)) { const m = u.mounts.find((k) => k.key === u.selKey && k.inArc) || u.mounts.find((k) => k.key === u.selKey); m.pos(cam.position); cam.position.y += m.t.kind === 'heavy' ? 5 : 1.1; cam.position.addScaledVector(_d, m.t.kind === 'heavy' ? -9 : -2.2); }
       else {
@@ -201,10 +201,10 @@ export const player = {
     } else {
       this.scopeView = false; const sd = u; near = 0.12;
       if (u.aboard) { const h = u.aboard, dist = 30; cam.position.set(h.pos.x - _d.x * dist, h.pos.y + 6 - _d.y * dist, h.pos.z - _d.z * dist); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
-      else if (u.gun) { const m = u.gun; m.pos(cam.position); m.dir(_f); cam.position.y += 0.45; cam.position.addScaledVector(_f, -1.5); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
+      else if (u.gun) { const m = u.gun; m.pos(cam.position); m.dir(_f); cam.position.y += 0.42; cam.position.addScaledVector(_f, -0.55); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
       else if (this.mode === 'first' && u.alive) { sd.eye(cam.position); cam.position.addScaledVector(_d, 0.12); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
       else { sd.eye(_a); cam.position.copy(_a).addScaledVector(_d, -4.2); cam.position.y += 0.7; cam.position.x += Math.cos(this.yaw) * 0.6; cam.position.z -= Math.sin(this.yaw) * 0.6; cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
-      u.hideBody = this.mode === 'first' && !u.gun && u.alive;
+      u.hideBody = (this.mode === 'first' || !!u.gun) && u.alive;
     }
     if (this.zoom > 0.01) fov = fov / (1 + this.zoom * (this.scopeView ? 3 : 2));
     if (Math.abs(cam.fov - fov) > 0.05 || cam.near !== near) { cam.fov = fov; cam.near = near; cam.updateProjectionMatrix(); }

@@ -57,7 +57,9 @@ void main(){
 #else
   vec2 dn = n1.xy * 0.8;
 #endif
-  float detail = mix(0.42, 0.07, smoothstep(150.0, 4500.0, dist));
+  float detail = mix(0.42, 0.035, smoothstep(40.0, 1400.0, dist));
+  vec3 n4 = texture2D(uNormalMap, uv * 0.0029 + vec2(uTime * 0.004, -uTime * 0.003)).xyz * 2.0 - 1.0;
+  dn = dn * detail + n4.xy * 0.11; detail = 1.0;
   vec3 N = normalize(vN + vec3(dn.x, 0.0, dn.y) * detail);
   if (uUnder > 0.5) {
     // seen from below: bright Snell window overhead, dark beyond it
@@ -91,7 +93,7 @@ void main(){
   // foam: wave crests, shorelines, hulls and wakes
   float fn = texture2D(uFoamMap, uv * 0.03 + vec2(uTime * 0.01, 0.0)).r;
   float fn2 = texture2D(uFoamMap, uv * 0.11 - vec2(0.0, uTime * 0.02)).r;
-  float foam = smoothstep(1.15, 1.9, vH + fn * 0.9) * 0.55 * (1.0 - smoothstep(1500.0, 5000.0, dist));
+  float foam = smoothstep(1.5, 2.3, vH + fn * 0.75) * 0.42 * fn2 * (1.0 - smoothstep(1200.0, 4000.0, dist));
   foam += shore * (0.5 + 0.5 * sin(uTime * 0.9 + fn * 6.0)) * 0.9;
   for (int i = 0; i < ${MAX_SHIPS}; i++) {
     if (i >= uShipCount) break;

@@ -146,7 +146,7 @@ class JetAI {
       dir = _d.set(_a.x - u.pos.x, (alt - u.pos.y) * 0.6, _a.z - u.pos.z).normalize(); thr = 1; ab = d < 5000;
       if (u.def.cloak && d < 6500 && !u.cloaked && u.cloakCd <= 0) u.toggleCloak();
       u.bombImpact(_b); const miss = Math.hypot(_b.x - _a.x, _b.z - _a.z);
-      if (miss < 70 + tg.dims.length * 0.3 || this.runT > 0) { if (this.runT <= 0) this.runT = 2.2; u.fire('bomb'); }
+      if (miss < 70 + tg.dims.length * 0.3 || this.runT > 0) { if (this.runT <= 0) this.runT = 1.5; u.fire('bomb'); }
       if (this.runT > 0) { this.runT -= dt; if (this.runT <= 0) { this.state = 'egress'; this.egT = 14; this.newWp(); } }
     } else {
       _a.copy(this.wp).sub(u.pos); if (_a.length() < 900) this.newWp(); dir = _d.copy(_a).normalize();

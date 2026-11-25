@@ -95,7 +95,7 @@ export class Unit {
     m.scan -= dt;
     const k = m.key, def = m.def;
     if (m.scan <= 0 || (m.target && !m.target.alive)) {
-      m.scan = 0.5 + Math.random() * 0.3; let best = null, bd = def.range; m.pos(_a);
+      m.scan = 0.5 + Math.random() * 0.3; let best = null, bd = this.isPlayer ? def.range : def.aiRange || def.range; m.pos(_a);
       for (const u of world.units) {
         if (!u.alive || u.nation === this.nation || !u.seen) continue;
         if (k === 'ciws' || k === 'sam') { if (!u.isAir) continue; if (k === 'sam' && (u.pos.y < 25 || (u.cloaked && u.pos.distanceTo(_a) > 2600))) continue; }

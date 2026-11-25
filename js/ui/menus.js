@@ -8,6 +8,7 @@ import { NATIONS, UNITS, UNIT_ORDER, WEAPONS, QUALITY, DEFAULT_KEYS, KEY_LABELS,
 import { el, KTS } from '../core/util.js';
 import { world } from '../world/world.js';
 import { BUILDERS } from '../sim/factory.js';
+import { battle } from '../world/battle.js';
 import { buildSoldier, animateSoldier } from '../units/marine.js';
 
 let app = null, root = null, cur = null, stack = [];
@@ -33,7 +34,7 @@ const SCREENS = {
   units: () => {
     const cats = ['Surface', 'Subsurface', 'Air', 'On Foot'], N = NATIONS[nation];
     return `<div class="screen"><div class="topbar"><h1 style="color:${N.color}">${N.name} · choose your unit</h1>${opts.redeploy ? '' : '<button class="btn small" data-back>Back</button>'}</div>
-      ${opts.redeploy ? `<div class="redeploy-banner">${opts.next ? (world.over === nation ? 'Victory. A new battle begins' : world.over ? 'Defeat. A new battle begins' : 'New battle') : 'Unit lost. Redeploy'}</div>` : ''}
+      ${opts.redeploy ? `<div class="redeploy-banner">${opts.change ? 'Change unit' : opts.next ? (battle.lastWinner === nation ? 'Victory! The enemy carrier is sunk. A new battle begins' : battle.lastWinner ? 'Defeat. Our carrier is lost. A new battle begins' : 'New battle') : 'Unit lost. Redeploy'}</div>` : ''}
       <div class="unitsel"><div class="unitlist">${cats.map((c) => `<h4>${c}</h4>${UNIT_ORDER.filter((k) => UNITS[k].cat === c).map((k) => `<button class="unitbtn${k === unit ? ' on' : ''}" data-unit="${k}">${UNITS[k].label}<small>${N.classes[k]}</small></button>`).join('')}`).join('')}
         ${opts.redeploy ? '<button class="btn small" data-menu style="margin-top:1em;width:100%">Main menu</button>' : ''}</div><div></div><div class="unitinfo" id="unitinfo"></div></div></div>`;
   },
@@ -138,7 +139,7 @@ export const menus = {
     if (d.dock !== undefined) { startDock = d.dock === '1'; unitInfo(); return; }
     if (d.deploy !== undefined) { app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub' }); return; }
     if (d.resume !== undefined) return app.resume();
-    if (d.change !== undefined) { app.state = 'select'; this.show('units', { redeploy: true, change: true, next: true }); root.querySelector('.redeploy-banner').textContent = 'Change unit'; return; }
+    if (d.change !== undefined) { app.state = 'select'; this.show('units', { redeploy: true, change: true }); return; }
     if (d.menu !== undefined) return app.toMenu();
     if (d.q) { save.settings.quality = d.q; save.write(); gfx.applyQuality(); t.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === t)); this.syncFast(); return; }
     if (d.toggle) { save.settings[d.toggle] = !save.settings[d.toggle]; save.write(); t.setAttribute('aria-checked', String(save.settings[d.toggle])); return; }

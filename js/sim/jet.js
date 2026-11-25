@@ -132,7 +132,7 @@ export class Jet extends Unit {
 
   collide() {
     const p = this.pos, gh = this.model.gearHeight;
-    if (p.y > 140) return;
+    if (p.y > 140 || world.t - (this.launchT ?? -99) < 3.5) return; // just off the catapult: still over the bow
     surfaceBelow(p, surf, gh + 3);
     if (surf.type === 'deck' && p.y - gh <= surf.y + 0.2) {
       const sh = surf.ship; _a.copy(this.vel).sub(sh.vel);

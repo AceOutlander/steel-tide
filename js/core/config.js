@@ -2,7 +2,7 @@
 import { KTS } from './util.js';
 
 export const VERSION = 'Beta 0.1.0';
-export const MAP = { half: 9000, carrierZ: 4300 };
+export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {
   aethia: {
@@ -38,7 +38,7 @@ export const UNITS = {
     blurb: 'A twin-barrel deck gun turret and a machine gun mount on a nimble escort hull.' },
   battlecruiser: { key: 'battlecruiser', label: 'Battlecruiser', cat: 'Surface', kind: 'ship', role: 'Heavy gunnery, fleet air defence, submarine tender', crew: 1000, speed: 30 * KTS, accelT: 24, turn: 0.095, hp: 11000, armor: 3, radar: 12000, sig: 1.6, weapons: ['heavy', 'ciws', 'sam', 'mg'], score: 8,
     blurb: 'Four triple heavy turrets, close-in AA guns, a SAM launcher, eight machine gun turrets and a stern submarine dock.' },
-  carrier: { key: 'carrier', label: 'Aircraft Carrier', cat: 'Surface', kind: 'ship', role: 'Fleet flagship and floating airfield', crew: 800, speed: 29 * KTS, accelT: 32, turn: 0.07, hp: 16000, armor: 2, radar: 14000, sig: 2, weapons: ['ciws', 'sam', 'mg'], score: 20,
+  carrier: { key: 'carrier', label: 'Aircraft Carrier', cat: 'Surface', kind: 'ship', role: 'Fleet flagship and floating airfield', crew: 800, speed: 29 * KTS, accelT: 32, turn: 0.07, hp: 22000, armor: 2, radar: 14000, sig: 2, weapons: ['ciws', 'sam', 'mg'], score: 20,
     blurb: 'The heart of the fleet: ten jets, two helicopters, AA guns and SAM launchers. Lose it and the battle is lost.' },
   reconsub: { key: 'reconsub', label: 'Recon Sub', cat: 'Subsurface', kind: 'sub', role: 'Covert scouting and sonar picket', crew: 22, speed: 26 * KTS, accelT: 8, turn: 0.26, hp: 520, armor: 0, radar: 3000, sonar: 7000, sig: 0.25, quiet: 0.45, weapons: [], score: 3,
     blurb: 'Small, quick and very quiet. Periscope and long-range sonar, no weapons: what it finds, the whole fleet sees.' },
@@ -66,13 +66,13 @@ export const WEAPONS = {
   chin: { key: 'chin', name: 'Quad chin machine gun', type: 'gun', rof: 24, speed: 900, dmg: 7, pen: 0, range: 2200, spread: 0.008, sound: 'mg', tracer: 1, life: 2.6 },
   cannon: { key: 'cannon', name: '20 mm cannon', type: 'gun', rof: 30, speed: 1050, dmg: 9, pen: 0, range: 1800, spread: 0.004, sound: 'cannon20', tracer: 1, life: 2.0, ammo: 480 },
   ciws: { key: 'ciws', name: 'Close-in AA gun', type: 'gun', rof: 28, speed: 1100, dmg: 5, pen: 0, range: 2600, spread: 0.007, sound: 'ciws', tracer: 1, life: 2.6, aa: true },
-  deckgun: { key: 'deckgun', name: '76 mm twin deck gun', type: 'shell', rof: 1.6, speed: 760, dmg: 95, pen: 1, splash: 9, range: 9000, spread: 0.0035, sound: 'deckgun', life: 16 },
-  heavy: { key: 'heavy', name: '380 mm triple turret', type: 'shell', rof: 0.5, speed: 620, dmg: 620, pen: 3, splash: 28, range: 15000, spread: 0.004, sound: 'heavygun', life: 30, salvo: 3 },
+  deckgun: { key: 'deckgun', name: '76 mm twin deck gun', type: 'shell', rof: 1.6, speed: 760, dmg: 95, pen: 1, splash: 9, range: 9000, aiRange: 5000, spread: 0.004, sound: 'deckgun', life: 16 },
+  heavy: { key: 'heavy', name: '380 mm triple turret', type: 'shell', rof: 0.13, speed: 620, dmg: 560, pen: 3, splash: 28, range: 15000, aiRange: 5600, spread: 0.0065, sound: 'heavygun', life: 30, salvo: 3 },
   sam: { key: 'sam', name: 'Surface-to-air missile', type: 'missile', seeker: 'radar', speed: 720, accel: 260, turnG: 28, dmg: 130, range: 9500, reload: 5, life: 16, sound: 'sam', lockTime: 1.6 },
   aam_ir: { key: 'aam_ir', name: 'Short-range heat-seeker', type: 'missile', seeker: 'ir', speed: 760, accel: 300, turnG: 34, dmg: 90, range: 4500, reload: 1.0, life: 9, ammo: 4, sound: 'missile', lockTime: 1.0, cone: 0.42 },
   aam_rad: { key: 'aam_rad', name: 'Medium-range radar missile', type: 'missile', seeker: 'radar', speed: 900, accel: 300, turnG: 24, dmg: 120, range: 11000, reload: 1.5, life: 16, ammo: 4, sound: 'missile', lockTime: 2.2, cone: 0.3 },
   agm: { key: 'agm', name: 'Guided attack missile', type: 'missile', seeker: 'surface', speed: 380, accel: 160, turnG: 12, dmg: 300, pen: 2, splash: 10, range: 6000, reload: 1.4, life: 20, ammo: 8, sound: 'missile', lockTime: 1.2, cone: 0.35 },
-  bomb: { key: 'bomb', name: '900 kg bomb', type: 'bomb', dmg: 950, pen: 3, splash: 38, reload: 0.28, ammo: 24, sound: 'bombdrop' },
+  bomb: { key: 'bomb', name: '900 kg bomb', type: 'bomb', dmg: 700, pen: 3, splash: 38, reload: 0.28, ammo: 24, sound: 'bombdrop' },
   torpedo: { key: 'torpedo', name: 'Heavy torpedo', type: 'torpedo', speed: 27, dmg: 1700, pen: 3, splash: 25, range: 7000, reload: 9, tubes: 4, life: 260, sound: 'torpedo' },
 };
 

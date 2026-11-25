@@ -13,7 +13,7 @@ const sgn = (n) => (n === 'aethia' ? 1 : -1);
 const facing = (n) => (n === 'aethia' ? 0 : Math.PI);
 // fleet composition per side: [type, x, zOffset from mid toward home (multiplied by side sign), formation slot relative to the carrier]
 const FLEET = [
-  ['carrier', 0, 4300, [0, 0]], ['battlecruiser', -900, 3350, [-900, -950]], ['corvette', 950, 3000, [950, -1300]], ['corvette', -2000, 2900, [-1900, -1200]],
+  ['carrier', 0, 6000, [0, 0]], ['battlecruiser', -900, 3350, [-900, -950]], ['corvette', 950, 3000, [950, -1300]], ['corvette', -2000, 2900, [-1900, -1200]],
   ['patrol', 300, 2250, [300, 0]], ['patrol', 1800, 2400, [900, 0]], ['patrol', -1200, 2200, [-900, 0]],
   ['attacksub', 2500, 2700, [1500, 0]], ['reconsub', -2700, 2500, [-1500, 0]],
 ];
@@ -117,7 +117,7 @@ export const battle = {
       world.add(u);
     } else {
       u = createUnit('marine', n);
-      if (cv && cv.alive) { const sp = cv.model.spawn.marine; u.placeOn(cv, sp.clone()); u.look = Math.PI / 2; } else { const p = world.pads[n === 'aethia' ? 0 : 1]; u.placeAt(p.x, world.terrain(p.x, p.z), p.z); }
+      if (cv && cv.alive) { const hp = cv.model.helipads[0].pos; u.placeOn(cv, new V3(hp.x - 9, hp.y, hp.z - 17)); u.look = cv.yaw + Math.PI * 0.85; } else { const p = world.pads[n === 'aethia' ? 0 : 1]; u.placeAt(p.x, world.terrain(p.x, p.z), p.z); }
       world.add(u);
     }
     u.isPlayer = true; u.invuln = world.t + 3; world.player = u;
@@ -136,7 +136,7 @@ export const battle = {
     this.respawns.push({ type: u.type, nation: u.nation, t: world.t + (u.type === 'battlecruiser' ? 150 : u.kind === 'ship' || u.kind === 'sub' ? rand(45, 70) : rand(22, 40)) });
   },
   finish(winner) {
-    if (!this.active) return; this.active = false; this.endT = world.t + 9; world.over = winner;
+    if (!this.active) return; this.active = false; this.endT = world.t + 9; world.over = winner; this.lastWinner = winner;
     const won = winner === world.playerNation; if (won) save.stats.battlesWon++; else save.stats.battlesLost++; save.write();
     audio.play(won ? 'win' : 'lose');
     world.say(`${NATIONS[otherNation(winner)].adj} carrier lost. ${NATIONS[winner].name} holds the sea.`, won ? 'win' : 'bad');
