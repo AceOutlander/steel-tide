@@ -1,5 +1,60 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.2.0 (in progress: not yet released)
+
+Built and tested locally; goes live when the new models are in.
+
+**HUD, score, radar**
+- One reticle per kind of control: marine (opens when moving or firing, closes and fades when aiming), ship guns,
+  mounted guns, submarine, periscope, plane (the centre dot is only where you look; the gunsight is the nose marker),
+  helicopter. A line under it gives range and the state of the weapon in hand.
+- The whole HUD starts clean whenever control changes: another unit, a seat or a gun, a camera mode, the periscope,
+  death, redeploy, back to the menu. No marker, box, label or warning carries over.
+- Score bar: your side on the left, "KILLS" counted per side, each carrier's health as a labelled bar with a
+  percentage, the goal in the middle. A carrier's bar flashes when it is hit, with a call at 50% and 25%. Holding Tab
+  shows the map and what each side has lost (ships, submarines, aircraft, marines).
+- Radar: green is your side, red the enemy, white you (always centred, always pointing up). Shapes by type: hulls for
+  ships (longer for bigger ships, carriers boxed), diamond for submarines, a plane for aircraft, an X for helicopters,
+  dots for people inside 1 km. Islands are dim grey. A ring marks what you are aiming at; incoming missiles flash.
+  The = and - keys zoom between 1, 3, 7 and 15 km. A legend shows for the first three battles (and from Settings).
+  Settings has a colour-blind option (blue and orange) that changes the radar, reticle, labels and kill feed together.
+
+**Aircraft wreckage**
+- A destroyed aircraft is cut into pieces of its own model, in its own paint, scorched. Machine-gun kills leave it
+  whole, burning and spiralling down until it hits; AA and cannon kills break off wings, nose and tail; a direct
+  missile hit or a bomber with bombs aboard shatters it. Pieces keep the aircraft's speed, are thrown by the blast,
+  tumble (flat pieces flutter, rotors spin away), trail fire and smoke, splash and sink leaving burning fuel, or
+  bounce, slide and burn on decks and islands, hurting what they hit. A slow ditching floats and burns before it sinks.
+  Pilots sometimes eject. A shot-down player watches the wreck fall before the redeploy screen.
+- Limits: about 50 pieces at once (20 in Fast Graphics), fewer and simpler far from the camera.
+- Not there: mid-air collisions do not exist in the game; no debris whistle sound.
+
+**Sound**
+- Battle sounds and menu sounds are on separate buses. On every menu the battle fades to silence in half a second and
+  nothing from the battle starts playing, so nothing piles up; it fades back in on return. Menus have their own calm
+  music, quiet click and hover sounds, and a soft harbour ambience in the unit showroom.
+- The fight now keeps running, silently, behind the unit-select and redeploy screens. Only the pause menu stops it.
+
+**Credits**
+- Credits (written with an anchor, never a dollar sign) are earned from your own kills: marine or sailor 25, aircraft
+  150, patrol boat 100, corvette 250, submarine 400, battlecruiser 800, carrier 2,000; an assist (a fifth of the
+  target's health in damage) pays half; 300 for taking part and 1,000 more for a win.
+- Infantry pay limit: everyone lost counts at 25 each (marines shot, crews lost with ships and aircraft), up to 1,000
+  a battle. The HUD shows the wallet and an "Infantry pay" meter; the kill feed shows the breakdown; a notice appears
+  once when the limit is reached; the results screen after each battle lists ships, aircraft, infantry, participation
+  and win bonus; How to Play has a Pay page.
+
+**Hangar and cosmetics (looks only)**
+- New Hangar screen: Paint, Helmets, Uniforms, Accessories, with a 3D try-on preview (drag to turn, wheel to zoom),
+  tiers by colour, buy with a confirm step, equip per nation, at most four accessories and one per slot.
+- Five paint schemes repaint any unit: Battle-Worn, Shark-mouth (aircraft), Ceremonial White, Stealth Black, Gold Trim.
+  About one unit in six on either side wears one. Wreckage keeps its paint.
+
+**Accounts and the Credit store (switched off)**
+- The game can sign players in by emailed code, keep the wallet on a server, check battle results there, and sell
+  Credit packs through Stripe. All of it is off until `js/core/storeconfig.js` is filled in: the menu says "Store
+  coming soon" and the game makes no request to any server.
+
 ## Beta 0.1.6 (plane controls)
 
 - Planes fly on the keys: W nose down, S nose up, A / D a coordinated banked turn (the wings hold a bank angle, the
