@@ -13,7 +13,7 @@ import { weapons } from './weapons.js';
 import { attachAI } from './ai.js';
 import { deckUnder } from './surface.js';
 import { battle } from '../world/battle.js';
-import { segSolid, inBounds, clearT, crowded, aboveWater, bridgeEye, buildCockpit, cut } from './camrig.js';
+import { segSolid, inBounds, clearT, crowded, aboveWater, bridgeEye, buildCockpit, cut, fadeVeil } from './camrig.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3(), _f = new V3(), _g = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const MODES = { ship: ['chase', 'first', 'gunner'], sub: ['chase', 'first'], jet: ['chase', 'first'], heli: ['chase', 'first'], soldier: ['first', 'chase'] };
@@ -53,7 +53,7 @@ export const player = {
     u.ctl.throttle = clamp(u.ctl.throttle + input.axis('throttleDown', 'throttleUp') * dt * 0.6, -0.4, 1);
     if (Math.abs(u.ctl.throttle) < 0.03 && !input.on('throttleUp') && !input.on('throttleDown')) u.ctl.throttle = 0;
     u.ctl.rudder = input.axis('right', 'left');
-    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget ? _a.copy(this.aimTarget.vel).sub(u.vel).clone() : null; u.firing = input.lmb;
+    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = input.lmb;
   },
   ship(u, dt) {
     this.helm(u, dt);
@@ -94,6 +94,7 @@ export const player = {
       return;
     }
     if (u.state !== 'fly') { c.pitch = 0.1; c.roll = 0; c.yaw = 0; this.yaw = u.yaw; this.pitch = 0.12; return; }
+    if (u.gSmooth > 6.5) gfx.shake((u.gSmooth - 6.5) * 0.9 * dt); // buffet in a very hard turn
     if (world.t - (u.launchT || -9) < 1.2) { this.yaw = u.yaw; this.pitch = 0.14; }
     const kp = input.axis('pitchDown', 'pitchUp'), kr = input.axis('rollLeft', 'rollRight');
     if (kp || kr) { c.pitch = kp; c.roll = kr; c.yaw = 0; u.fwd(_f); this.yaw = Math.atan2(-_f.x, -_f.z); this.pitch = Math.asin(clamp(_f.y, -1, 1)); }
@@ -119,7 +120,7 @@ export const player = {
       this.yaw = u.yaw; this.pitch = -0.08;
     } else { this.stick.x = this.stick.y = 0; c.pitch = c.roll = c.yaw = 0; u.spool = c.collective > 0 || u.spool; this.prompt = u.rpm < 0.9 ? 'Hold <kbd>W</kbd> to spin up and lift off' : ''; if (u.pilot) { this.prompt += (this.prompt ? '  ' : '') + '<kbd>E</kbd> Get out'; if (input.tap('use')) { this.leaveHeli(u); return; } } }
     if (input.tap('flares')) weapons.dropFlares(u);
-    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget ? _a.copy(this.aimTarget.vel).sub(u.vel).clone() : null; u.firing = input.lmb && u.selKey === 'chin';
+    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = input.lmb && u.selKey === 'chin';
     const w = u.fw[u.selKey];
     if (w) { this.lockDef = w.def; u.fwd(_f); const had = u.locked; seekLock(u, w.def, _f, dt, false); if (u.locked && !had) audio.play('lockTone'); if (input.lmbHit && !u.fire()) audio.play('click'); }
     else { u.lockTarget = null; u.locked = false; }
@@ -178,6 +179,7 @@ export const player = {
     const tag = u.kind + ':' + this.mode + ':' + (u.gun ? 'gun' : u.aboard ? 'ride' : scope ? 'scope' : '') + (u.kind === 'ship' && this.mode === 'gunner' ? u.selKey : '');
     const snap = this._camUnit !== u || this._camTag !== tag;
     if (snap) { if (this._camUnit) cut(); this._camUnit = u; this._camTag = tag; this._pullT = 1; }
+    fadeVeil(dt);
     this.scopeView = scope;
     if (u.kind === 'ship' || u.kind === 'sub') {
       const gun = this.mode === 'gunner' && (u.mounts.find((k) => k.key === u.selKey && k.inArc) || u.mounts.find((k) => k.key === u.selKey));
@@ -241,6 +243,12 @@ export const player = {
     const hide = cockpit && u.alive, was = this._cockUnit;
     if (was && (was !== u || !hide)) { was.hideModel = false; if (was._cockpit) was._cockpit.visible = false; this._cockUnit = null; }
     if (hide) { if (!u._cockpit) { u._cockpit = buildCockpit(u.kind); u._cockpit.position.copy(u.model.cockpit || _a.set(0, 0.5, -3)); u.root.add(u._cockpit); } u._cockpit.visible = true; u.hideModel = true; this._cockUnit = u; }
+    if (gfx.trauma > 0.002) {
+      // camera shake: only from real events (hits, explosions close by, heavy guns firing, very hard turns), never from speed
+      const k = gfx.trauma * gfx.trauma * (s.shake ?? 0.5) * 2, t = performance.now() / 1000;
+      if (k > 0) { cam.rotateX(k * 0.016 * Math.sin(t * 37)); cam.rotateY(k * 0.016 * Math.sin(t * 29 + 1)); cam.rotateZ(k * 0.024 * Math.sin(t * 23 + 2)); }
+      gfx.trauma = Math.max(0, gfx.trauma - dt * 1.9);
+    }
     if (this.zoom > 0.01) fov = fov / (1 + this.zoom * (this.scopeView ? 3 : 2));
     if (Math.abs(cam.fov - fov) > 0.05 || cam.near !== near) { cam.fov = fov; cam.near = near; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();

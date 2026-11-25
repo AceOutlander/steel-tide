@@ -507,7 +507,7 @@ function init() {
     comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 6;
     comp.attack.value = 0.004; comp.release.value = 0.25;
-    master = ctx.createGain(); master.gain.value = 0.9;
+    master = ctx.createGain(); master.gain.value = /[?&]devtest/.test(location.search) ? 0 : 0.9; // developer checks run silent
     master.connect(comp); comp.connect(ctx.destination);
     sfxLP = ctx.createBiquadFilter();
     sfxLP.type = 'lowpass'; sfxLP.frequency.value = underwater ? 500 : 20000; sfxLP.Q.value = 0.5;

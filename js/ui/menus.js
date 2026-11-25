@@ -47,6 +47,8 @@ const SCREENS = {
       <div class="row"><label>Quality <small style="color:var(--dim)" id="q-note"></small></label><div class="seg" id="q-seg">${['auto', 'low', 'medium', 'high', 'ultra'].map((k) => `<button data-q="${k}" class="${q === k ? 'on' : ''}">${k === 'auto' ? 'Auto' : QUALITY[k].label}</button>`).join('')}</div></div>
       ${slider('resScale', 'Render resolution', 0.5, 1.5, 0.05, s.resScale, (v) => Math.round(v * 100) + '%')}
       ${slider('fov', 'Field of view', 55, 100, 1, s.fov, (v) => v + '°')}
+      ${slider('shake', 'Camera shake', 0, 1, 0.05, s.shake ?? 0.5, (v) => Math.round(v * 100) + '%')}
+      <div class="row"><label>Motion blur<br><small style="color:var(--dim)">Blends each frame into the next. High and Ultra quality only</small></label><button class="switch" role="switch" data-toggle="motionBlur" aria-checked="${!!s.motionBlur}" aria-label="Motion blur"></button></div>
       <h3>Controls</h3>
       ${slider('sens', 'Mouse sensitivity', 0.3, 3, 0.05, s.sens, (v) => Number(v).toFixed(2))}
       <div class="row"><label>Invert Y</label><button class="switch" role="switch" data-toggle="invertY" aria-checked="${s.invertY}" aria-label="Invert Y"></button></div>

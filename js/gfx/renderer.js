@@ -4,6 +4,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { QUALITY } from '../core/config.js';
 import { save } from '../core/save.js';
@@ -12,7 +13,34 @@ import { initMaterials, setTextureQuality, setEnvIntensity, TEX } from './materi
 const FOG_COLOR = new THREE.Color(0x9fbdd4);
 const BASE_FOG = 0.000085;
 
+// Optional motion blur (off unless the player turns it on): each frame is blended with the one before it.
+class TrailPass extends Pass {
+  constructor() {
+    super(); this.amount = 0.42; this.fresh = true;
+    this.a = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }); this.b = this.a.clone();
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: { tNew: { value: null }, tOld: { value: null }, amount: { value: 0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform sampler2D tNew; uniform sampler2D tOld; uniform float amount; varying vec2 vUv; void main(){ gl_FragColor = mix(texture2D(tNew, vUv), texture2D(tOld, vUv), amount); }',
+      depthTest: false, depthWrite: false,
+    });
+    this.quad = new FullScreenQuad(this.mat);
+  }
+  setSize(w, h) { this.a.setSize(w, h); this.b.setSize(w, h); this.fresh = true; }
+  render(renderer, writeBuffer, readBuffer) {
+    const u = this.mat.uniforms;
+    u.tNew.value = readBuffer.texture; u.tOld.value = this.fresh ? readBuffer.texture : this.b.texture; u.amount.value = this.amount;
+    renderer.setRenderTarget(this.a); this.quad.render(renderer);
+    u.tNew.value = this.a.texture; u.amount.value = 0;
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer); this.quad.render(renderer);
+    const t = this.a; this.a = this.b; this.b = t; this.fresh = false;
+  }
+}
+const _sr = new THREE.Vector3(), _su = new THREE.Vector3(), _sp = new THREE.Vector3(), UPY = new THREE.Vector3(0, 1, 0);
+
 export const gfx = {
+  trauma: 0, // camera shake waiting to be played (0..1): hits, explosions close by, heavy guns, hard turns
+  shake(a) { if (a > 0) this.trauma = Math.min(1, this.trauma + a); },
   renderer: null, scene: null, camera: null, sun: null, hemi: null, sky: null, clouds: null, composer: null, bloom: null, renderPass: null,
   sunDir: new THREE.Vector3(), skyCube: null, q: QUALITY.medium, qName: 'medium', auto: 'medium', listeners: [], underwater: false,
   fogColor: FOG_COLOR.clone(), w: 1, h: 1, gpu: '',
@@ -66,7 +94,8 @@ export const gfx = {
     this.composer = new EffectComposer(r, rt);
     this.renderPass = new RenderPass(this.scene, this.camera);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.5, 6.5);
-    this.composer.addPass(this.renderPass); this.composer.addPass(this.bloom); this.composer.addPass(new OutputPass());
+    this.trail = new TrailPass(); this.trail.enabled = false;
+    this.composer.addPass(this.renderPass); this.composer.addPass(this.bloom); this.composer.addPass(this.trail); this.composer.addPass(new OutputPass());
 
     addEventListener('resize', () => this.resize());
     this.applyQuality();
@@ -143,9 +172,17 @@ export const gfx = {
 
   // keep the shadow box centred on what the player is looking at
   focusShadow(pos, radius) {
-    const s = this.sun; s.target.position.copy(pos); s.position.copy(pos).addScaledVector(this.sunDir, 900);
+    const s = this.sun, rad = Math.min(Math.max(radius, 40), 260);
+    // move the shadow box in whole shadow-map pixels only: sliding it by fractions makes every shadow edge shimmer
+    _sp.copy(pos);
+    if (s.castShadow) {
+      const tx = (2 * rad) / s.shadow.mapSize.x; _sr.crossVectors(this.sunDir, UPY).normalize(); _su.crossVectors(_sr, this.sunDir).normalize();
+      const a = Math.round(pos.dot(_sr) / tx) * tx, b = Math.round(pos.dot(_su) / tx) * tx, d = pos.dot(this.sunDir);
+      _sp.set(0, 0, 0).addScaledVector(_sr, a).addScaledVector(_su, b).addScaledVector(this.sunDir, d);
+    }
+    s.target.position.copy(_sp); s.position.copy(_sp).addScaledVector(this.sunDir, 900);
     if (!s.castShadow) return;
-    const c = s.shadow.camera, rad = Math.min(Math.max(radius, 40), 260);
+    const c = s.shadow.camera;
     if (c.right !== rad) { c.left = -rad; c.right = rad; c.top = rad; c.bottom = -rad; c.near = 100; c.far = 1700; c.updateProjectionMatrix(); }
     s.shadow.normalBias = rad * 0.004;
   },
@@ -168,7 +205,8 @@ export const gfx = {
 
   render(scene = this.scene, camera = this.camera) {
     if (this.clouds && scene === this.scene) { this.clouds.position.x = camera.position.x; this.clouds.position.z = camera.position.z; this.cloudTex.offset.x += 0.00002; }
-    if (this.q.post && scene === this.scene) { this.renderPass.scene = scene; this.renderPass.camera = camera; this.composer.render(); }
+    if (this.q.post && scene === this.scene) { const blur = !!save.settings.motionBlur; if (blur && !this.trail.enabled) this.trail.fresh = true; this.trail.enabled = blur;
+      this.renderPass.scene = scene; this.renderPass.camera = camera; this.composer.render(); }
     else this.renderer.render(scene, camera);
   },
 };

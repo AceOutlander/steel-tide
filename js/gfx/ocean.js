@@ -109,7 +109,7 @@ void main(){
   float h = 0.0, crest = 0.0, lost = 0.0; vec2 slope = vec2(0.0);
   for (int i = 0; i < NW; i++) {
     float th = uWave[i].z * (uWave[i].x * uv.x + uWave[i].y * uv.y) - uWaveB[i].x * uTime + uWaveB[i].y;
-    float s = sin(th), ka = uWave[i].w * uWave[i].z, w = 1.0 - smoothstep(0.07, 0.22, fwW / uWaveB[i].z);
+    float s = sin(th), ka = uWave[i].w * uWave[i].z, w = 1.0 - smoothstep(0.05, 0.16, fwW / uWaveB[i].z);
     h += uWave[i].w * s; crest += ka * s * uCw[i];
     float thB = th + uBend[i].x * (bend - 0.5) + uBend[i].y * (gust - 0.5), amp = 1.0 + uBend[i].z * (gust - 0.5) + uBend[i].w * (bend - 0.5);
     slope += uWave[i].xy * (ka * cos(thB) * w * amp); lost += ka * ka * 0.5 * (1.0 - w * w);

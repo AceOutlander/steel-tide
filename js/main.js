@@ -18,7 +18,7 @@ import { menus } from './ui/menus.js';
 
 const STEP = 1 / 60, _a = new V3(), _b = new V3();
 let last = 0, acc = 0, fpsT = 0, fpsN = 0, fpsWatch = 0, orbit = 0, deadT = 0;
-const shipList = [];
+const wakeList = [], shipList = [];
 
 export const app = {
   state: 'boot', // boot | menu | select | battle | paused | dead | over
@@ -120,7 +120,10 @@ export const app = {
       if ((u.kind === 'ship' || u.kind === 'sub') && u.camDist < 9000 && !(u.kind === 'sub' && u.depth > 6) && u.sunk < u.dims.draft + 4) shipList.push(u);
     }
     shipList.sort((a, b) => a.camDist - b.camDist);
-    ocean.setShips(shipList.slice(0, 16).map((u) => { const spd = clamp(Math.abs(u.speed) / u.def.speed, 0, 1); return { x: u.pos.x, z: u.pos.z, fx: -Math.sin(u.yaw), fz: -Math.cos(u.yaw), hl: u.dims.length / 2, hb: Math.min(u.dims.beam / 2, u.dims.length * 0.075), spd: u.alive ? spd : 0.15, wake: u.dims.length * 2.6 * spd }; }));
+    // wakes and hull foam for the nearest ships (objects are reused: nothing is created per frame)
+    wakeList.length = Math.min(shipList.length, 16);
+    for (let k = 0; k < wakeList.length; k++) { const u = shipList[k], o = wakeList[k] || (wakeList[k] = {}), spd = clamp(Math.abs(u.speed) / u.def.speed, 0, 1); o.x = u.pos.x; o.z = u.pos.z; o.fx = -Math.sin(u.yaw); o.fz = -Math.cos(u.yaw); o.hl = u.dims.length / 2; o.hb = Math.min(u.dims.beam / 2, u.dims.length * 0.075); o.spd = u.alive ? spd : 0.15; o.wake = u.dims.length * 2.6 * spd; }
+    ocean.setShips(wakeList);
     const wy = waveHeight(cp.x, cp.z), under = wy - cp.y;
     gfx.setUnderwater(under > 0.05 ? under : 0); audio.setUnderwater(under > 0.05);
     ocean.update(sim ? dt : 0, cam);

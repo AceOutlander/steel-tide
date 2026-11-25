@@ -121,10 +121,12 @@ export function buildCockpit(kind) {
 }
 
 // ---- quick dip to black when the view jumps (camera mode, new unit), so a cut never shows a frame inside geometry ---------------
-let veil = null;
-export function cut(ms = 200) {
-  if (!veil) { veil = document.createElement('div'); veil.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:5'; (document.getElementById('ui') || document.body).prepend(veil); }
-  veil.style.transition = 'none'; veil.style.opacity = '1'; void veil.offsetWidth;
-  veil.style.transition = `opacity ${ms}ms ease-out`; veil.style.opacity = '0';
+// The veil sits over the 3D view but under the HUD, and is faded by the game loop itself (not a CSS transition), so it
+// clears at the same rate however the browser is pacing frames.
+let veil = null, veilT = 0;
+export function cut() {
+  if (!veil) { veil = document.createElement('div'); veil.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none'; (document.getElementById('ui') || document.body).prepend(veil); }
+  veilT = 1; veil.style.opacity = '1';
 }
+export function fadeVeil(dt) { if (veilT <= 0) return; veilT = Math.max(0, veilT - dt / 0.2); veil.style.opacity = String(veilT * veilT); }
 export { clamp };

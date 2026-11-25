@@ -1,5 +1,29 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.1.3 (steady, sharp flying)
+
+- The cause of the shake and the smeared look: the simulation runs in fixed 1/60 s steps, and a drawn frame could
+  contain no step or two. At 190 m/s that moved the aircraft 0 or 6.6 m in a frame while the chase camera eased toward
+  it by frame time, so the two fought. Measured before: the camera's travel per frame was wrong by 2 m on average and
+  3.2 m at worst. Measured now (0.1.2 smoothing plus a chase camera that keeps a smoothed offset from the aircraft
+  instead of chasing a world position): within 4 mm, at 60 Hz and 144 Hz, with uneven frame times, on every preset,
+  for all five aircraft, in chase and cockpit views.
+- No floating origin was added, on purpose: the map is 18 km across, three.js works out each object's position
+  relative to the camera in double precision, and the same test at the map edge (8.9 km out, 3 km up and at 40 m)
+  gives the same 4 mm. There is nothing for one to fix at this size.
+- Camera shake now exists only for real events: taking a hit, an explosion close by, the player's own heavy guns,
+  and buffet above 6.5 g. Nothing shakes while cruising, at any speed. New setting: Camera shake, 0 to 100%, default 50%.
+- There never was a motion blur pass; the blur was the judder above. New setting: Motion blur, off by default (it
+  blends each frame into the next, on High and Ultra only).
+- Speed no longer widens the view as much (5 degrees at most, was 8).
+- Shadows: the shadow box now moves in whole shadow-map pixels, so shadow edges do not crawl as the camera moves.
+- Frame pacing: removed the objects created every frame (wake list, aim lead vectors) and the HUD no longer rewrites
+  its status panel unless a number changed. Simulation takes about 0.3 ms a step and submitting a frame about 0.6 ms
+  on the test machine; graphics-card time could not be measured in the hidden test browser.
+- Resolution is never lowered automatically while flying. The only automatic change is the existing one-time switch
+  to Fast Graphics when the first seconds of a battle run under 27 fps.
+- `?devtest` now runs with the sound off.
+
 ## Beta 0.1.2 (cameras)
 
 No camera sits inside a model any more.

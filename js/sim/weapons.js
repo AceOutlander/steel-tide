@@ -92,6 +92,7 @@ export const weapons = {
 
   fireGun(owner, def, pos, dir, inherit, sound = true) {
     if (B.n >= MAXB) return;
+    if (owner.isPlayer && (def.key === 'heavy' || def.key === 'deckgun')) gfx.shake(def.key === 'heavy' ? 0.3 : 0.1); // the player's own big guns
     const i = B.n++, i3 = i * 3, sp = def.spread;
     _d.copy(dir); _d.x += rand(-sp, sp); _d.y += rand(-sp, sp); _d.z += rand(-sp, sp); _d.normalize();
     B.pos[i3] = pos.x; B.pos[i3 + 1] = pos.y; B.pos[i3 + 2] = pos.z;

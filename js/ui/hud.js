@@ -80,7 +80,7 @@ export const hud = {
     else if (veh.kind === 'sub') cells.push(['DEPTH', `${veh.depth.toFixed(0)} m`], ['ORDER', `${veh.depthT.toFixed(0)} m`], ['SCOPE', veh.scopeA > 0.9 ? 'UP' : veh.scope ? 'RAISING' : 'DOWN'], ['SONAR', veh.pingT > world.t ? 'ACTIVE' : 'PASSIVE'], ['CREW', String(veh.def.crew)]);
     else if (veh.kind === 'ship') cells.push(['THR', `${(veh.throttle * 100).toFixed(0)}%`], ['RUD', veh.rudderA > 0.05 ? 'PORT' : veh.rudderA < -0.05 ? 'STBD' : 'MID'], ['CREW', String(veh.def.crew)], ['FLOOD', `${(veh.flood * 100).toFixed(0)}%`]);
     else cells.push(['STANCE', u.swim ? 'SWIM' : u.ctl.crouch ? 'CROUCH' : 'STAND'], ['ON', u.on ? (u.on.name || u.on.def.label) : u.swim ? 'Sea' : 'Island']);
-    E.grid.innerHTML = cells.map((c) => `<div><span>${c[0]}</span>${c[1]}</div>`).join('');
+    const gh = cells.map((c) => `<div><span>${c[0]}</span>${c[1]}</div>`).join(''); if (E.grid._h !== gh) { E.grid.innerHTML = gh; E.grid._h = gh; } // only touch the page when a number changed
     const thr = veh.kind === 'heli' ? veh.ctl.collective * 0.5 + 0.2 : veh.throttle ?? 0; E.thr.hidden = veh.kind === 'soldier';
     const ti = E.thr.firstChild; if (thr >= 0) { ti.style.bottom = '28.6%'; ti.style.height = `${thr * 71.4}%`; } else { ti.style.height = `${-thr * 71.4}%`; ti.style.bottom = `${28.6 + thr * 71.4}%`; }
     // weapons

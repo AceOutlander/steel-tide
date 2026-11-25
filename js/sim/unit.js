@@ -77,7 +77,7 @@ export class Unit {
     if (!this.alive || amount <= 0) return;
     if (this.invuln > world.t) return;
     this.hp -= amount; if (attacker && attacker !== this) this.lastHitBy = attacker; this.lastHitT = world.t;
-    if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); }
+    if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); gfx.shake(clamp(amount / (this.maxHp * 0.12 + 40), 0.12, 0.7)); }
     if (attacker && attacker.isPlayer && attacker !== this) attacker.hitMarker = world.t + 0.25;
     if (hitPos && amount >= 30 && this.lod0 && (this.kind === 'ship' || this.kind === 'sub')) this.addScorch(hitPos, Math.min(5, 1 + amount * 0.004));
     if (this.hp <= 0) { this.hp = 0; this.kill(attacker || this.lastHitBy); }

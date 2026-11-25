@@ -92,6 +92,7 @@ export const fx = {
     if (size > 1.5) { const n = this.count(size > 6 ? 10 : 4); for (let i = 0; i < n; i++) this.smoke.emit(p.x + d.x * size * 2, p.y + d.y * size * 2, p.z + d.z * size * 2, d.x * rand(8, 30) + rand(-4, 4), d.y * rand(8, 30) + rand(-2, 4), d.z * rand(8, 30) + rand(-4, 4), 0.75, 0.72, 0.68, 0.5, size * 1.2, size * 1.6, rand(1.5, 3.5), 1.6, -0.3); this.glow.emit(p.x + d.x * size * 1.5, p.y + d.y * size * 1.5, p.z + d.z * size * 1.5, d.x * 20, d.y * 20, d.z * 20, 3.5, 1.8, 0.5, 1, size * 3.2, size * 6, 0.14, 2, 0, 2); }
   },
   explosion(p, size = 8, sound = true) {
+    const cd = gfx.camera.position.distanceTo(p); if (cd < size * 28) gfx.shake(Math.min(0.75, (size * 5) / (cd + 12))); // felt when close
     const n = this.count(Math.min(26, 6 + size * 0.7));
     this.glow.emit(p.x, p.y, p.z, 0, 0, 0, 4, 3, 1.6, 1, size * 3.5, size * 6, 0.16, 0, 0);
     for (let i = 0; i < n; i++) {
