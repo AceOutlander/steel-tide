@@ -111,13 +111,13 @@ void main(){
     if (back > 0.0 && wl > 1.0) {
       float t = clamp(back / wl, 0.0, 1.0), a = abs(across);
       float wdt = hb * (0.9 + t * 2.2) + 1.0;
-      foam += (1.0 - smoothstep(wdt * 0.45, wdt, a)) * pow(1.0 - t, 1.6) * spd * (0.5 + 0.8 * fn2);
+      foam += (1.0 - smoothstep(wdt * 0.35, wdt, a)) * pow(1.0 - t, 1.8) * spd * (0.12 + 0.95 * fn2 * (0.6 + 0.6 * fn));
       float arm = back * 0.33 + hb; float aw = 1.5 + back * 0.035;
       foam += exp(-pow((a - arm) / aw, 2.0)) * (1.0 - t) * spd * 0.55 * (0.4 + fn);
     }
   }
   foam = clamp(foam, 0.0, 1.0);
-  col = mix(col, vec3(0.92, 0.96, 0.98) * (0.5 + 0.65 * sunL), foam * 0.9);
+  col = mix(col, vec3(0.9, 0.94, 0.96) * (0.85 + 2.1 * sunL), foam * 0.9);
   float fog = 1.0 - exp(-uFogDensity * uFogDensity * dist * dist);
   col = mix(col, uFogColor, fog);
   gl_FragColor = vec4(col, 1.0);

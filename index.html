@@ -52,7 +52,8 @@
   var ua = navigator.userAgent || '';
   var touchOnly = (mm('(pointer: coarse)') && !mm('(any-pointer: fine)')) || (mm('(hover: none)') && !mm('(any-hover: hover)'));
   var mobileUA = /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|Opera Mini|IEMobile/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  var small = Math.min(screen.width, screen.height) < 600 || Math.max(screen.width, screen.height) < 1000;
+  var sw = screen.width || 0, sh = screen.height || 0; // some embedded browsers report 0: only trust real sizes
+  var small = sw > 0 && sh > 0 && (Math.min(sw, sh) < 600 || Math.max(sw, sh) < 1000);
   if (touchOnly || mobileUA || small) {
     document.getElementById('pc-only').hidden = false; document.getElementById('ui').hidden = true; document.getElementById('game').hidden = true;
     window.__steelTideBlocked = true;

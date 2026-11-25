@@ -1,0 +1,6 @@
+# GitHub Pages builds this repo with Jekyll, but nothing here uses Jekyll: the game is plain HTML, CSS and ES modules.
+# Files listed here stay in the repo but are never published on the site.
+exclude:
+  - CLAUDE.md
+  - CHANGELOG.md
+  - README.md

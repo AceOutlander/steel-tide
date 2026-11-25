@@ -85,6 +85,8 @@ export const app = {
     let dt = (now - last) / 1000; last = now; if (dt > 0.1) dt = 0.1; if (dt <= 0) return;
     fpsT += dt; fpsN++; if (fpsT >= 1) { this.fps = fpsN / fpsT; fpsT = 0; fpsN = 0; this.fpsTick(); }
     if (menus.showroomActive && (this.state === 'select' || this.state === 'menu')) { menus.renderShowroom(dt); input.endFrame(); return; }
+    // if the browser refused to give the mouse back (it does for a moment after Esc), fall back to the pause menu
+    if (this.state === 'battle' && !input.locked) { this._noLock = (this._noLock || 0) + dt; if (this._noLock > 0.6) { this._noLock = 0; this.pause(); } } else this._noLock = 0;
     const sim = this.state !== 'paused' && this.state !== 'boot';
     if (sim) {
       if (this.state === 'battle' || this.state === 'dead') player.update(dt);

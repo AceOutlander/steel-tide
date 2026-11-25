@@ -20,7 +20,7 @@ export const gfx = {
   init(canvas) {
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: false });
     r.outputColorSpace = THREE.SRGBColorSpace;
-    r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.62;
+    r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.5;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.5, 22000);
@@ -32,7 +32,7 @@ export const gfx = {
     this.sunDir.set(Math.cos(elev) * Math.sin(az), Math.sin(elev), Math.cos(elev) * Math.cos(az)).normalize();
     const mkSky = () => {
       const s = new Sky(); s.scale.setScalar(400000);
-      const u = s.material.uniforms; u.turbidity.value = 3.6; u.rayleigh.value = 1.9; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82; u.sunPosition.value.copy(this.sunDir);
+      const u = s.material.uniforms; u.turbidity.value = 2.4; u.rayleigh.value = 2.3; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82; u.sunPosition.value.copy(this.sunDir);
       return s;
     };
     this.sky = mkSky(); this.sky.renderOrder = -10; this.scene.add(this.sky);
@@ -47,7 +47,7 @@ export const gfx = {
     this.scene.environmentIntensity = 0.55;
     pmrem.dispose();
 
-    this.sun = new THREE.DirectionalLight(0xfff1dc, 3.1);
+    this.sun = new THREE.DirectionalLight(0xfff1dc, 3.6);
     this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 0.35;
     this.scene.add(this.sun, this.sun.target);
     this.hemi = new THREE.HemisphereLight(0xbcd6f0, 0x26384a, 0.75);
@@ -73,15 +73,19 @@ export const gfx = {
     const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d');
     x.clearRect(0, 0, 512, 512);
     let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    for (let i = 0; i < 260; i++) {
-      const px = rnd() * 512, py = rnd() * 512, rr = 14 + rnd() * 46, a = 0.05 + rnd() * 0.09;
-      for (const [ox, oy] of [[0, 0], [512, 0], [-512, 0], [0, 512], [0, -512]]) {
-        const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rr);
-        g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(1, 'rgba(255,255,255,0)');
-        x.fillStyle = g; x.beginPath(); x.arc(px + ox, py + oy, rr, 0, 7); x.fill();
+    // distinct cloud banks with clear sky between them
+    for (let k = 0; k < 13; k++) {
+      const cx = rnd() * 512, cy = rnd() * 512, spread = 26 + rnd() * 46, n = 9 + Math.floor(rnd() * 12);
+      for (let i = 0; i < n; i++) {
+        const px = cx + (rnd() - 0.5) * spread * 2.6, py = cy + (rnd() - 0.5) * spread, rr = 10 + rnd() * 26, a = 0.12 + rnd() * 0.2;
+        for (const [ox, oy] of [[0, 0], [512, 0], [-512, 0], [0, 512], [0, -512]]) {
+          const g = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, rr);
+          g.addColorStop(0, 'rgba(255,255,255,' + a.toFixed(3) + ')'); g.addColorStop(1, 'rgba(255,255,255,0)');
+          x.fillStyle = g; x.beginPath(); x.arc(px + ox, py + oy, rr, 0, 7); x.fill();
+        }
       }
     }
-    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(5, 5); t.colorSpace = THREE.SRGBColorSpace;
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); t.colorSpace = THREE.SRGBColorSpace;
     const geo = new THREE.CircleGeometry(60000, 48);
     // fade toward the horizon with vertex alpha via a radial alpha map baked into colours
     const mat = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.85, depthWrite: false, fog: false, color: 0xffffff, side: THREE.DoubleSide });
@@ -150,11 +154,11 @@ export const gfx = {
       this.fogColor.setRGB(0.02 + 0.05 * (1 - k), 0.16 * (1 - k * 0.8) + 0.02, 0.22 * (1 - k * 0.75) + 0.03);
       this.scene.fog.color.copy(this.fogColor); this.scene.fog.density = 0.012 + k * 0.012;
       this.scene.background = this.fogColor;
-      this.hemi.intensity = 0.75 * (1 - k * 0.7); this.sun.intensity = 3.1 * (0.6 - 0.5 * k);
+      this.hemi.intensity = 0.75 * (1 - k * 0.7); this.sun.intensity = 3.6 * (0.6 - 0.5 * k);
     }
     if (under !== this.underwater) {
       this.underwater = under; this.sky.visible = !under; this.clouds.visible = !under && this.q.clouds;
-      if (!under) { this.scene.fog.color.copy(FOG_COLOR); this.fogColor.copy(FOG_COLOR); this.scene.fog.density = BASE_FOG * this.q.fog; this.scene.background = null; this.hemi.intensity = 0.75; this.sun.intensity = 3.1; }
+      if (!under) { this.scene.fog.color.copy(FOG_COLOR); this.fogColor.copy(FOG_COLOR); this.scene.fog.density = BASE_FOG * this.q.fog; this.scene.background = null; this.hemi.intensity = 0.75; this.sun.intensity = 3.6; }
     }
   },
 
