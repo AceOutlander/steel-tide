@@ -100,6 +100,7 @@ export class Unit {
     const mine = by && by.isPlayer, cls = this.isPlayer ? 'bad' : mine ? 'mine' : this.nation === world.playerNation ? 'loss' : 'win';
     world.say(`${this.label} ${verb}${by ? ' by ' + by.label : ''}`, cls);
     if (by) { by.kills++; world.score[by.nation] += this.def.score; if (mine) save.addKill(this.type, this.kind); }
+    world.tally(this, by);
     world.onKill && world.onKill(this, by);
     this.onKilled(by);
   }

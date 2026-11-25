@@ -26,6 +26,12 @@ function islandH(is, x, z) {
 
 export const world = {
   lost: [], // enemy contacts just lost: { x, z, t, nation, unit }
+  // the running tally the score bar shows: kills credited to each side and what each side has lost
+  kills: { aethia: 0, extro: 0 }, losses: { aethia: { ships: 0, subs: 0, aircraft: 0, men: 0 }, extro: { ships: 0, subs: 0, aircraft: 0, men: 0 } },
+  tally(u, by) {
+    const cat = u.kind === 'ship' ? 'ships' : u.kind === 'sub' ? 'subs' : u.isAir ? 'aircraft' : 'men';
+    this.losses[u.nation][cat]++; if (by && by.nation !== u.nation) this.kills[by.nation]++;
+  },
   // ---- feedback for the HUD ----
   hits: { t: -9, dmg: 0, big: false, kill: false, name: '' },     // what the player's fire last did
   hurts: [],                                                       // who is hitting the player: { from, t, x, z }
@@ -104,7 +110,7 @@ export const world = {
 
   add(u) { u.id = this.nextId++; this.units.push(u); if (u.root) gfx.scene.add(u.root); return u; },
   remove(u) { const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1); if (u.root && u.root.parent === gfx.scene) gfx.scene.remove(u.root); u.gone = true; },
-  clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.lost.length = 0; this.hurts.length = 0; this.falls.length = 0; this.hits.t = -9; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
+  clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.lost.length = 0; for (const n of ['aethia', 'extro']) { this.kills[n] = 0; const l = this.losses[n]; l.ships = l.subs = l.aircraft = l.men = 0; } this.hurts.length = 0; this.falls.length = 0; this.hits.t = -9; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
 
   say(text, cls = '') { this.feed.push({ text, cls, t: this.t }); if (this.feed.length > 40) this.feed.shift(); this.onFeed && this.onFeed(text, cls); },
 

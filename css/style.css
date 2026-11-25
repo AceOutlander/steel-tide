@@ -163,3 +163,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* periscope: bearing ticks along the horizontal wire and range marks on the vertical one */
 #h-scope span::after { content: ""; position: absolute; left: 50%; top: calc(36vh - .2em); width: 60vh; height: .9em; margin-left: -30vh; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .75) 0 1px, transparent 1px 3vh); }
 #h-scope span::before { content: ""; position: absolute; left: 50%; top: 24vh; width: 1.2em; height: 24vh; margin-left: -.6em; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .75) 0 1px, transparent 1px 2.4vh); }
+
+/* ---- score bar: labelled sides, kills, carrier health, and the goal ---- */
+#h-score { gap: 1.6em; padding: .4em 1.1em; font-size: .82em; letter-spacing: .08em; }
+#h-score .side { display: flex; align-items: center; gap: .9em; } #h-score .side.en { flex-direction: row-reverse; }
+#h-score .nm { font-size: 1.05em; letter-spacing: .14em; white-space: nowrap; }
+#h-score .kl, #h-score .cvl { display: flex; align-items: center; gap: .35em; white-space: nowrap; color: #e8f1f7; }
+#h-score svg { width: 1.15em; height: 1.15em; flex: none; opacity: .9; } #h-score .cvl svg { width: 1.7em; }
+#h-score .cvl i { display: block; width: 6.5em; height: .5em; background: rgba(255, 255, 255, .14); border-radius: .2em; overflow: hidden; } #h-score .cvl i u { display: block; height: 100%; }
+#h-score .cvl.mid { color: #ffd98a; } #h-score .cvl.low { color: #ff9c92; }
+#h-score .cvl.flash { animation: cvflash .25s steps(2) 3; } @keyframes cvflash { 50% { color: #fff; filter: brightness(2.2); } }
+#h-score .goal { padding: .25em .9em; border: 1px solid var(--line); border-radius: .3em; font-weight: 700; letter-spacing: .16em; color: #ffe9a8; white-space: nowrap; }

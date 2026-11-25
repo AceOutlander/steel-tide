@@ -9,6 +9,10 @@ import { V3, clamp, el, KTS } from '../core/util.js';
 import { audio } from '../audio/audio.js';
 
 const _v = new V3();
+const ICON = {
+  kill: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 0v5M8 11v5M0 8h5M11 8h5" stroke="currentColor" stroke-width="1.6"/></svg>',
+  carrier: '<svg viewBox="0 0 24 16"><path d="M1 8h22l-2.5 5H4z M14 8V4h4v4 M15.5 4V2" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>',
+};
 let root, E = {}, rctx, mctx, acc = 0, racc = 0, warnT = 0;
 
 function mk(html) { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
@@ -90,7 +94,7 @@ export const hud = {
     u.hitFlash = Math.max(0, (u.hitFlash || 0) - dt * 1.5); E.vig.style.opacity = Math.min(0.8, u.hitFlash + (u.hp < u.maxHp * 0.25 ? 0.25 : 0));
     E.black.style.opacity = jet && u.alive ? clamp((u.gSmooth - 6.5) / 3, 0, 0.92) : 0;
     E.prompt.hidden = !player.prompt; if (player.prompt && E.prompt._t !== player.prompt) { E.prompt.innerHTML = player.prompt; E.prompt._t = player.prompt; }
-    if (input.tap('map')) { E.map.hidden = !E.map.hidden; }
+    { const open = input.on('map'); if (E.map.hidden === open) { E.map.hidden = !open; racc = 1; } }
     // ---- slower text ----
     acc += dt; if (acc < 0.09) return; const step = acc; acc = 0;
     const N = NATIONS[u.nation];
@@ -134,10 +138,18 @@ export const hud = {
     warnT -= step; if (warnT <= 0 && w.length && w[0][1] === '') { warnT = 0.7; audio.play(w[0][0] === 'STALL' ? 'stall' : 'warning'); }
     if (E.hint._t !== player.hint) { E.hint.textContent = player.hint; E.hint._t = player.hint; }
     if (player.scopeView) E.scopetxt.textContent = `PERISCOPE  ${hdgOf(player.yaw)}°  x${(1 + player.zoom * 3).toFixed(1)}`;
-    // score strip: carrier health for both sides
-    const me = u.nation, en = otherNation(me), c1 = world.carriers[me], c2 = world.carriers[en];
-    const cvBar = (c, n) => `<div class="cv"><span style="color:${NATIONS[n].color}">${NATIONS[n].name.toUpperCase()}</span><i><b style="width:${c ? clamp(c.hp / c.maxHp, 0, 1) * 100 : 0}%;background:${NATIONS[n].color}"></b></i></div>`;
-    const sh = cvBar(c1, me) + `<span>${world.score[me]} : ${world.score[en]}</span>` + cvBar(c2, en); if (E.score._h !== sh) { E.score.innerHTML = sh; E.score._h = sh; }
+    // score bar: your side on the left, the goal in the middle, the enemy on the right. Kills and carrier health are labelled.
+    const me = u.nation, en = otherNation(me);
+    const side = (n, mine) => {
+      const c = world.carriers[n], f = c ? clamp(c.hp / c.maxHp, 0, 1) : 0, pct = Math.ceil(f * 100);
+      if (c) { // flash the bar when the carrier is hit, and call out 50% and 25%
+        if (c._hudHp !== undefined && c.hp < c._hudHp - 1) c._hudFlash = world.t + 0.8; c._hudHp = c.hp;
+        for (const th of [50, 25]) if (pct <= th && c.alive && (c._alerted || 100) > th) { c._alerted = th; world.say(mine ? `Our carrier ${c.name} is down to ${th}%` : `Enemy carrier ${c.name} is down to ${th}%`, mine ? 'bad' : 'good'); if (mine) audio.play('warning'); }
+      }
+      const flash = c && c._hudFlash > world.t ? ' flash' : '', low = pct <= 25 ? ' low' : pct <= 50 ? ' mid' : '';
+      return `<div class="side ${mine ? 'me' : 'en'}"><b class="nm" style="color:${NATIONS[n].color}">${NATIONS[n].name.toUpperCase()}${mine ? ' (YOU)' : ''}</b><span class="kl">${ICON.kill}${world.kills[n]} KILLS</span><span class="cvl${flash}${low}">${ICON.carrier}CARRIER ${pct}%<i><u style="width:${pct}%;background:${NATIONS[n].color}"></u></i></span></div>`;
+    };
+    const sh = side(me, true) + '<div class="goal">SINK THE ENEMY CARRIER</div>' + side(en, false); if (E.score._h !== sh) { E.score.innerHTML = sh; E.score._h = sh; }
     racc += step; if (racc > 0.18) { racc = 0; this.radar(veh); if (!E.map.hidden) this.bigMap(veh); }
   },
 
@@ -240,15 +252,19 @@ export const hud = {
     this.lostMarks(c, u, (l) => [tx(l.x), tx(l.z)]);
     c.fillStyle = '#fff'; c.font = '11px sans-serif'; for (const n of ['aethia', 'extro']) { const cv = world.carriers[n]; if (cv && cv.alive && (n === u.nation || cv.seen)) c.fillText(cv.name, tx(cv.pos.x) + 10, tx(cv.pos.z) + 4); }
     const st = save.stats, me = u.nation, en = otherNation(me), count = (n, f) => world.units.filter((x) => x.alive && x.nation === n && f(x)).length;
+    const L = world.losses, lossRow = (label, key) => `<div class="stat"><span>${label}</span><span>${L[me][key]} / ${L[en][key]}</span></div>`;
     E.sb.innerHTML = `<h3>Battle</h3>
-      <div class="stat"><span>${NATIONS[me].name} score</span><span>${world.score[me]}</span></div><div class="stat"><span>${NATIONS[en].name} score</span><span>${world.score[en]}</span></div>
+      <div class="stat"><span>Kills: ${NATIONS[me].name} / ${NATIONS[en].name}</span><span>${world.kills[me]} / ${world.kills[en]}</span></div>
+      <h3 style="margin-top:1.2em">Losses: ours / theirs</h3>
+      ${lossRow('Ships', 'ships')}${lossRow('Submarines', 'subs')}${lossRow('Aircraft', 'aircraft')}${lossRow('Marines', 'men')}
+      <h3 style="margin-top:1.2em">Now</h3>
       <div class="stat"><span>Your kills this battle</span><span>${world.playerKills || 0}</span></div>
       <div class="stat"><span>Our ships / aircraft</span><span>${count(me, (x) => x.kind === 'ship' || x.kind === 'sub')} / ${count(me, (x) => x.isAir)}</span></div>
       <div class="stat"><span>Enemy contacts held</span><span>${world.units.filter((x) => x.alive && x.nation === en && x.seen).length}</span></div>
       <h3 style="margin-top:1.2em">Service record</h3>
       <div class="stat"><span>Ships sunk</span><span>${st.sinkings}</span></div><div class="stat"><span>Aircraft shot down</span><span>${st.aircraft}</span></div>
       <div class="stat"><span>Battles won / lost</span><span>${st.battlesWon} / ${st.battlesLost}</span></div>
-      <p style="color:var(--dim);font-size:.8em;margin-top:1.4em">Tab closes the map. White marker: you. Squares: ships. Diamonds: submarines. Triangles: aircraft.</p>`;
+      <p style="color:var(--dim);font-size:.8em;margin-top:1.4em">Hold Tab to keep this open. White marker: you. Squares: ships. Diamonds: submarines. Triangles: aircraft.</p>`;
   },
 };
 function hdgOf(yaw) { return String(Math.round(((((-yaw * 180) / Math.PI) % 360) + 360) % 360)).padStart(3, '0'); }
