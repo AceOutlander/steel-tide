@@ -1,7 +1,7 @@
 // Game data: nations, unit classes, weapons. Both nations share identical stats; only looks and names differ.
 import { KTS } from './util.js';
 
-export const VERSION = 'Beta 0.1.6';
+export const VERSION = 'Beta 0.2.0';
 export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {

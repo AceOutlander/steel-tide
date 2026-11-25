@@ -161,7 +161,7 @@ export const app = {
     if (this.state === 'battle' || this.state === 'dead') hud.update(dt);
     if (fpview) fpview.update(sim ? dt : 0, player, gfx);
     gfx.render();
-    if (fpview) fpview.render(gfx);
+    if (fpview && !keepCam) fpview.render(gfx); // not over a developer view
     for (let i = 0; i < U.length; i++) U[i].popRender();
   },
   attractCamera(dt) {

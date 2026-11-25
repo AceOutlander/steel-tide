@@ -1,8 +1,26 @@
 # Steel Tide: changelog and decisions
 
-## Beta 0.2.0 (in progress: not yet released)
+## Beta 0.2.0 (new models, soldiers, HUD, Credits, Hangar)
 
-Built and tested locally; goes live when the new models are in.
+**Models**
+- Every vehicle is rebuilt in code with smooth shapes, real detail and painted textures without a tile grid: the
+  gunship (rotary chin cannon that spins when firing, nose sensors, tandem cockpit with pilots, rotor hub, rocket pods),
+  the tandem-rotor transport, the fighter, the swing-wing bomber, the radar-dome recon plane; the patrol boat,
+  corvette, battlecruiser (stern dock), carrier (catapult tracks, wires, elevators, island) and both submarines; all
+  five deck mounts; missiles, bombs and torpedoes at true size. Two detail levels, thinner detail below Medium.
+- Built in code rather than in Blender or from outside assets, so paint schemes can repaint them and wreckage can cut
+  them. Known weak spots: the far-distance models have no windows or deck paint, so the switch shows in Fast Graphics;
+  the carrier hull under the deck overhang is plain; stairs and ladders are decoration.
+
+**Soldiers and crew**
+- One code-built human with a skeleton replaces the box figure and the pill-shaped sailors: marines, sailors, pilots
+  and flight-deck crew in job-coloured jerseys, with a real-size rifle held in the shoulder, and animations for idle,
+  walk, sprint, crouch, aim, fire, reload, jump and land, swim, manning a gun, deck tasks and death. Crowds are baked
+  poses drawn instanced, with contact shadows, and feet on the deck.
+- First person: arms, gloved hands and the rifle in their own pass (they cannot clip into walls), with sway, bob,
+  sprint lowering, recoil, casings, muzzle flash, a reload that matches the reload time, and aiming down the sights on
+  the right button (a slight zoom). Hidden when swimming, in vehicles, on a gun or dead.
+- Not there: ladders and doors (the game has none), seated passengers are not drawn, faces are simple.
 
 **HUD, score, radar**
 - One reticle per kind of control: marine (opens when moving or firing, closes and fades when aiming), ship guns,
