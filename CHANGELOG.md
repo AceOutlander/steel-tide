@@ -1,5 +1,30 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.1.4 (detection: submarines stay hidden)
+
+One routine (`world.detects` in `js/world/world.js`) now decides every contact. The radar and map, target boxes and
+labels, the aim point, missile and gun lock, and the crews and pilots choosing targets all read the one result
+(`unit.seen`), so none of them can know about a unit its side has not detected.
+
+- What was wrong: a sub at periscope depth counted as "not submerged" below 6 m and was picked up by ordinary radar at
+  40% strength, and a sub that pinged was shown to every enemy on the map, sonar or not.
+- Surfaced (0 to 3 m): seen like a small ship.
+- Periscope depth (3 to 18 m): by eye inside 1.5 km; by radar only while the mast is up and only at short range
+  (12% of the radar's range, 2.5 km at most); otherwise by sonar only.
+- Deep: sonar only. Aircraft, the recon plane, patrol boats and marines cannot find it.
+- Sonar is carried by submarines, corvettes and battlecruisers. A sub at full speed is heard about four times as far
+  as one creeping; below 60 m it is 30% quieter.
+- Active ping: finds subs out to 1.5 times sonar range, and gives the pinging boat away to every enemy sonar within
+  9 km (not to units without sonar).
+- Lost contacts leave a fading "?" on the radar and map for 13 seconds.
+- Cloaked bomber: radar range a tenth of normal, still seen by eye up close (about 1 km). The stealth fighter's
+  smaller signature shortens radar range the same way.
+- Contacts are shared within a side, and exist only while one of its units really detects the target.
+- Checked with the detection table in `?devtest`: an enemy sub surfaced, at periscope depth with the mast down and up,
+  and deep, slow and fast, watched from a helicopter, a fighter, the recon plane, a corvette, a patrol boat, a sub
+  listening, a sub pinging and a marine; and the reported case (Attack Helicopter, sub 3.3 km away) now shows no box,
+  no label and no aim lock at periscope depth or deep.
+
 ## Beta 0.1.3 (steady, sharp flying)
 
 - The cause of the shake and the smeared look: the simulation runs in fixed 1/60 s steps, and a drawn frame could

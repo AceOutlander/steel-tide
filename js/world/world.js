@@ -25,6 +25,7 @@ function islandH(is, x, z) {
 }
 
 export const world = {
+  lost: [], // enemy contacts just lost: { x, z, t, nation, unit }
   t: 0, units: [], islands: ISLANDS, pads: PADS, player: null, playerNation: 'aethia', carriers: {}, feed: [], onFeed: null, onKill: null, group: null,
   score: { aethia: 0, extro: 0 }, over: null, nextId: 1,
 
@@ -77,36 +78,60 @@ export const world = {
 
   add(u) { u.id = this.nextId++; this.units.push(u); if (u.root) gfx.scene.add(u.root); return u; },
   remove(u) { const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1); if (u.root && u.root.parent === gfx.scene) gfx.scene.remove(u.root); u.gone = true; },
-  clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
+  clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.lost.length = 0; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
 
   say(text, cls = '') { this.feed.push({ text, cls, t: this.t }); if (this.feed.length > 40) this.feed.shift(); this.onFeed && this.onFeed(text, cls); },
 
   // --- detection: enemy units a side currently holds on radar / sonar / in sight -------------------------------------
   _detT: 0,
+  // ---- detection ------------------------------------------------------------------------------------------------------------
+  // THE one place that decides who can be seen. Everything else (radar and map, target boxes and labels, the aim point,
+  // missile and gun lock, crews and pilots choosing targets) reads only unit.seen: "the other side holds this contact
+  // right now". A side shares its contacts, but a contact exists only if one of its units can really detect the target.
+  //
+  // Submarines: SURFACED (0-3 m) like a small ship. PERISCOPE DEPTH (3-18 m): by eye inside 1.5 km, by radar at short
+  // range only while the mast is up, otherwise sonar only. DEEP: sonar only. Sonar is carried by submarines, corvettes and
+  // battlecruisers; a fast sub is loud, a slow one quiet. An active ping finds subs out to 1.5x sonar range and gives the
+  // pinging boat away to every enemy sonar within 9 km.
+  // Aircraft: radar range scales with the target's signature (stealth fighter 0.45, cloaked bomber a tenth of normal);
+  // eyes still work up close whatever the radar says.
+  sonarRange(f) { return f.kind === 'sub' ? (f.def.sonar || 3000) : f.kind === 'ship' && (f.type === 'corvette' || f.type === 'battlecruiser') ? 2200 : 0; },
+  // how observer f detects e at horizontal range d: 'eye' | 'radar' | 'sonar' | 'ping' | null
+  detects(f, e, d) {
+    if (e.kind === 'soldier' && e.aboard) return null;
+    const t = this.t, son = this.sonarRange(f);
+    if (e.kind === 'sub' && e.depth > 3 && !e.dockedTo) {
+      if (son) {
+        const noise = (e.def.quiet || 1) * (0.35 + 0.9 * clamp(Math.abs(e.speed) / e.def.speed, 0, 1)) * (e.depth > 60 ? 0.7 : 1);
+        if (d < son * noise) return 'sonar';
+        if (f.pingT > t && d < son * 1.5) return 'ping';
+        if (e.pinged > t && d < 9000) return 'ping';
+      }
+      if (e.depth < 18) {
+        if (d < 1500) return 'eye';                                              // the mast and its feather of wake
+        if (e.scopeA > 0.5 && d < Math.min(f.def.radar * 0.12, 2500)) return 'radar';
+      }
+      return null;
+    }
+    if (son && e.pinged > t && d < 9000) return 'ping';
+    if (d < 1800 * Math.min(1, e.def.sig * 2 + 0.3) * (e.cloaked ? 0.6 : 1)) return 'eye';
+    let sig = e.def.sig; if (e.cloaked) sig *= 0.1; if ((e.kind === 'jet' || e.kind === 'heli') && e.pos.y < 40) sig *= 0.6;
+    return d < f.def.radar * sig ? 'radar' : null;
+  },
   updateDetection(dt) {
     this._detT -= dt; if (this._detT > 0) return; this._detT = 0.4;
     const U = this.units;
     for (let i = 0; i < U.length; i++) {
-      const e = U[i]; if (!e.alive) { e.seen = false; continue; }
-      let seen = false;
-      const submerged = e.kind === 'sub' && e.depth > 6;
-      for (let j = 0; j < U.length && !seen; j++) {
+      const e = U[i], was = e.seen; let how = null;
+      if (e.alive) for (let j = 0; j < U.length && !how; j++) {
         const f = U[j]; if (f.nation === e.nation || !f.alive || f.passive) continue;
-        const d = Math.hypot(f.pos.x - e.pos.x, f.pos.z - e.pos.z);
-        if (submerged) {
-          const son = f.def.sonar || (f.kind === 'ship' && f.type !== 'patrol' && f.type !== 'carrier' ? 2200 : 0);
-          if (!son) continue;
-          const noise = (e.def.quiet || 1) * (0.35 + 0.9 * clamp(Math.abs(e.speed) / e.def.speed, 0, 1)) * (e.depth > 60 ? 0.7 : 1);
-          if (d < son * noise || (e.pinged > this.t && d < 9000) || (f.pingT > this.t && d < (f.def.sonar || 3000) * 1.5)) seen = true;
-        } else {
-          let sig = e.def.sig; if (e.cloaked) sig *= 0.1; if (e.kind === 'sub') sig *= e.depth > 2 ? 0.4 : 1;
-          if (e.kind === 'soldier' && e.aboard) sig = 0;
-          const alt = e.pos.y; if ((e.kind === 'jet' || e.kind === 'heli') && alt < 40) sig *= 0.6;
-          if (d < f.def.radar * sig || d < 1800 * Math.min(1, sig * 2 + 0.3) || (e.pinged > this.t)) seen = true;
-        }
+        how = this.detects(f, e, Math.hypot(f.pos.x - e.pos.x, f.pos.z - e.pos.z));
       }
-      e.seen = seen;
+      e.seen = !!how; e.seenHow = how;
+      // contact lost: remember where, for the fading "?" on the radar and map
+      if (was && !how && e.alive) this.lost.push({ x: e.pos.x, z: e.pos.z, t: this.t, nation: e.nation, unit: e });
     }
+    for (let i = this.lost.length - 1; i >= 0; i--) { const l = this.lost[i]; if (this.t - l.t > 13 || l.unit.seen || !l.unit.alive) this.lost.splice(i, 1); }
   },
   visibleTo(u, nation) { return u.nation === nation || u.seen; },
   label(u) { return `${NATIONS[u.nation].adj} ${u.def.label.toLowerCase()}${u.name ? ' ' + u.name : ''}`; },

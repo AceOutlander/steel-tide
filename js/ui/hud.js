@@ -132,9 +132,16 @@ export const hud = {
     c.strokeStyle = 'rgba(140,190,220,.25)'; c.lineWidth = 1; for (const f of [0.33, 0.66, 1]) { c.beginPath(); c.arc(R, R, (R - 6) * f, 0, 7); c.stroke(); }
     c.beginPath(); c.moveTo(R, 6); c.lineTo(R, S - 6); c.moveTo(6, R); c.lineTo(S - 6, R); c.stroke();
     for (const e of world.units) { if (!e.alive || (e.nation !== u.nation && !e.seen) || (e.kind === 'soldier' && e.aboard)) continue; const [x, y] = tx(e.pos.x, e.pos.z); if (Math.hypot(x - R, y - R) > R) continue; this.blip(c, e, x, y, e === u ? 4 : 3.2, u.nation); }
+    this.lostMarks(c, u, (l) => tx(l.x, l.z));
     c.fillStyle = '#ffb347'; for (const m of world.missiles || []) { if (m.nation === u.nation) continue; const [x, y] = tx(m.pos.x, m.pos.z); c.fillRect(x - 1.5, y - 1.5, 3, 3); }
     c.restore(); c.strokeStyle = 'rgba(160,200,230,.5)'; c.lineWidth = 2; c.beginPath(); c.arc(R, R, R - 2, 0, 7); c.stroke();
     E.rlbl.textContent = `RADAR ${(range / 1000).toFixed(range < 1000 ? 1 : 0)} KM`;
+  },
+  // a fading "?" where an enemy contact was last held (13 seconds)
+  lostMarks(c, u, at) {
+    c.font = 'bold 12px sans-serif'; c.textAlign = 'center';
+    for (const l of world.lost) { if (l.nation === u.nation) continue; const [x, y] = at(l); c.fillStyle = `rgba(255,120,100,${Math.max(0, 1 - (world.t - l.t) / 13).toFixed(2)})`; c.fillText('?', x, y + 4); }
+    c.textAlign = 'left';
   },
   bigMap(u) {
     const c = mctx, S = 640, k = S / (MAP.half * 2 + 2000), tx = (x) => S / 2 + x * k;
@@ -142,6 +149,7 @@ export const hud = {
     c.strokeStyle = 'rgba(140,190,220,.12)'; for (let i = 0; i <= 10; i++) { c.beginPath(); c.moveTo(i * 64, 0); c.lineTo(i * 64, S); c.moveTo(0, i * 64); c.lineTo(S, i * 64); c.stroke(); }
     c.fillStyle = '#5c7854'; for (const is of world.islands) { c.beginPath(); c.arc(tx(is.x), tx(is.z), is.r * k, 0, 7); c.fill(); }
     for (const e of world.units) { if (!e.alive || (e.nation !== u.nation && !e.seen) || (e.kind === 'soldier' && e.aboard)) continue; this.blip(c, e, tx(e.pos.x), tx(e.pos.z), e === u ? 5 : e.kind === 'soldier' ? 2 : 3.5, u.nation); }
+    this.lostMarks(c, u, (l) => [tx(l.x), tx(l.z)]);
     c.fillStyle = '#fff'; c.font = '11px sans-serif'; for (const n of ['aethia', 'extro']) { const cv = world.carriers[n]; if (cv && cv.alive && (n === u.nation || cv.seen)) c.fillText(cv.name, tx(cv.pos.x) + 10, tx(cv.pos.z) + 4); }
     const st = save.stats, me = u.nation, en = otherNation(me), count = (n, f) => world.units.filter((x) => x.alive && x.nation === n && f(x)).length;
     E.sb.innerHTML = `<h3>Battle</h3>
