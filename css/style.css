@@ -135,3 +135,31 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* flight-path marker: where the plane is actually going */
 #h-fpm i { left: -.45em; top: -.45em; width: .9em; height: .9em; box-sizing: border-box; border: 1.5px solid #7dffa0; border-radius: 50%; box-shadow: 0 0 2px #000; }
 #h-fpm i::before, #h-fpm i::after { content: ""; position: absolute; top: 50%; width: .7em; height: 1.5px; margin-top: -1px; background: #7dffa0; } #h-fpm i::before { right: 100%; } #h-fpm i::after { left: 100%; }
+
+/* ---- one reticle per kind of control: r-foot, r-ship, r-gun, r-sub, r-scope, r-jet, r-heli ---- */
+#h-cross.r::before, #h-cross.r::after { content: none; }
+#h-cross.r { --c: rgba(255, 255, 255, .92); --gap: .35em; border: 0; border-radius: 0; }
+#h-cross.r.enemy { --c: #ff4a3d; } #h-cross.r.friend { --c: #5fe07a; }
+#h-cross.r i { position: absolute; display: block; background: var(--c); box-shadow: 0 0 2px #000; }
+#h-cross.r .l.t, #h-cross.r .l.b { left: 50%; width: 2px; height: .55em; margin-left: -1px; } #h-cross.r .l.lf, #h-cross.r .l.rt { top: 50%; height: 2px; width: .55em; margin-top: -1px; }
+#h-cross.r .l.t { bottom: calc(50% + var(--gap)); } #h-cross.r .l.b { top: calc(50% + var(--gap)); } #h-cross.r .l.lf { right: calc(50% + var(--gap)); } #h-cross.r .l.rt { left: calc(50% + var(--gap)); }
+#h-cross.r .dot { left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px; border-radius: 50%; }
+#h-cross.r .ring { display: none; left: 50%; top: 50%; background: none; border: 1.5px solid var(--c); border-radius: 50%; box-sizing: border-box; }
+/* marine: four lines that open and close (--gap is set every frame) */
+#h-cross.r-foot .l.t, #h-cross.r-foot .l.b { height: .4em; } #h-cross.r-foot .l.lf, #h-cross.r-foot .l.rt { width: .4em; }
+/* ship guns and mounted guns: a ranging ring with long ticks */
+#h-cross.r-ship, #h-cross.r-gun { --gap: .95em; } #h-cross.r-ship .ring, #h-cross.r-gun .ring { display: block; width: 1.9em; height: 1.9em; margin: -.95em; }
+#h-cross.r-ship .l.t, #h-cross.r-ship .l.b, #h-cross.r-gun .l.t, #h-cross.r-gun .l.b { height: .7em; } #h-cross.r-ship .l.lf, #h-cross.r-ship .l.rt, #h-cross.r-gun .l.lf, #h-cross.r-gun .l.rt { width: .7em; }
+#h-cross.r-gun .ring { width: 1.3em; height: 1.3em; margin: -.65em; } #h-cross.r-gun { --gap: .65em; }
+/* submarine on the surface or below: a plain cross; through the periscope the scope overlay is the reticle */
+#h-cross.r-sub { --gap: .2em; } #h-cross.r-scope .l, #h-cross.r-scope .ring { display: none; }
+/* planes: the centre is only where you are looking (a small dot); the gunsight is the nose marker */
+#h-cross.r-jet .l { display: none; } #h-cross.r-jet .dot { width: 4px; height: 4px; margin: -2px; opacity: .8; }
+/* helicopters: gun and missile ring */
+#h-cross.r-heli { --gap: 1.15em; } #h-cross.r-heli .ring { display: block; width: 2.3em; height: 2.3em; margin: -1.15em; } #h-cross.r-heli .l.t, #h-cross.r-heli .l.lf, #h-cross.r-heli .l.rt { display: none; } #h-cross.r-heli .l.b { height: .5em; }
+#h-rinfo { position: absolute; left: 50%; top: calc(50% + 3.9em); transform: translateX(-50%); font-size: .72em; letter-spacing: .12em; color: rgba(232, 241, 247, .85); text-shadow: 0 1px 2px #000; white-space: nowrap; }
+/* the plane's gunsight (where the nose and guns point): ring, pipper and wing ticks */
+#h-nose i::before { content: ""; position: absolute; left: -.6em; right: -.6em; top: 50%; height: 2px; margin-top: -1px; background: #7be08a; -webkit-mask: linear-gradient(90deg, #000 18%, transparent 18% 82%, #000 82%); mask: linear-gradient(90deg, #000 18%, transparent 18% 82%, #000 82%); }
+/* periscope: bearing ticks along the horizontal wire and range marks on the vertical one */
+#h-scope span::after { content: ""; position: absolute; left: 50%; top: calc(36vh - .2em); width: 60vh; height: .9em; margin-left: -30vh; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .75) 0 1px, transparent 1px 3vh); }
+#h-scope span::before { content: ""; position: absolute; left: 50%; top: 24vh; width: 1.2em; height: 24vh; margin-left: -.6em; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .75) 0 1px, transparent 1px 2.4vh); }

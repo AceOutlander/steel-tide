@@ -31,17 +31,17 @@ export const hud = {
       <div id="h-status" class="hud-box"><div class="cl" id="h-cl"></div><div class="nm" id="h-nm"></div><div class="bar"><i id="h-hp"></i></div><div class="grid2" id="h-grid"></div></div>
       <div class="thr" id="h-thr"><i></i><b></b></div>
       <div id="h-weap" class="hud-box"></div>
-      <div id="h-cross"></div><div id="h-hitx" hidden></div><div id="h-dmg" hidden></div><div id="h-dirs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div id="h-cross" class="r"><i class="l t"></i><i class="l b"></i><i class="l lf"></i><i class="l rt"></i><i class="ring"></i><i class="dot"></i></div><div id="h-rinfo"></div><div id="h-hitx" hidden></div><div id="h-dmg" hidden></div><div id="h-dirs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div id="h-lead" class="mark" hidden><i></i><span></span></div><div id="h-fall0" class="mark fall" hidden><span></span></div><div id="h-fall1" class="mark fall" hidden><span></span></div><div id="h-fall2" class="mark fall" hidden><span></span></div>
       <div id="h-nose" class="mark" hidden><i></i></div><div id="h-fpm" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
       <div id="h-stick" hidden><i></i></div>
       <div id="h-warn"></div><div id="h-prompt" hidden></div><div id="h-msg" hidden></div><div id="h-hint"></div>
       <div id="h-map" hidden><div class="mapwrap"><canvas width="640" height="640"></canvas><div class="scoreboard" id="h-sb"></div></div></div>`;
-    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
+    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
-  show(on) { root.hidden = !on; },
+  show(on) { root.hidden = !on; if (root && E.cross) { this._unit = null; clearTimeout(this._mt); if (!on) E.msg.hidden = true; } },
   feed(text, cls) {
     const d = document.createElement('div'); d.className = cls || ''; d.textContent = text; E.feed.appendChild(d);
     while (E.feed.children.length > 7) E.feed.removeChild(E.feed.firstChild);
@@ -56,10 +56,19 @@ export const hud = {
     // ---- per-frame markers ----
     const jet = u.kind === 'jet', heli = u.kind === 'heli';
     // reticle: red over an enemy, green over one of ours (the trigger is locked), white over nothing
-    const at = player.aimTarget, fr = player.aimFriend, rc = (jet && player.mode === 'chase' ? 'circle' : '') + (at ? ' enemy' : fr ? ' friend' : '');
+    // Whenever control changes hands (another unit, a seat, a gun, a camera mode, the periscope, death) the HUD starts clean
+    const kind = this.kindOf(u), tag = kind + '|' + player._camTag;
+    if (this._unit !== u) { this.reset(true); this._unit = u; this._tag = tag; } else if (this._tag !== tag) { this.reset(false); this._tag = tag; }
+    // one reticle per kind of control (see the r-* rules in style.css); red over an enemy, green over one of ours
+    const at = player.aimTarget, fr = player.aimFriend, rc = 'r r-' + kind + (at ? ' enemy' : fr ? ' friend' : '');
     if (E.cross._c !== rc) { E.cross.className = rc; E.cross._c = rc; }
+    if (kind === 'foot') { // the marine's crosshair opens up when moving or firing and closes (then fades) when aiming down the sights
+      const gap = (0.3 + u.moving * (u.ctl.run ? 0.9 : 0.45) + (u.grounded ? 0 : 0.5) + clamp(u.cd * 9, 0, 1) * 0.35) * (1 - player.zoom * 0.6);
+      E.cross.style.setProperty('--gap', gap.toFixed(2) + 'em'); E.cross.style.opacity = (1 - player.zoom * 0.85).toFixed(2);
+    } else if (E.cross.style.opacity !== '') E.cross.style.opacity = '';
+    this.reticleInfo(u, veh, kind);
     this.feedback(u, veh, dt);
-    E.cross.hidden = !u.alive || (u.kind === 'soldier' && !!u.aboard);
+    E.cross.hidden = kind === 'none';
     if (jet && u.state === 'fly' && u.alive) {
       u.fwd(_v).multiplyScalar(900).add(u.pos); place(E.nose, _v);                       // where the nose (and the guns) point
       const sp = u.vel.length(); if (sp > 30) { _v.copy(u.vel).multiplyScalar(900 / sp).add(u.pos); place(E.fpm, _v); } else E.fpm.hidden = true; // where the plane is going
@@ -132,6 +141,43 @@ export const hud = {
     racc += step; if (racc > 0.18) { racc = 0; this.radar(veh); if (!E.map.hidden) this.bigMap(veh); }
   },
 
+  // which reticle and HUD layout the player's current seat uses
+  kindOf(u) {
+    if (!u.alive) return 'none';
+    if (u.kind === 'soldier') return u.aboard ? 'none' : u.gun ? 'gun' : 'foot';
+    if (u.kind === 'ship') return player.mode === 'gunner' ? 'gun' : 'ship';
+    if (u.kind === 'sub') return player.scopeView ? 'scope' : 'sub';
+    return u.kind; // jet, heli
+  },
+  // Wipe everything that belongs to the previous unit or view: markers, boxes, labels, cached text. `full` (a different
+  // unit) also forgets hit and damage feedback and warnings.
+  reset(full) {
+    for (const id of ['nose', 'fpm', 'lock', 'aimtg', 'bomb', 'lead', 'fall0', 'fall1', 'fall2', 'hitx', 'dmg', 'stick', 'scope']) { const n = E[id]; n.hidden = true; n._t = n._c = undefined; }
+    for (const a of E.dirs.children) a.style.opacity = '0';
+    E.rinfo.textContent = ''; E.rinfo._t = ''; E.cross._c = ''; E.cross.style.opacity = '';
+    if (full) {
+      world.hits.t = -9; world.hits.dmg = 0; world.hurts.length = 0; world.falls.length = 0; this.torpNear = '';
+      E.warn._k = ''; E.warn.innerHTML = ''; E.prompt.hidden = true; E.prompt._t = ''; E.hint._t = null; E.grid._h = ''; E.weap._h = ''; warnT = 0; acc = 1; // redraw the panels at once
+    }
+  },
+  // the line under the reticle: range to what is under it and the state of the weapon in hand
+  reticleInfo(u, veh, kind) {
+    let t = '';
+    if (kind === 'ship' || kind === 'gun') {
+      const key = u.gun ? u.gun.key : veh.selKey, ms = u.gun ? [u.gun] : (veh.mounts || []).filter((m) => m.key === key);
+      if (ms.length) {
+        const rdy = ms.filter((m) => m.cd <= 0 && m.inArc).length, arc = ms.some((m) => m.inArc), wait = Math.min(...ms.map((m) => Math.max(m.cd, 0)));
+        const rng = player.aimTarget ? `${(player.aimTarget.pos.distanceTo(veh.pos) / 1000).toFixed(1)} km` : `${(player.aimPoint.distanceTo(veh.pos) / 1000).toFixed(1)} km`;
+        t = `${rng}  ·  ${!arc ? 'OUT OF ARC' : rdy ? (ms.length > 1 ? `${rdy}/${ms.length} READY` : 'READY') : `RELOADING ${wait.toFixed(1)} s`}`;
+      }
+    } else if (kind === 'sub' || kind === 'scope') {
+      const tb = veh.tubes; if (tb) t = veh.depth > 40 ? 'TOO DEEP TO FIRE' : `${tb.ready}/${tb.def.tubes} TUBES${player.aimTarget ? `  ·  ${(player.aimTarget.pos.distanceTo(veh.pos) / 1000).toFixed(1)} km` : ''}`;
+    } else if (kind === 'heli' || kind === 'jet') {
+      const w = veh.fw && veh.fw[veh.selKey], def = WEAPONS[veh.selKey];
+      if (def) t = def.name + (w && w.ammo !== Infinity ? `  ·  ${w.ammo}` : '');
+    } else if (kind === 'foot') t = u.reloadT > 0 ? 'RELOADING' : u.mag <= 5 ? `${u.mag} ROUNDS` : '';
+    if (E.rinfo._t !== t) { E.rinfo.textContent = t; E.rinfo._t = t; }
+  },
   // ---- hit markers, damage direction, shell-fall calls (every frame) ----
   feedback(u, veh, dt) {
     const h = world.hits, age = world.t - h.t, cam = gfx.camera;
