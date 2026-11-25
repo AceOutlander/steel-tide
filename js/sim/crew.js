@@ -51,7 +51,7 @@ export const crew = {
         else if (c.wait < 1e8) {
           // amble to a new spot on the same deck now and then
           const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
-          if (d > 0.3) { const want = Math.atan2(-dx, -dz); c.yaw = approachAngle(c.yaw, want, dt * 4); const sp = 1.5 * dt, nx = c.x + (dx / d) * sp, nz = c.z + (dz / d) * sp; if (blocked(s, nx, c.y, nz)) { c.tx = c.x; c.tz = c.z; } else { c.x = nx; c.z = nz; } pose = 1; }
+          if (d > 0.3) { const want = Math.atan2(-dx, -dz); c.yaw = approachAngle(c.yaw, want, dt * 4); const sp = 1.5 * dt, nx = c.x + (dx / d) * sp, nz = c.z + (dz / d) * sp; if (blocked(s, nx, c.y, nz, 0)) { c.tx = c.x; c.tz = c.z; } else { c.x = nx; c.z = nz; } pose = 1; }
           else { c.wait -= dt; if (c.wait <= 0) { c.wait = rand(5, 25); const dk = c.deck || s.model.decks.find((q) => c.x >= q.x0 && c.x <= q.x1 && c.z >= q.z0 && c.z <= q.z1 && Math.abs(q.y - c.y) < 0.5); if (dk) { c.deck = dk; const r = c.home ? 9 : 30; c.tx = Math.min(dk.x1 - 0.8, Math.max(dk.x0 + 0.8, (c.home ? c.home.x : c.x) + rand(-r, r))); c.tz = Math.min(dk.z1 - 0.8, Math.max(dk.z0 + 0.8, (c.home ? c.home.z : c.z) + rand(-r, r))); } } }
         }
         if (i >= show && !c.gun) continue; if (n >= MAX) break;

@@ -78,7 +78,7 @@ export const app = {
   setFast(on, silent) { save.settings.fast = on; save.settings.fastAsked = true; save.write(); gfx.applyQuality(); menus.syncFast(); if (!silent) audio.play('click'); },
 
   // test hook: run the simulation forward synchronously (the tab may be throttled while hidden)
-  advance(secs) { const n = Math.round(secs / STEP); for (let i = 0; i < n; i++) { if (i % 2 === 0 && (this.state === 'battle' || this.state === 'dead')) player.update(STEP * 2); if (this.state !== 'paused') this.step(STEP); if (i % 6 === 5) { this.present(STEP * 6, true); input.endFrame(); } } return world.t; },
+  advance(secs) { this.alpha = 1; const n = Math.round(secs / STEP); for (let i = 0; i < n; i++) { if (i % 2 === 0 && (this.state === 'battle' || this.state === 'dead')) { player.update(STEP * 2); player.camera(STEP * 2); } if (this.state !== 'paused') this.step(STEP); if (i % 2 === 1) input.endFrame(); if (i % 6 === 5) this.present(STEP * 6, true); } return world.t; },
 
   // ---- loop ------------------------------------------------------------------------------------------------------------------
   frame(now) {
@@ -94,6 +94,7 @@ export const app = {
       acc += dt; let n = 0;
       while (acc >= STEP && n < 4) { this.step(STEP); acc -= STEP; n++; }
       if (n === 4) acc = 0;
+      this.alpha = acc / STEP;
       if (this.state === 'dead') { deadT -= dt; if (deadT <= 0) { if (battle.active) this.redeploy(); else this.state = 'over'; } }
     }
     this.present(dt, sim);
@@ -102,11 +103,13 @@ export const app = {
   step(dt) {
     world.t += dt;
     const U = world.units;
+    for (let i = U.length - 1; i >= 0; i--) U[i].keepPose();
     for (let i = U.length - 1; i >= 0; i--) { const u = U[i]; if (u) u.update(dt); }
     weapons.update(dt); world.updateDetection(dt); battle.update(dt);
   },
   present(dt, sim, keepCam) {
-    const cam = gfx.camera, pu = player.unit;
+    const cam = gfx.camera, pu = player.unit, U = world.units, al = this.alpha;
+    for (let i = 0; i < U.length; i++) U[i].pushRender(al); // draw between physics steps, see Unit.pushRender
     if (keepCam) { /* a developer check has placed the camera */ }
     else if ((this.state === 'battle' || this.state === 'dead' || this.state === 'paused') && pu) { if (sim) player.camera(dt); }
     else this.attractCamera(dt);
@@ -127,6 +130,7 @@ export const app = {
     this.audioScene(dt, cam);
     if (this.state === 'battle' || this.state === 'dead') hud.update(dt);
     gfx.render();
+    for (let i = 0; i < U.length; i++) U[i].popRender();
   },
   attractCamera(dt) {
     const cv = world.carriers[world.playerNation] || world.units[0]; if (!cv) return; orbit += dt * 0.035;

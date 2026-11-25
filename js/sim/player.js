@@ -13,13 +13,14 @@ import { weapons } from './weapons.js';
 import { attachAI } from './ai.js';
 import { deckUnder } from './surface.js';
 import { battle } from '../world/battle.js';
+import { segSolid, inBounds, clearT, crowded, aboveWater, bridgeEye, buildCockpit, cut } from './camrig.js';
 
-const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3(), _f = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
+const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3(), _f = new V3(), _g = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const MODES = { ship: ['chase', 'first', 'gunner'], sub: ['chase', 'first'], jet: ['chase', 'first'], heli: ['chase', 'first'], soldier: ['first', 'chase'] };
 
 export const player = {
   unit: null, yaw: 0, pitch: 0, mode: 'chase', zoom: 0, aimPoint: new V3(), aimDir: new V3(0, 0, -1), aimTarget: null, stick: { x: 0, y: 0 },
-  prompt: '', hint: '', scope: false, camShake: 0, bombPoint: new V3(), showBomb: false, lockDef: null, soldier: null,
+  prompt: '', hint: '', scope: false, camShake: 0, _off: new V3(), _pullT: 1, _camTag: '', _camUnit: null, _cockUnit: null, bombPoint: new V3(), showBomb: false, lockDef: null, soldier: null,
 
   setUnit(u, keepView = false) {
     this.unit = u; world.player = u; u.isPlayer = true; this.aimTarget = null; this.scope = false; this.stick.x = this.stick.y = 0;
@@ -33,7 +34,7 @@ export const player = {
     const u = this.unit; if (!u) return;
     const s = save.settings, sens = 0.0021 * s.sens * (1 - this.zoom * 0.7);
     this.prompt = ''; this.showBomb = false; this.lockDef = null;
-    if (!u.alive) { this.camera(dt); return; }
+    if (!u.alive) return;
     if (input.tap('camera')) { const l = MODES[u.kind]; this.mode = l[(l.indexOf(this.mode) + 1) % l.length]; if (this.mode === 'gunner' && !u.mounts.some((m) => m.key === u.selKey)) this.mode = 'chase'; this.scope = false; }
     this.zoom = damp(this.zoom, input.rmb ? 1 : 0, 10, dt);
     const heli = u.kind === 'heli' && u.state === 'fly';
@@ -43,7 +44,7 @@ export const player = {
     for (let i = 0; i < 4; i++) if (input.tap('weapon' + (i + 1)) && keys[i]) { u.selKey = keys[i]; audio.play('click'); }
     if (input.wheel && keys.length > 1) { u.selKey = keys[(keys.indexOf(u.selKey) + (input.wheel > 0 ? 1 : keys.length - 1)) % keys.length]; audio.play('click'); }
     this.keys = keys;
-    this.camera(dt, true); // compute the aim ray first (uses last frame's unit position; fine at 60 Hz)
+    this.aim(); // from the camera as it was last drawn
     if (u.kind === 'ship') this.ship(u, dt); else if (u.kind === 'sub') this.sub(u, dt); else if (u.kind === 'jet') this.jet(u, dt); else if (u.kind === 'heli') this.heli(u, dt); else this.foot(u, dt);
   },
 
@@ -165,51 +166,113 @@ export const player = {
   },
 
   // ---- camera ----------------------------------------------------------------------------------------------------------------
-  camera(dt, aimOnly = false) {
+  // Places the camera for the unit and view in use. Runs once per drawn frame, on the smoothed unit positions.
+  // Rules: never inside geometry (chase views are pushed out of the own hull or pulled in front of whatever is in the way,
+  // first-person views use anchors outside the model or hide it), never under water unless the unit is a submerged sub.
+  camera(dt) {
     const u = this.unit, cam = gfx.camera, s = save.settings; if (!u) return;
     const view = u.model.view || {}, cp = Math.cos(this.pitch);
     _d.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp); // look direction from yaw/pitch
-    let fov = s.fov, near = 0.5;
-    const subj = u.kind === 'soldier' && u.aboard ? u.aboard : u;
+    let fov = s.fov, near = 0.5, cockpit = false;
+    const scope = u.kind === 'sub' && this.scope && u.scopeA > 0.9;
+    const tag = u.kind + ':' + this.mode + ':' + (u.gun ? 'gun' : u.aboard ? 'ride' : scope ? 'scope' : '') + (u.kind === 'ship' && this.mode === 'gunner' ? u.selKey : '');
+    const snap = this._camUnit !== u || this._camTag !== tag;
+    if (snap) { if (this._camUnit) cut(); this._camUnit = u; this._camTag = tag; this._pullT = 1; }
+    this.scopeView = scope;
     if (u.kind === 'ship' || u.kind === 'sub') {
-      const scope = u.kind === 'sub' && this.scope && u.scopeA > 0.9;
+      const gun = this.mode === 'gunner' && (u.mounts.find((k) => k.key === u.selKey && k.inArc) || u.mounts.find((k) => k.key === u.selKey));
       if (scope) { u.toWorld(u.model.scopeTop, cam.position); cam.position.y = Math.max(cam.position.y + 1.2, waveHeight(cam.position.x, cam.position.z) + 2.6); fov = 32; }
-      else if (this.mode === 'first') { u.toWorld(view.bridge, cam.position); }
-      else if (this.mode === 'gunner' && u.mounts.some((m) => m.key === u.selKey)) { const m = u.mounts.find((k) => k.key === u.selKey && k.inArc) || u.mounts.find((k) => k.key === u.selKey); m.pos(cam.position); cam.position.y += m.t.kind === 'heavy' ? 5 : 1.1; cam.position.addScaledVector(_d, m.t.kind === 'heavy' ? -9 : -2.2); }
-      else {
-        const dist = (view.chase || 80) * (1 - this.zoom * 0.25), h = (view.chaseH || 20);
-        cam.position.set(u.pos.x - _d.x / (cp || 1) * dist, Math.max(u.pos.y, u.kind === 'sub' ? -400 : 0) + h * (0.55 - this.pitch * 0.9), u.pos.z - _d.z / (cp || 1) * dist);
-        if (u.kind === 'sub' && u.depth > 4) cam.position.y = u.pos.y + h * 0.5 - this.pitch * dist * 0.5; else cam.position.y = Math.max(cam.position.y, waveHeight(cam.position.x, cam.position.z) + 1.5);
+      else if (this.mode === 'first') { u.toWorld(bridgeEye(u), cam.position); near = 0.25; if (u.kind === 'ship') aboveWater(cam.position, 1); }
+      else if (gun) {
+        // over the gun and a little behind it; pulled forward if the superstructure is in the way
+        const k = gun.t.kind, up = k === 'heavy' ? 6.4 : k === 'deckgun' ? 3.8 : 1.5, back = k === 'heavy' ? 12 : k === 'deckgun' ? 7.5 : 2.6;
+        gun.pos(_a); _a.y += up; _b.copy(_a).addScaledVector(_d, -back); if (_b.y < _a.y - 1) _b.y = _a.y - 1;
+        cam.position.copy(_a).lerp(_b, Math.max(segSolid(u, _a, _b, 0.6) - 0.05, 0)); aboveWater(cam.position, 0.8); near = 0.25;
+      } else {
+        // orbit: far enough out that the camera is never inside the box that holds the whole ship (masts and dock arms included)
+        let dist = (view.chase || 80) * (1 - this.zoom * 0.25); const h = view.chaseH || 20, deep = u.kind === 'sub' && u.depth > 4, base = Math.max(u.pos.y, u.kind === 'sub' ? -400 : 0);
+        for (let i = 0; i < 40; i++) {
+          cam.position.set(u.pos.x - _d.x / (cp || 1) * dist, deep ? u.pos.y + h * 0.5 - this.pitch * dist * 0.5 : base + h * (0.55 - this.pitch * 0.9), u.pos.z - _d.z / (cp || 1) * dist);
+          if (!inBounds(u, cam.position, 3)) break; dist += Math.max(5, dist * 0.06);
+        }
+        if (deep) cam.position.y = Math.min(cam.position.y, waveHeight(cam.position.x, cam.position.z) - 0.8); // stay cleanly below the surface
+        else { aboveWater(cam.position, 1.5); this.lift(cam.position, u); }
       }
-      cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); this.scopeView = scope;
+      cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     } else if (u.kind === 'jet') {
-      this.scopeView = false;
-      if (this.mode === 'first') { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); near = 0.3; }
+      if (this.mode === 'first') { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); near = 0.1; cockpit = true; }
       else {
-        const dist = view.chase || 30, h = view.chaseH || 6;
-        u.fwd(_f); _b.copy(_f).lerp(_d, u.state === 'fly' ? 0.55 : 0).normalize();
-        _a.copy(u.pos).addScaledVector(_b, -dist); _a.y += h;
-        if (!this._cj) { this._cj = true; cam.position.copy(_a); } cam.position.lerp(_a, 1 - Math.exp(-14 * dt));
-        cam.position.y = Math.max(cam.position.y, waveHeight(cam.position.x, cam.position.z) + 1);
-        _c.copy(u.pos).addScaledVector(u.state === 'fly' ? _d : _f, 400); cam.lookAt(_c);
+        const dist = view.chase || 30, h = view.chaseH || 6, fly = u.state === 'fly';
+        u.fwd(_f); _b.copy(_f).lerp(_d, fly ? 0.55 : 0).normalize();
+        // the camera keeps a smoothed offset from the aircraft, so its distance does not change with speed
+        _a.copy(_b).multiplyScalar(-dist); _a.y += h;
+        if (snap) this._off.copy(_a); else this._off.lerp(_a, 1 - Math.exp(-7 * dt));
+        _c.copy(u.pos); _c.y += 1.5; _a.copy(u.pos).add(this._off);
+        this.pull(_c, _a, u, dt, snap, 6 / dist, 0.6, fly ? 0 : dist * 0.3); aboveWater(cam.position, 1);
+        if (fly) _c.copy(u.pos).addScaledVector(_d, 400); else { _c.copy(u.pos).addScaledVector(_f, 25); _c.y += 2; } // on deck: keep the aircraft in frame even from a raised camera
+        cam.lookAt(_c);
       }
-      fov = s.fov + clamp((u.speed - 150) / 300, 0, 1) * 8;
+      fov = s.fov + clamp((u.speed - 150) / 300, 0, 1) * 5;
     } else if (u.kind === 'heli') {
-      this.scopeView = false;
-      if (this.mode === 'first') { u.toWorld(u.model.cockpit || _a.set(0, 0.5, -3), cam.position); cam.quaternion.copy(u.quat); near = 0.3; }
-      else { const dist = view.chase || 28, h = view.chaseH || 8; cam.position.set(u.pos.x + Math.sin(u.yaw) * dist, u.pos.y + h, u.pos.z + Math.cos(u.yaw) * dist); cam.rotation.set(-0.16, u.yaw, 0, 'YXZ'); }
+      if (this.mode === 'first') { u.toWorld(u.model.cockpit || _a.set(0, 0.5, -3), cam.position); cam.quaternion.copy(u.quat); near = 0.1; cockpit = true; }
+      else {
+        const dist = view.chase || 28, h = view.chaseH || 8; u.fwd(_f); const yaw = Math.atan2(-_f.x, -_f.z);
+        _c.copy(u.pos); _c.y += 1.5; _a.set(u.pos.x + Math.sin(yaw) * dist, u.pos.y + h, u.pos.z + Math.cos(yaw) * dist);
+        const landed = u.state !== 'fly';
+        this.pull(_c, _a, u, dt, snap, 6 / dist, 0.6, landed ? dist * 0.3 : 0); aboveWater(cam.position, 1);
+        if (landed) { _c.copy(u.pos).addScaledVector(_f, 12); cam.lookAt(_c); } else cam.rotation.set(-0.16, yaw, 0, 'YXZ');
+      }
     } else {
-      this.scopeView = false; const sd = u; near = 0.12;
-      if (u.aboard) { const h = u.aboard, dist = 30; cam.position.set(h.pos.x - _d.x * dist, h.pos.y + 6 - _d.y * dist, h.pos.z - _d.z * dist); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
-      else if (u.gun) { const m = u.gun; m.pos(cam.position); m.dir(_f); cam.position.y += 0.42; cam.position.addScaledVector(_f, -0.55); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
-      else if (this.mode === 'first' && u.alive) { sd.eye(cam.position); cam.position.addScaledVector(_d, 0.12); cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
-      else { sd.eye(_a); cam.position.copy(_a).addScaledVector(_d, -4.2); cam.position.y += 0.7; cam.position.x += Math.cos(this.yaw) * 0.6; cam.position.z -= Math.sin(this.yaw) * 0.6; cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ'); }
-      u.hideBody = (this.mode === 'first' || !!u.gun) && u.alive;
+      near = 0.1; u.hideBody = false;
+      if (u.aboard) { const h = u.aboard, dist = 30; _c.copy(h.pos); _c.y += 2; _a.set(h.pos.x - _d.x * dist, h.pos.y + 6 - _d.y * dist, h.pos.z - _d.z * dist); this.pull(_c, _a, h, dt, snap, 0.2); aboveWater(cam.position, 1); near = 0.5; }
+      else if (u.gun) { const m = u.gun; m.pos(cam.position); m.dir(_f); cam.position.y += 0.42; cam.position.addScaledVector(_f, -0.55); u.hideBody = u.alive; }
+      else if (this.mode === 'first' && u.alive) { u.eye(cam.position); cam.position.addScaledVector(_d, 0.1); aboveWater(cam.position, 0.3); u.hideBody = true; }
+      else {
+        // over the right shoulder; comes in close when a wall or the deck above is behind the marine
+        u.eye(_c); _a.copy(_c).addScaledVector(_d, -4.2); _a.y += 0.7; _a.x += Math.cos(this.yaw) * 0.6; _a.z -= Math.sin(this.yaw) * 0.6;
+        this.pull(_c, _a, u, dt, snap, 0.1, 0.3);
+        // squeezed right up against the marine: use their eyes instead, so the camera is never inside the body or the wall behind
+        if (cam.position.distanceTo(_c) < 1.1 && u.alive) { cam.position.copy(_c).addScaledVector(_d, 0.1); u.hideBody = true; }
+        aboveWater(cam.position, 0.3);
+      }
+      cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     }
+    // first person in an aircraft: the outside model is hidden and a cockpit frame is drawn instead
+    const hide = cockpit && u.alive, was = this._cockUnit;
+    if (was && (was !== u || !hide)) { was.hideModel = false; if (was._cockpit) was._cockpit.visible = false; this._cockUnit = null; }
+    if (hide) { if (!u._cockpit) { u._cockpit = buildCockpit(u.kind); u._cockpit.position.copy(u.model.cockpit || _a.set(0, 0.5, -3)); u.root.add(u._cockpit); } u._cockpit.visible = true; u.hideModel = true; this._cockUnit = u; }
     if (this.zoom > 0.01) fov = fov / (1 + this.zoom * (this.scopeView ? 3 : 2));
     if (Math.abs(cam.fov - fov) > 0.05 || cam.near !== near) { cam.fov = fov; cam.near = near; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();
-    // aim: where the centre of the screen meets the sea, or the enemy nearest that line
+  },
+  // move the camera from `from` toward `to`, stopping short of anything solid. Comes in at once, eases back out.
+  // With `lift` (m), a blocked or crowded spot is first swapped for a higher, closer one: on a busy flight deck the camera
+  // rises to look down over the neighbours instead of ending up inside one.
+  pull(from, to, skip, dt, snap, minT = 0.15, pad = 0.6, lift = 0) {
+    let t = clearT(from, to, skip, pad);
+    if (lift > 0 && (t < 0.85 || crowded(to, skip))) {
+      for (let k = 1; k <= 5; k++) {
+        _g.copy(from).lerp(to, 1 - 0.12 * k); _g.y = to.y + lift * k;
+        const tk = clearT(from, _g, skip, pad);
+        if ((tk >= 0.85 && !crowded(_g, skip)) || k === 5) { to.copy(_g); t = tk; break; }
+      }
+    }
+    t = Math.max(t, minT);
+    this._pullT = snap || t < this._pullT ? t : this._pullT + (t - this._pullT) * (1 - Math.exp(-4 * dt));
+    gfx.camera.position.copy(from).lerp(to, Math.max(this._pullT - 0.03, 0.02));
+  },
+  // a ship's orbit camera rises over island ground and over any other ship it would otherwise sit inside
+  lift(p, skip) {
+    const gy = world.terrain(p.x, p.z) + 3; if (p.y < gy) p.y = gy;
+    for (const o of world.units) {
+      if (o === skip || o.gone || (o.kind !== 'ship' && o.kind !== 'sub') || !o.bounds) continue;
+      const dx = o.pos.x - p.x, dz = o.pos.z - p.z, r = o.radius * 1.3 + 10; if (dx * dx + dz * dz > r * r) continue;
+      if (inBounds(o, p, 2)) p.y = Math.max(p.y, o.pos.y + o.bounds.max.y + 4);
+    }
+  },
+  // aim: where the centre of the screen meets the sea, or the enemy nearest that line (from the camera as last drawn)
+  aim() {
+    const u = this.unit, cam = gfx.camera, subj = u.kind === 'soldier' && u.aboard ? u.aboard : u;
     cam.getWorldDirection(_f);
     let best = null, bestA = 0.035;
     for (const e of world.units) {

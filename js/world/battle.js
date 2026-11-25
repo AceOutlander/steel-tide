@@ -108,12 +108,15 @@ export const battle = {
       }
     } else if (def.kind === 'jet') {
       u = createUnit(type, n, this.unitName(type, n));
-      if (cv && cv.alive) { const cat = cv.model.catapults[0]; u.park(cv, cat.pos, cat.yaw); }
+      if (cv && cv.alive) { const cat = cv.model.catapults.find((k) => this.spotFree(cv, k.pos, 'jet', 14)) || cv.model.catapults[0]; u.park(cv, cat.pos, cat.yaw); } // a catapult nobody is sitting on
       else { u.pos.set(0, 900, s * (MAP.carrierZ + 500)); u.quat.setFromAxisAngle(new V3(0, 1, 0), facing(n)); u.vel.set(0, 0, -s * def.cruise); u.state = 'fly'; u.throttle = 0.8; u.ctl.throttle = 0.8; }
       world.add(u);
     } else if (def.kind === 'heli') {
       u = createUnit(type, n, this.unitName(type, n));
-      if (cv && cv.alive) u.place(cv, cv.model.helipads[1].pos, 0); else { u.pos.set(0, 150, s * 3000); u.yaw = facing(n); u.state = 'fly'; u.rpm = 1; }
+      const pad = cv && cv.alive && (this.spotFree(cv, cv.model.helipads[1].pos, 'heli', 16) ? cv.model.helipads[1] : cv.model.helipads.find((k) => this.spotFree(cv, k.pos, 'heli', 16)));
+      if (pad) u.place(cv, pad.pos, 0);
+      else if (cv && cv.alive) { u.pos.copy(cv.pos); u.pos.y += 130; u.pos.x += 160; u.yaw = cv.yaw; u.state = 'fly'; u.rpm = 1; } // both pads taken: start in the hover alongside
+      else { u.pos.set(0, 150, s * 3000); u.yaw = facing(n); u.state = 'fly'; u.rpm = 1; }
       world.add(u);
     } else {
       u = createUnit('marine', n);
@@ -125,6 +128,8 @@ export const battle = {
     return u;
   },
   // hand a unit back to its crew (when the player moves to another unit)
+  // is a deck spot (local point on `ship`) clear of other aircraft of that kind?
+  spotFree(ship, local, kind, r) { const p = ship.toWorld(local, new V3()); return !world.units.some((o) => o.kind === kind && o.alive && o.pos.distanceTo(p) < r); },
   releasePlayer(u) { if (!u) return; u.isPlayer = false; if (u.alive && !u.ai) attachAI(u, new V3(rand(-800, 800), 0, -900)); if (world.player === u) world.player = null; },
 
   // ---- reinforcements + victory --------------------------------------------------------------------------------------------

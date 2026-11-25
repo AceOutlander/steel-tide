@@ -23,16 +23,31 @@ export class Unit {
     this.flares = this.def.flares || 0; this.flareCd = 0; this.flareT = 0; this.fires = []; this.scorch = 0; this.depth = 0;
     this.root = new THREE.Group(); this.lodDist = 500; this.box = { x: 3, y0: -2, y1: 4, z: 8 }; this.kills = 0; this.t = rand(0, 10);
     this.selKey = null; this.aimPoint = new V3(); this.aimLead = null; this.firing = false;
+    this.prevPos = new V3(); this.prevQuat = new THREE.Quaternion(); this._pp = new V3(); this._pq = new THREE.Quaternion(); this._hasPrev = false; this._pushed = false;
+    this.bounds = new THREE.Box3(new V3(-1, -1, -1), new V3(1, 2, 1)); this.hideModel = false;
   }
   setModel(build) {
     this.lod0 = build(this.nation, 0); this.lod1 = build(this.nation, 1); this.lod1.visible = false;
     this.root.add(this.lod0, this.lod1); this.model = this.lod0.userData.model; this.dims = this.model.dims;
     for (const t of this.model.turrets || []) this.mounts.push(new Mount(this, t, t.kind));
+    this.bounds.setFromObject(this.lod0); // the box that holds the whole model, in its own coordinates (the root is still at the origin)
   }
   get label() { return world.label(this); }
   sync() { this.root.position.copy(this.pos); this.root.quaternion.copy(this.quat); }
+  // Smooth drawing between fixed physics steps: remember the pose before each step, and for the drawn frame stand the unit
+  // part-way (a = 0..1) between that and the new pose. Everything drawn in the frame (model, camera, crew) reads pos/quat,
+  // so they all move together; the real values go back afterwards.
+  keepPose() { this.prevPos.copy(this.pos); this.prevQuat.copy(this.quat); this._hasPrev = true; }
+  pushRender(a) {
+    if (!this._hasPrev || a >= 0.999 || this.prevPos.distanceToSquared(this.pos) > 900) return; // a jump (spawn, docking) is not smoothed
+    this._pp.copy(this.pos); this._pq.copy(this.quat); this._pushed = true;
+    this.pos.lerpVectors(this.prevPos, this._pp, a); this.quat.slerpQuaternions(this.prevQuat, this._pq, a);
+  }
+  popRender() { if (this._pushed) { this.pos.copy(this._pp); this.quat.copy(this._pq); this._pushed = false; } }
   updateLod(cam) {
     const d = this.pos.distanceTo(cam), far = d > this.lodDist * gfx.q.lod && !this.isPlayer;
+    if (this.hideModel) { this.lod0.visible = this.lod1.visible = false; this.camDist = d; return; } // first person in a cockpit
+    if (!this.lod0.visible && !this.lod1.visible) this.lod0.visible = !far;
     if (this.lod0.visible === far) { this.lod0.visible = !far; this.lod1.visible = far; }
     this.camDist = d;
   }

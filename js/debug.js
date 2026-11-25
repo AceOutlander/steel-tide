@@ -1,31 +1,39 @@
 // Developer checks. Loaded only when the address has ?devtest; players never see any of this.
 import * as THREE from 'three';
 import { gfx } from './gfx/renderer.js';
+import { ocean, waveHeight } from './gfx/ocean.js';
 
 const S = () => window.__steelTide;
-const _look = new THREE.Vector3();
+const _look = new THREE.Vector3(), _n = new THREE.Vector3(), _c = new THREE.Vector3(), _m3 = new THREE.Matrix3();
+const BOTH = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+const DIRS = [];
+for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) for (const z of [-1, 0, 1]) { const n = Math.abs(x) + Math.abs(y) + Math.abs(z); if (n === 1 || n === 3) DIRS.push(new THREE.Vector3(x, y, z).normalize()); }
+
+function canvas(cols, rows) {
+  let c = document.getElementById('dev-mosaic');
+  if (!c) { c = document.createElement('canvas'); c.id = 'dev-mosaic'; c.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;background:#000'; document.body.appendChild(c); }
+  c.width = innerWidth; c.height = innerHeight;
+  return { ctx: c.getContext('2d'), w: c.width / cols, h: c.height / rows };
+}
+function label(ctx, x, y, text, bad) { ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(x, y, ctx.measureText(text).width + 10, 17); ctx.fillStyle = bad ? '#ff6b5e' : '#fff'; ctx.fillText(text, x + 5, y + 13); }
 
 export const dev = {
   // Render several camera views of the live scene into one picture (a grid), so they can be judged side by side.
-  // views: [{ p: [x, y, z], l: [x, y, z], fov }] -> shown in a canvas laid over the page
+  // views: [{ p: [x, y, z], l: [x, y, z], fov, t }]
   mosaic(views, cols = 2) {
-    const src = gfx.renderer.domElement, cam = gfx.camera, rows = Math.ceil(views.length / cols);
-    let c = document.getElementById('dev-mosaic');
-    if (!c) { c = document.createElement('canvas'); c.id = 'dev-mosaic'; c.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;background:#000'; document.body.appendChild(c); }
-    c.width = innerWidth; c.height = innerHeight;
-    const ctx = c.getContext('2d'), w = c.width / cols, h = c.height / rows;
+    const src = gfx.renderer.domElement, cam = gfx.camera, { ctx, w, h } = canvas(cols, Math.ceil(views.length / cols));
     const keep = { p: cam.position.clone(), q: cam.quaternion.clone(), fov: cam.fov };
     views.forEach((v, i) => {
       cam.position.set(...v.p); cam.lookAt(_look.set(...v.l)); cam.fov = v.fov || 70; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
       S().app.present(0, false, true);
       ctx.drawImage(src, (i % cols) * w, Math.floor(i / cols) * h, w, h);
-      if (v.t) { ctx.font = '13px sans-serif'; ctx.fillStyle = '#000'; ctx.fillText(v.t, (i % cols) * w + 7, Math.floor(i / cols) * h + 17); ctx.fillStyle = '#fff'; ctx.fillText(v.t, (i % cols) * w + 6, Math.floor(i / cols) * h + 16); }
+      if (v.t) label(ctx, (i % cols) * w + 4, Math.floor(i / cols) * h + 4, v.t);
     });
     cam.position.copy(keep.p); cam.quaternion.copy(keep.q); cam.fov = keep.fov; cam.updateProjectionMatrix();
     return views.length;
   },
   clear() { document.getElementById('dev-mosaic')?.remove(); },
-  // the four ocean views: deck height, low flight, straight down from high up, and a long look toward the sun
+  // the ocean views: deck height, low flight, straight down from high up, and a long look
   sea(x = 0, z = 0) {
     const s = gfx.sunDir;
     return this.mosaic([
@@ -36,5 +44,52 @@ export const dev = {
       { t: 'straight down from 2500 m', p: [x, 2500, z], l: [x + 1, 0, z + 1], fov: 60 },
       { t: 'distance, 400 m up', p: [x, 400, z], l: [x - 4000, 0, z + 3000], fov: 50 },
     ], 3);
+  },
+
+  // ---- cameras ---------------------------------------------------------------------------------------------------------------
+  // Is the camera inside a model, or is anything closer than it can draw? Rays go out in 14 directions against the real
+  // meshes (both faces): `back` counts directions whose first hit is the INSIDE of a surface (most of them = the camera is
+  // inside something), `near` is the distance to the closest surface and `what` names its material.
+  inside() {
+    const cam = gfx.camera, o = cam.getWorldPosition(new THREE.Vector3()), rc = new THREE.Raycaster(), list = [];
+    const walk = (n) => {
+      if (!n.visible) return;
+      if (n.isMesh && !n.isInstancedMesh && n !== ocean.mesh && n.geometry && n.material && !n.material.isShaderMaterial && n.material.blending !== THREE.AdditiveBlending) {
+        if (!n.geometry.boundingSphere) n.geometry.computeBoundingSphere();
+        const bs = n.geometry.boundingSphere; _c.copy(bs.center).applyMatrix4(n.matrixWorld);
+        if (_c.distanceTo(o) < bs.radius * n.matrixWorld.getMaxScaleOnAxis() + 40) list.push(n);
+      }
+      for (const k of n.children) walk(k);
+    };
+    gfx.scene.updateMatrixWorld(); walk(gfx.scene);
+    let back = 0, near = 1e9, what = '', under = o.y < waveHeight(o.x, o.z) ? 1 : 0;
+    for (const d of DIRS) {
+      rc.set(o, d); rc.far = 40; let best = null;
+      for (const m of list) { const keep = m.material; m.material = BOTH; const hits = rc.intersectObject(m, false); m.material = keep; if (hits.length && (!best || hits[0].distance < best.distance)) { best = hits[0]; best.mat = keep; } }
+      if (!best) continue;
+      if (best.distance < near) { near = best.distance; what = best.mat.name || best.object.name || best.mat.type; }
+      if (best.face) { _n.copy(best.face.normal).applyMatrix3(_m3.getNormalMatrix(best.object.matrixWorld)); if (_n.dot(d) > 0) back++; }
+    }
+    return { back, near: near > 1e8 ? null : +near.toFixed(2), what, camNear: cam.near, fov: +cam.fov.toFixed(0), y: +o.y.toFixed(1), under };
+  },
+  tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
+  spawn(type, nation = 'aethia', opts = {}) { const s = S(); s.app.play(nation, type, opts); s.app.advance(0.5); return s.player.unit; },
+  // put a freshly spawned jet in the air: taxi, launch, climb away for `secs`
+  fly(secs = 8) { const s = S(), u = s.player.unit; if (u.kind === 'jet') { if (u.state === 'deck') { this.tapKey('KeyE'); s.input._press(S().flyKey || 'KeyW'); s.app.advance(4); } s.app.advance(secs); } else if (u.kind === 'heli') { s.input._press('KeyW'); s.app.advance(secs + 6); s.input._release('KeyW'); } return u.state; },
+  // Run camera scenarios and tile the results. Each scenario: { t: label, run(dev, S): set the game up; may return false to skip }
+  shots(list, cols = 3) {
+    const s = S(), src = gfx.renderer.domElement, { ctx, w, h } = canvas(cols, Math.ceil(list.length / cols)), out = [];
+    list.forEach((sc, i) => {
+      let err = '';
+      try { sc.run(this, s); } catch (e) { err = String(e.message || e); }
+      for (let k = 0; k < 20; k++) s.player.camera(1 / 60);
+      s.app.present(0, false, true);
+      const r = err ? { err } : this.inside(), x = (i % cols) * w, y = Math.floor(i / cols) * h;
+      ctx.drawImage(src, x, y, w, h);
+      const bad = err || r.back >= (sc.inside ? 99 : 8) || (r.near !== null && r.near < r.camNear * 1.3) || (r.under && !sc.wet);
+      label(ctx, x + 4, y + 4, `${sc.t}  ${err || `in ${r.back}/14  near ${r.near} ${r.what}`}`, bad);
+      out.push({ t: sc.t, bad: !!bad, ...r });
+    });
+    return out;
   },
 };

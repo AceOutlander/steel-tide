@@ -610,7 +610,7 @@ export function initMaterials(texSize = 1024, anisotropy = 4) {
   MAT.deckLine = std({ color: 0xe6e6de, roughness: 0.8, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   MAT.deckYellow = std({ color: 0xd9ad1c, roughness: 0.8, metalness: 0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   MAT.helipad = std({ map: TEX.helipad, transparent: true, alphaTest: 0.4, roughness: 0.8, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  MAT.insignia = per((n) => std({ map: TEX.insignia[n], alphaTest: 0.5, roughness: 0.6, metalness: 0.1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  MAT.insignia = per((n) => std({ map: TEX.insignia[n], alphaTest: 0.5, roughness: 0.6, metalness: 0.1, side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
 
   // --- aircraft and submarines
   MAT.aircraft = per((n) => std({ map: TEX.aircraft[n], normalMap: TEX.aircraftNormal, normalScale: v2(0.5), roughness: n === 'aethia' ? 0.42 : 0.5, metalness: 0.45 }));

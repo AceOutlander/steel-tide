@@ -66,7 +66,8 @@ export class Soldier extends Unit {
         // move in the ship's frame so the deck carries us along
         const sy = Math.sin(-ship.yaw), cy = Math.cos(-ship.yaw), lx = wx * cy + wz * sy, lz = -wx * sy + wz * cy;
         let nx = this.local.x + lx * dt, nz = this.local.z + lz * dt;
-        if (blocked(ship, nx, this.local.y, nz)) { if (!blocked(ship, nx, this.local.y, this.local.z)) nz = this.local.z; else if (!blocked(ship, this.local.x, this.local.y, nz)) nx = this.local.x; else { nx = this.local.x; nz = this.local.z; } }
+        const pad = blocked(ship, this.local.x, this.local.y, this.local.z) ? 0 : 0.35; // already against a wall (placed there): do not trap them
+        if (blocked(ship, nx, this.local.y, nz, pad)) { if (!blocked(ship, nx, this.local.y, this.local.z, pad)) nz = this.local.z; else if (!blocked(ship, this.local.x, this.local.y, nz, pad)) nx = this.local.x; else { nx = this.local.x; nz = this.local.z; } }
         this.local.x = nx; this.local.z = nz;
         if (c.jump && this.grounded) { this.vy = 4.6; this.grounded = false; }
         this.vy -= 9.81 * dt; this.local.y += this.vy * dt;

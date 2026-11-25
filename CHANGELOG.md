@@ -1,5 +1,38 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.1.2 (cameras)
+
+No camera sits inside a model any more.
+
+- What was wrong: every ship's bridge view was inside the solid bridge block (a wall of black glass), every cockpit
+  view was inside the aircraft's own canopy and armour (the dark rectangle in the Attack Helicopter), an orbit camera
+  could end up inside a long ship's stern or dock arms, and a chase camera could sit inside a neighbouring aircraft on
+  a crowded flight deck.
+- Bridge view: the viewpoint is found once per ship by looking forward from the bridge through the real meshes and
+  stopping just outside the front wall, at window height. Looking aft from there shows the outside of the bridge.
+- Cockpit view (jets and helicopters): the outside model is hidden and a simple cockpit frame is drawn instead, with a
+  near plane of 0.1 m.
+- Orbit camera (ships, subs): pushed out until it is clear of the box that holds the whole ship, masts and dock arms
+  included; it rises over island ground and over other ships. A submerged sub's camera stays cleanly below the
+  surface, a surfaced one stays above it.
+- Chase cameras (aircraft, marine, helicopter passengers): pulled in at once, and eased back out, when a ship's hull,
+  deck, superstructure or turret, or island ground, is in the way. On a busy flight deck the camera rises to look
+  down over the neighbours. A marine's third-person camera squeezed against a wall switches to their eyes.
+- Gunner view: higher and further back for the big turrets, and pulled forward if the superstructure is behind it.
+- Marines keep a body's width (0.35 m) away from walls. A swimmer's eyes stay above the water.
+- Drawing is now smoothed between physics steps: each unit is drawn part-way between its last two simulated
+  positions, and the camera reads the same smoothed position, so the two never disagree.
+- Changing camera mode or unit dips to black for a fifth of a second instead of cutting through geometry.
+- Insignia decals are single-sided, so they cannot be seen from inside a hull.
+- The showroom camera stands far enough back that the whole unit fits between the two panels.
+- New aircraft spawn on a free catapult or helipad (or in the hover if both pads are taken) instead of on top of one
+  already there.
+- HUD crew numbers are the real crew for every unit (the Attack Helicopter showed 0); the transport also shows troops.
+- Checked with `?devtest`: every unit, both nations, every camera mode, with rays cast from the camera against the real
+  meshes to prove it is not inside one and nothing is closer than the near plane; plus the dock, periscope, deep dive,
+  catapult launch, hard turns, low flight, boarding and flying a helicopter, manning a gun, walking into a wall,
+  swimming, and the death views. There are no below-deck spaces, doors or ladders in the game, so those were not tested.
+
 ## Beta 0.1.1 (water)
 
 The sea no longer shows white blotches or a repeating pattern.

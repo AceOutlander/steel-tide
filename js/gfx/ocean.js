@@ -140,7 +140,7 @@ DETAIL_OCTAVES
   vec3 refl = mix(uHorizon, uZenith, pow(clamp(R.y, 0.0, 1.0), 0.45));
 #endif
   // ---- foam: only where water really breaks ----
-  float foam = 0.0;
+  float foam = 0.0, air = 0.0;   // air: churned, aerated water (a smooth pale green trail), separate from white foam
   // whitecaps on the steepest crests, with a fading trail where a crest broke a moment ago
   float thr = uCap.x + (0.5 - gust) * uCap.y * 2.6, capFade = 1.0 - smoothstep(2.5, 8.0, fw);
   if (capFade > 0.0) {
@@ -175,9 +175,11 @@ DETAIL_OCTAVES
     if (back > 0.0 && wl > 1.0) {
       float t = clamp(back / wl, 0.0, 1.0), a = abs(across);
       float wdt = hb * (0.9 + t * 2.2) + 1.0;
-      foam += (1.0 - smoothstep(wdt * 0.3, wdt, a)) * pow(1.0 - t, 1.8) * spd * 0.95;   // churned water astern
+      float churn = (1.0 - smoothstep(wdt * 0.3, wdt, a)) * spd;
+      foam += churn * pow(1.0 - t, 4.0) * 0.62;   // white water close astern, thinning fast
+      air += churn * pow(1.0 - t, 1.3);            // the long smooth trail of churned water
       float arm = back * 0.33 + hb, aw = 1.5 + back * 0.04;
-      foam += exp(-pow((a - arm) / aw, 2.0)) * (1.0 - t) * (1.0 - t) * spd * 0.6;      // the two arms of the wake
+      foam += exp(-pow((a - arm) / aw, 2.0)) * (1.0 - t) * (1.0 - t) * spd * 0.45;      // the two arms of the wake
     }
   }
   for (int i = 0; i < ${MAX_SPLASH}; i++) {
@@ -196,7 +198,7 @@ DETAIL_OCTAVES
   float through = pow(max(dot(V, -uSunDir), 0.0), 3.0);
   body += uScatter * (0.10 * pow(1.0 - ndv, 2.0) + 0.05 * smoothstep(0.3, 2.2, h) + 0.62 * thin * through);
   body = mix(body, uShallow * (0.6 + 0.5 * sunB), shallow * 0.75);
-  body = mix(body, uScatter * (0.9 + 0.9 * sunB), clamp(foam * 0.55, 0.0, 0.5));   // aerated water under and around foam
+  body = mix(body, uScatter * (0.9 + 0.9 * sunB), clamp(foam * 0.55 + air * 0.42, 0.0, 0.55));   // aerated water under and around foam
   vec3 col = mix(body, refl, fres * (1.0 - shallow * 0.3));
   // sun glitter: where the slope of the water lines the sun up with the eye. Slopes finer than a pixel widen it into a soft path.
   vec3 Hh = normalize(V + uSunDir);

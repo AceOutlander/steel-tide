@@ -12,9 +12,10 @@ export function deckUnder(ship, l, reach = 1.2) {
   for (let i = 0; i < decks.length; i++) { const d = decks[i]; if (l.x >= d.x0 && l.x <= d.x1 && l.z >= d.z0 && l.z <= d.z1 && d.y <= l.y + reach && (!best || d.y > best.y)) best = d; }
   return best;
 }
-export function blocked(ship, x, y, z) {
+// pad keeps a body's width between a person and the wall (so an eye-level camera cannot poke through it)
+export function blocked(ship, x, y, z, pad = 0.35) {
   const bl = ship.model.blocks;
-  for (let i = 0; i < bl.length; i++) { const b = bl[i]; if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && y + 0.4 >= b.y0 && y + 0.4 < b.y1) return true; }
+  for (let i = 0; i < bl.length; i++) { const b = bl[i]; if (x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad && y + 0.4 >= b.y0 && y + 0.4 < b.y1) return true; }
   return false;
 }
 
