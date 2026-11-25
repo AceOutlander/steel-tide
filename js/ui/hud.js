@@ -31,12 +31,13 @@ export const hud = {
       <div id="h-status" class="hud-box"><div class="cl" id="h-cl"></div><div class="nm" id="h-nm"></div><div class="bar"><i id="h-hp"></i></div><div class="grid2" id="h-grid"></div></div>
       <div class="thr" id="h-thr"><i></i><b></b></div>
       <div id="h-weap" class="hud-box"></div>
-      <div id="h-cross"></div>
-      <div id="h-nose" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
+      <div id="h-cross"></div><div id="h-hitx" hidden></div><div id="h-dmg" hidden></div><div id="h-dirs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div id="h-lead" class="mark" hidden><i></i><span></span></div><div id="h-fall0" class="mark fall" hidden><span></span></div><div id="h-fall1" class="mark fall" hidden><span></span></div><div id="h-fall2" class="mark fall" hidden><span></span></div>
+      <div id="h-nose" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
       <div id="h-stick" hidden><i></i></div>
       <div id="h-warn"></div><div id="h-prompt" hidden></div><div id="h-msg" hidden></div><div id="h-hint"></div>
       <div id="h-map" hidden><div class="mapwrap"><canvas width="640" height="640"></canvas><div class="scoreboard" id="h-sb"></div></div></div>`;
-    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'nose', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
+    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
@@ -54,12 +55,23 @@ export const hud = {
     const veh = u.kind === 'soldier' && u.aboard ? u.aboard : u;
     // ---- per-frame markers ----
     const jet = u.kind === 'jet', heli = u.kind === 'heli';
-    E.cross.className = jet && player.mode === 'chase' ? 'circle' : ''; if (u.hitMarker > world.t) E.cross.classList.add('hit');
+    // reticle: red over an enemy, green over one of ours (the trigger is locked), white over nothing
+    const at = player.aimTarget, fr = player.aimFriend, rc = (jet && player.mode === 'chase' ? 'circle' : '') + (at ? ' enemy' : fr ? ' friend' : '');
+    if (E.cross._c !== rc) { E.cross.className = rc; E.cross._c = rc; }
+    this.feedback(u, veh, dt);
     E.cross.hidden = !u.alive || (u.kind === 'soldier' && !!u.aboard);
     if (jet && u.state === 'fly') { u.fwd(_v).multiplyScalar(900).add(u.pos); place(E.nose, _v.clone()); } else E.nose.hidden = true;
     if ((jet || heli) && u.lockTarget && u.lockTarget.alive) { if (place(E.lock, u.lockTarget.pos)) { E.lock.classList.toggle('locked', u.locked); E.lock.lastChild.textContent = u.locked ? 'LOCKED: FIRE' : 'LOCKING'; } } else E.lock.hidden = true;
-    const at = player.aimTarget;
-    if (at && at.alive && !(u.lockTarget === at)) { if (place(E.aimtg, at.pos)) E.aimtg.lastChild.textContent = `${world.label(at)}  ${(at.pos.distanceTo(u.pos) / 1000).toFixed(1)} km`; } else E.aimtg.hidden = true;
+    // the unit under the reticle: name, type, range and health for an enemy; a hold-fire note for one of ours
+    const tg = at || fr;
+    if (tg && tg.alive && u.alive && !(u.lockTarget === tg)) {
+      if (place(E.aimtg, tg.pos)) {
+        const txt = at ? `${world.label(at)}  ${(at.pos.distanceTo(u.pos) / 1000).toFixed(1)} km` : `${world.label(fr)}  HOLD FIRE`, cl = at ? 'mark enemy' : 'mark friend';
+        if (E.aimtg._t !== txt) { E.aimtg.lastChild.textContent = txt; E.aimtg._t = txt; } if (E.aimtg._c !== cl) { E.aimtg.className = cl; E.aimtg._c = cl; }
+        E.aimtg.children[1].firstChild.style.width = `${clamp(tg.hp / tg.maxHp, 0, 1) * 100}%`;
+      }
+    } else E.aimtg.hidden = true;
+    if (player.showLead && u.alive && place(E.lead, player.leadPoint)) { const lt = player.leadT >= 0.8 ? `Impact in ${player.leadT.toFixed(1)} s` : ''; if (E.lead._t !== lt) { E.lead.lastChild.textContent = lt; E.lead._t = lt; } } else E.lead.hidden = true;
     if (player.showBomb) place(E.bomb, player.bombPoint); else E.bomb.hidden = true;
     E.stick.hidden = !(heli && u.state === 'fly'); if (!E.stick.hidden) E.stick.firstChild.style.transform = `translate(${player.stick.x * 3.1}em, ${player.stick.y * 3.1}em)`;
     E.scope.hidden = !player.scopeView;
@@ -100,6 +112,9 @@ export const hud = {
     // warnings
     const w = [];
     if (veh.incoming > 0) w.push(['MISSILE', '']); else if (veh.lockedBy > world.t) w.push(['RADAR LOCK', 'amber']);
+    if (this.torpNear) w.push([`TORPEDO  ${this.torpNear}`, '']);
+    if (veh.invuln > world.t && veh.alive) w.push([`PROTECTED  ${Math.ceil(veh.invuln - world.t)} s`, 'amber']);
+    const hf = world.hurts.length ? world.hurts[world.hurts.length - 1] : null; if (hf && world.t - hf.t < 3 && veh.alive) w.push([`Under fire: ${world.label(hf.from)}`, 'amber']);
     if (veh.kind === 'jet' && veh.state === 'fly') { if (veh.speed < veh.def.stall * 1.15) w.push(['STALL', '']); if (veh.pos.y < 120 && veh.vel.y < -25) w.push(['PULL UP', '']); if (veh.gearDown && veh.speed > 160) w.push(['GEAR', 'amber']); }
     if (veh.kind === 'sub' && veh.pinged > world.t) w.push(['POSITION REVEALED', 'amber']);
     if (veh.hp < veh.maxHp * 0.25 && veh.alive) w.push(['CRITICAL DAMAGE', 'amber']);
@@ -114,8 +129,32 @@ export const hud = {
     racc += step; if (racc > 0.18) { racc = 0; this.radar(veh); if (!E.map.hidden) this.bigMap(veh); }
   },
 
+  // ---- hit markers, damage direction, shell-fall calls (every frame) ----
+  feedback(u, veh, dt) {
+    const h = world.hits, age = world.t - h.t, cam = gfx.camera;
+    const showX = age >= 0 && age < (h.big ? 0.45 : 0.2); E.hitx.hidden = !showX; if (showX) { const c = h.big ? 'big' : ''; if (E.hitx._c !== c) { E.hitx.className = c; E.hitx._c = c; } }
+    if (h.t !== this._ht) { this._ht = h.t; if (age >= 0 && age < 0.3 && world.t - (this._tick || -9) > 0.07) { this._tick = world.t; audio.play(h.big ? 'hit' : 'click', { vol: h.big ? 0.8 : 0.4 }); } }
+    const showD = age >= 0 && age < 1.3 && h.dmg > 0; E.dmg.hidden = !showD;
+    if (showD) { const t = h.kill ? 'TARGET DESTROYED' : '+' + Math.round(h.dmg); if (E.dmg._t !== t) { E.dmg.textContent = t; E.dmg._t = t; E.dmg.className = h.kill ? 'kill' : ''; } }
+    // arcs round the reticle pointing at whoever is hitting us (red), and at incoming torpedoes and missiles (amber)
+    cam.getWorldDirection(_v); const fl = Math.hypot(_v.x, _v.z) || 1, fx = _v.x / fl, fz = _v.z / fl, arcs = E.dirs.children; let n = 0;
+    const arc = (x, z, op, amber) => { if (n >= arcs.length) return; const dx = x - cam.position.x, dz = z - cam.position.z, a = Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz), el = arcs[n++]; el.style.transform = `rotate(${a.toFixed(3)}rad)`; el.style.opacity = op.toFixed(2); const c = amber ? 'amber' : ''; if (el._c !== c) { el.className = c; el._c = c; } };
+    if (veh.alive) {
+      for (const e of world.hurts) { const a = world.t - e.t; if (a >= 0 && a < 3) arc(e.x, e.z, 1 - a / 3, false); }
+      let near = null, nd = 1700 * 1700;
+      if (veh.kind === 'ship' || veh.kind === 'sub') for (const t of world.torps || []) { if (t.nation === veh.nation) continue; const d2 = t.pos.distanceToSquared(veh.pos); if (d2 < nd) { nd = d2; near = t; } }
+      if (near) { arc(near.pos.x, near.pos.z, 1, true); this.torpNear = hdgOf(Math.atan2(-(near.pos.x - veh.pos.x), -(near.pos.z - veh.pos.z))) + '°  ' + Math.round(Math.sqrt(nd) / 10) * 10 + ' m'; } else this.torpNear = '';
+      if (veh.incoming > 0) for (const m of world.missiles || []) if (m.target === veh) arc(m.pos.x, m.pos.z, 1, true);
+    } else this.torpNear = '';
+    for (; n < arcs.length; n++) if (arcs[n].style.opacity !== '0') arcs[n].style.opacity = '0';
+    // where our shells fell
+    for (let i = 0; i < 3; i++) {
+      const f = world.falls[i], node = E['fall' + i], a = f ? world.t - f.t : 9;
+      if (f && a >= 0 && a < 2.4 && place(node, _v.set(f.x, f.y, f.z))) { if (node._t !== f.text) { node.firstChild.textContent = f.text; node._t = f.text; node.className = f.hit ? 'mark fall hit' : 'mark fall'; } } else node.hidden = true;
+    }
+  },
   blip(ctx, u, x, y, s, mine) {
-    ctx.fillStyle = u.nation === mine ? NATIONS[mine].color : '#ff4a3d'; if (u.isPlayer) ctx.fillStyle = '#fff';
+    ctx.fillStyle = u.nation === mine ? '#5fe07a' : '#ff4a3d'; // green = ours, red = theirs, white = you if (u.isPlayer) ctx.fillStyle = '#fff';
     ctx.beginPath();
     if (u.kind === 'ship') ctx.rect(x - s, y - s, s * 2, s * 2); else if (u.kind === 'sub') { ctx.moveTo(x, y - s * 1.3); ctx.lineTo(x + s * 1.3, y); ctx.lineTo(x, y + s * 1.3); ctx.lineTo(x - s * 1.3, y); }
     else if (u.kind === 'jet' || u.kind === 'heli') { ctx.moveTo(x, y - s * 1.4); ctx.lineTo(x + s * 1.2, y + s); ctx.lineTo(x - s * 1.2, y + s); } else ctx.arc(x, y, s * 0.7, 0, 7);

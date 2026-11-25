@@ -1,7 +1,7 @@
 // Game data: nations, unit classes, weapons. Both nations share identical stats; only looks and names differ.
 import { KTS } from './util.js';
 
-export const VERSION = 'Beta 0.1.4';
+export const VERSION = 'Beta 0.1.5';
 export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {
@@ -67,7 +67,7 @@ export const WEAPONS = {
   cannon: { key: 'cannon', name: '20 mm cannon', type: 'gun', rof: 30, speed: 1050, dmg: 9, pen: 0, range: 1800, spread: 0.004, sound: 'cannon20', tracer: 1, life: 2.0, ammo: 480 },
   ciws: { key: 'ciws', name: 'Close-in AA gun', type: 'gun', rof: 28, speed: 1100, dmg: 5, pen: 0, range: 2600, spread: 0.007, sound: 'ciws', tracer: 1, life: 2.6, aa: true },
   deckgun: { key: 'deckgun', name: '76 mm twin deck gun', type: 'shell', rof: 1.6, speed: 760, dmg: 95, pen: 1, splash: 9, range: 9000, aiRange: 5000, spread: 0.004, sound: 'deckgun', life: 16 },
-  heavy: { key: 'heavy', name: '380 mm triple turret', type: 'shell', rof: 0.13, speed: 620, dmg: 560, pen: 3, splash: 28, range: 15000, aiRange: 5600, spread: 0.0065, sound: 'heavygun', life: 30, salvo: 3 },
+  heavy: { key: 'heavy', name: '380 mm triple turret', type: 'shell', rof: 0.13, speed: 620, dmg: 560, pen: 3, splash: 28, range: 15000, aiRange: 5600, spread: 0.005, sound: 'heavygun', life: 30, salvo: 3 },
   sam: { key: 'sam', name: 'Surface-to-air missile', type: 'missile', seeker: 'radar', speed: 720, accel: 260, turnG: 28, dmg: 130, range: 9500, reload: 5, life: 16, sound: 'sam', lockTime: 1.6 },
   aam_ir: { key: 'aam_ir', name: 'Short-range heat-seeker', type: 'missile', seeker: 'ir', speed: 760, accel: 300, turnG: 34, dmg: 90, range: 4500, reload: 1.0, life: 9, ammo: 4, sound: 'missile', lockTime: 1.0, cone: 0.42 },
   aam_rad: { key: 'aam_rad', name: 'Medium-range radar missile', type: 'missile', seeker: 'radar', speed: 900, accel: 300, turnG: 24, dmg: 120, range: 11000, reload: 1.5, life: 16, ammo: 4, sound: 'missile', lockTime: 2.2, cone: 0.3 },
@@ -84,6 +84,13 @@ export const QUALITY = {
   ultra: { label: 'Ultra', shadows: 4096, post: true, tex: 2048, aniso: 16, prCap: 2, ocean: 160, view: 24000, fog: 0.9, particles: 1.4, crew: 1.3, lod: 1.8, wakes: 16, water: 2, simpleWater: false, clouds: true },
 };
 
+// How the other side's crews shoot, by difficulty. spread: gun scatter multiplier; react: seconds from picking a target to
+// opening fire; lock: missile lock time multiplier; dmgIn: damage the player takes; salvo: missiles in the air per target.
+export const DIFFICULTY = {
+  easy: { label: 'Easy', spread: 2.1, react: 2.6, lock: 1.7, dmgIn: 0.7, salvo: 1 },
+  normal: { label: 'Normal', spread: 1.7, react: 1.3, lock: 1.2, dmgIn: 0.9, salvo: 2 },
+  hard: { label: 'Hard', spread: 1, react: 0.5, lock: 1, dmgIn: 1.15, salvo: 2 },
+};
 export const DEFAULT_KEYS = {
   throttleUp: ['KeyW'], throttleDown: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
   rise: ['KeyR', 'Space'], dive: ['KeyF', 'ControlLeft'], periscope: ['KeyP'], ping: ['KeyQ'],

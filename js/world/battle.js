@@ -123,7 +123,7 @@ export const battle = {
       if (cv && cv.alive) { const hp = cv.model.helipads[0].pos; u.placeOn(cv, new V3(hp.x - 9, hp.y, hp.z - 17)); u.look = cv.yaw + Math.PI * 0.85; } else { const p = world.pads[n === 'aethia' ? 0 : 1]; u.placeAt(p.x, world.terrain(p.x, p.z), p.z); }
       world.add(u);
     }
-    u.isPlayer = true; u.invuln = world.t + 3; world.player = u;
+    u.isPlayer = true; u.invuln = world.t + 5; // spawn protection world.player = u;
     save.data.last = { nation: n, unit: type }; save.write();
     return u;
   },

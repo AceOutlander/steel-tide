@@ -20,6 +20,7 @@ const MODES = { ship: ['chase', 'first', 'gunner'], sub: ['chase', 'first'], jet
 
 export const player = {
   unit: null, yaw: 0, pitch: 0, mode: 'chase', zoom: 0, aimPoint: new V3(), aimDir: new V3(0, 0, -1), aimTarget: null, stick: { x: 0, y: 0 },
+  aimFriend: null, lmb: false, lmbHit: false, leadPoint: new V3(), leadT: 0, showLead: false,
   prompt: '', hint: '', scope: false, camShake: 0, _off: new V3(), _pullT: 1, _camTag: '', _camUnit: null, _cockUnit: null, bombPoint: new V3(), showBomb: false, lockDef: null, soldier: null,
 
   setUnit(u, keepView = false) {
@@ -45,6 +46,9 @@ export const player = {
     if (input.wheel && keys.length > 1) { u.selKey = keys[(keys.indexOf(u.selKey) + (input.wheel > 0 ? 1 : keys.length - 1)) % keys.length]; audio.play('click'); }
     this.keys = keys;
     this.aim(); // from the camera as it was last drawn
+    // fire discipline: the trigger is dead while the reticle is on one of our own
+    this.lmb = input.lmb && !this.aimFriend; this.lmbHit = input.lmbHit && !this.aimFriend; u.fireTarget = this.aimTarget;
+    this.lead(u);
     if (u.kind === 'ship') this.ship(u, dt); else if (u.kind === 'sub') this.sub(u, dt); else if (u.kind === 'jet') this.jet(u, dt); else if (u.kind === 'heli') this.heli(u, dt); else this.foot(u, dt);
   },
 
@@ -53,7 +57,7 @@ export const player = {
     u.ctl.throttle = clamp(u.ctl.throttle + input.axis('throttleDown', 'throttleUp') * dt * 0.6, -0.4, 1);
     if (Math.abs(u.ctl.throttle) < 0.03 && !input.on('throttleUp') && !input.on('throttleDown')) u.ctl.throttle = 0;
     u.ctl.rudder = input.axis('right', 'left');
-    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = input.lmb;
+    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget && this.assist === 'full' ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = this.lmb;
   },
   ship(u, dt) {
     this.helm(u, dt);
@@ -72,7 +76,7 @@ export const player = {
     if (input.tap('periscope')) { if (u.depth < 6 || u.depth > 20) { u.depthT = 13; world.say('Coming to periscope depth', 'info'); u.scope = true; this.scope = true; } else { u.scope = !u.scope; this.scope = u.scope; } }
     if (this.scope && (u.depth < 5 || u.depth > 21 || !u.scope)) { if (Math.abs(u.depthT - 13) > 6) { this.scope = false; u.scope = false; } }
     if (input.tap('ping')) { if (u.ping()) world.say('Active sonar ping: contacts revealed, and so are you', 'info'); }
-    if (input.lmbHit && u.tubes) { if (u.depth > 40) world.say('Too deep to fire torpedoes', 'bad'); else if (!u.fireTorpedo(this.aimTarget && (this.aimTarget.kind === 'ship' || this.aimTarget.kind === 'sub') ? this.aimTarget : null)) audio.play('click'); }
+    if (this.lmbHit && u.tubes) { if (u.depth > 40) world.say('Too deep to fire torpedoes', 'bad'); else if (!u.fireTorpedo(this.aimTarget && (this.aimTarget.kind === 'ship' || this.aimTarget.kind === 'sub') ? this.aimTarget : null)) audio.play('click'); }
     // docking with our battlecruiser
     for (const s of world.units) { if (s.type === 'battlecruiser' && s.nation === u.nation && u.canDock(s)) { this.prompt = `<kbd>E</kbd> Dock with ${s.name}`; if (input.tap('use')) { u.dock(s); world.say(`Docked with ${s.name}`, 'good'); } } }
     this.hint = 'W/S throttle  A/D rudder  R/F depth  P periscope  Q sonar ping' + (u.tubes ? '  LMB torpedo' : '');
@@ -105,7 +109,7 @@ export const player = {
     if (w && w.def.type === 'missile') { this.lockDef = w.def; const had = u.locked; seekLock(u, w.def, _f, dt, true); if (u.locked && !had) audio.play('lockTone'); else if (u.lockTarget && !u.locked && (this._bt = (this._bt || 0) - dt) < 0) { this._bt = 0.3; audio.play('lock'); } }
     else { u.lockTarget = null; u.locked = false; }
     if (w && w.def.type === 'bomb') { this.showBomb = true; u.bombImpact(this.bombPoint); }
-    if (w && (w.def.type === 'missile' ? input.lmbHit : input.lmb)) { if (!u.fire() && input.lmbHit) audio.play('click'); }
+    if (w && (w.def.type === 'missile' ? this.lmbHit : this.lmb)) { if (!u.fire() && this.lmbHit) audio.play('click'); }
     this.hint = 'Mouse steer  W/S throttle  Shift afterburner  A/D rudder  G gear  X flares' + (u.def.cloak ? '  C cloak' : '') + '  LMB fire';
   },
 
@@ -120,9 +124,9 @@ export const player = {
       this.yaw = u.yaw; this.pitch = -0.08;
     } else { this.stick.x = this.stick.y = 0; c.pitch = c.roll = c.yaw = 0; u.spool = c.collective > 0 || u.spool; this.prompt = u.rpm < 0.9 ? 'Hold <kbd>W</kbd> to spin up and lift off' : ''; if (u.pilot) { this.prompt += (this.prompt ? '  ' : '') + '<kbd>E</kbd> Get out'; if (input.tap('use')) { this.leaveHeli(u); return; } } }
     if (input.tap('flares')) weapons.dropFlares(u);
-    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = input.lmb && u.selKey === 'chin';
+    u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget && this.assist === 'full' ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = this.lmb && u.selKey === 'chin';
     const w = u.fw[u.selKey];
-    if (w) { this.lockDef = w.def; u.fwd(_f); const had = u.locked; seekLock(u, w.def, _f, dt, false); if (u.locked && !had) audio.play('lockTone'); if (input.lmbHit && !u.fire()) audio.play('click'); }
+    if (w) { this.lockDef = w.def; u.fwd(_f); const had = u.locked; seekLock(u, w.def, _f, dt, false); if (u.locked && !had) audio.play('lockTone'); if (this.lmbHit && !u.fire()) audio.play('click'); }
     else { u.lockTarget = null; u.locked = false; }
     this.hint = 'W/S collective  Mouse tilt  A/D turn  Space level out  X flares  LMB fire' + (u.type === 'transport' ? '  Land on pads, decks and islands' : '');
   },
@@ -140,12 +144,12 @@ export const player = {
     }
     u.look = this.yaw; u.lookPitch = this.pitch;
     if (u.gun) {
-      const m = u.gun; m.cd -= 0; m.aimAt(this.aimPoint, dt, this.aimTarget ? _a.copy(this.aimTarget.vel).sub(m.unit.vel) : null);
-      if (input.lmb) m.fire(this.aimTarget);
+      const m = u.gun; m.cd -= 0; m.aimAt(this.aimPoint, dt, this.aimTarget && this.assist === 'full' ? _a.copy(this.aimTarget.vel).sub(m.unit.vel) : null);
+      if (this.lmb) m.fire(this.aimTarget);
       this.prompt = '<kbd>E</kbd> Leave the gun'; if (input.tap('use')) { u.leaveGun(); }
       this.hint = 'Mouse aim  LMB fire  RMB zoom  E leave'; return;
     }
-    c.mx = input.axis('left', 'right'); c.mz = input.axis('throttleDown', 'throttleUp'); c.run = input.on('run'); c.crouch = input.on('crouch'); c.jump = input.tap('jump'); c.fire = input.lmb;
+    c.mx = input.axis('left', 'right'); c.mz = input.axis('throttleDown', 'throttleUp'); c.run = input.on('run'); c.crouch = input.on('crouch'); c.jump = input.tap('jump'); c.fire = this.lmb;
     if (input.tap('reload')) u.reload();
     // context action: guns, helicopters, climbing out of the water
     let act = null;
@@ -278,18 +282,36 @@ export const player = {
       if (inBounds(o, p, 2)) p.y = Math.max(p.y, o.pos.y + o.bounds.max.y + 4);
     }
   },
-  // aim: where the centre of the screen meets the sea, or the enemy nearest that line (from the camera as last drawn)
+  // What is under the reticle (from the camera as last drawn): the enemy nearest the sight line, or failing that one of our
+  // own (which locks the trigger). The catch area is generous, so a small ship on the horizon still registers.
+  // Aim point by assistance level: FULL = the target itself (guns then range and lead on it), PARTIAL = the point on the
+  // sight line at the target's range (range set for you, lead is yours), OFF = wherever the sight line meets the sea.
   aim() {
     const u = this.unit, cam = gfx.camera, subj = u.kind === 'soldier' && u.aboard ? u.aboard : u;
+    this.assist = save.settings.aimAssist || 'full';
     cam.getWorldDirection(_f);
-    let best = null, bestA = 0.035;
+    let best = null, bestA = 0.042, friend = null, frA = 0.016;
     for (const e of world.units) {
-      if (!e.alive || e.nation === u.nation || !e.seen || e === subj) continue;
-      _a.copy(e.pos).sub(cam.position); const d = _a.length(); if (d > 16000) continue;
-      const ang = Math.acos(clamp(_a.dot(_f) / d, -1, 1)) - Math.atan(e.radius * 0.5 / d); if (ang < bestA) { bestA = ang; best = e; }
+      if (!e.alive || e === subj || e === u) continue;
+      const foe = e.nation !== u.nation; if (foe ? !e.seen : (e === u.on || e === u.carrier || e === subj.on || (u.gun && e === u.gun.unit) || (e.kind === 'soldier' && e.aboard))) continue;
+      _a.copy(e.pos).sub(cam.position); const d = _a.length(); if (d > 16000 || d < 2) continue;
+      const ang = Math.acos(clamp(_a.dot(_f) / d, -1, 1)) - Math.atan(e.radius * 0.5 / d);
+      if (foe) { if (ang < bestA) { bestA = ang; best = e; } } else if (ang < frA) { frA = ang; friend = e; }
     }
-    this.aimTarget = best;
-    if (best) { this.aimPoint.copy(best.pos); if (best.kind === 'ship') this.aimPoint.y += 2; else if (best.kind === 'soldier') this.aimPoint.y += 1.1; }
+    this.aimTarget = best; this.aimFriend = best ? null : friend;
+    if (best && this.assist === 'full') { this.aimPoint.copy(best.pos); if (best.kind === 'ship') this.aimPoint.y += 2; else if (best.kind === 'soldier') this.aimPoint.y += 1.1; }
+    else if (best && this.assist === 'partial') this.aimPoint.copy(cam.position).addScaledVector(_f, cam.position.distanceTo(best.pos));
     else { const t = _f.y < -0.004 ? Math.min((cam.position.y - 0) / -_f.y, 16000) : 5000; this.aimPoint.copy(cam.position).addScaledVector(_f, Math.max(t, 30)); }
+  },
+  // the aim-off point for the weapon in hand: where the target will be when the round arrives, and the flight time
+  lead(u) {
+    this.showLead = false; const tg = this.aimTarget; if (!tg || this.assist !== 'full') return;
+    const def = u.gun ? u.gun.def : WEAPONS[u.selKey]; if (!def || !def.speed || (def.type !== 'gun' && def.type !== 'shell')) return;
+    const from = u.kind === 'soldier' && u.gun ? u.gun.unit : u, own = u.kind === 'soldier' && !u.gun ? null : from.vel; // rifle rounds do not carry the shooter's speed
+    let tof = from.pos.distanceTo(tg.pos) / def.speed;
+    for (let k = 0; k < 2; k++) { this.leadPoint.copy(tg.pos).addScaledVector(tg.vel, tof); if (own) this.leadPoint.addScaledVector(own, -tof); tof = from.pos.distanceTo(this.leadPoint) / def.speed; }
+    if (from.pos.distanceTo(tg.pos) > def.range * 1.2) return;
+    if (tg.kind === 'ship') this.leadPoint.y += 2;
+    this.leadT = tof; this.showLead = true;
   },
 };

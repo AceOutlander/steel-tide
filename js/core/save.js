@@ -1,10 +1,10 @@
 // Saving: one versioned localStorage key holding settings, last picks and lifetime stats.
-import { DEFAULT_KEYS } from './config.js';
+import { DEFAULT_KEYS, DIFFICULTY } from './config.js';
 
 const KEY = 'steelTide.save.v1';
 const defaults = () => ({
   v: 1,
-  settings: { fast: false, fastAsked: false, quality: 'auto', resScale: 1, fov: 70, sens: 1, invertY: false, shake: 0.5, motionBlur: false, sfx: 0.8, music: 0.35, keys: {} },
+  settings: { fast: false, fastAsked: false, quality: 'auto', resScale: 1, fov: 70, sens: 1, invertY: false, shake: 0.5, motionBlur: false, aimAssist: 'full', difficulty: 'normal', sfx: 0.8, music: 0.35, keys: {} },
   last: { nation: 'aethia', unit: 'patrol' },
   stats: { kills: {}, sinkings: 0, aircraft: 0, battlesWon: 0, battlesLost: 0, deaths: 0 },
 });
@@ -24,6 +24,7 @@ export const save = {
   write() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* ignore */ } },
   get settings() { return this.data.settings; },
   get stats() { return this.data.stats; },
+  get diff() { return DIFFICULTY[this.data.settings.difficulty] || DIFFICULTY.normal; },
   keysFor(action) { return this.data.settings.keys[action] || DEFAULT_KEYS[action] || []; },
   addKill(unitKey, kind) {
     const s = this.data.stats; s.kills[unitKey] = (s.kills[unitKey] || 0) + 1;

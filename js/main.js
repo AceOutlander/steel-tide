@@ -31,7 +31,7 @@ export const app = {
     setTimeout(() => {
       try {
         gfx.init(canvas); prog(45, 'Filling the sea');
-        fx.init(); ocean.init(); weapons.init(); world.buildIslands(); crew.init(); world.missiles = weapons.missiles;
+        fx.init(); ocean.init(); weapons.init(); world.buildIslands(); crew.init(); world.missiles = weapons.missiles; world.torps = weapons.torps;
         input.init(canvas); hud.init(); menus.init(app);
         world.onKill = (u, by) => { battle.onKill(u, by); if (by && by.isPlayer) world.playerKills = (world.playerKills || 0) + 1; if (u.isPlayer || (player.soldier === u && player.unit && player.unit.pilot === u)) this.playerDied(u, by); };
         battle.onEnd = () => this.nextBattle();

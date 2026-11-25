@@ -49,6 +49,9 @@ const SCREENS = {
       ${slider('fov', 'Field of view', 55, 100, 1, s.fov, (v) => v + '°')}
       ${slider('shake', 'Camera shake', 0, 1, 0.05, s.shake ?? 0.5, (v) => Math.round(v * 100) + '%')}
       <div class="row"><label>Motion blur<br><small style="color:var(--dim)">Blends each frame into the next. High and Ultra quality only</small></label><button class="switch" role="switch" data-toggle="motionBlur" aria-checked="${!!s.motionBlur}" aria-label="Motion blur"></button></div>
+      <h3>Gameplay</h3>
+      <div class="row"><label>Aim assistance<br><small style="color:var(--dim)">Full: guns set range and lead on the target under the reticle, and a marker shows the aim-off. Partial: range only. Off: aim by eye</small></label><div class="seg">${['full', 'partial', 'off'].map((k) => `<button data-opt="aimAssist" data-val="${k}" class="${(s.aimAssist || 'full') === k ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div></div>
+      <div class="row"><label>Difficulty<br><small style="color:var(--dim)">How accurately and how quickly the other side shoots</small></label><div class="seg">${['easy', 'normal', 'hard'].map((k) => `<button data-opt="difficulty" data-val="${k}" class="${(s.difficulty || 'normal') === k ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div></div>
       <h3>Controls</h3>
       ${slider('sens', 'Mouse sensitivity', 0.3, 3, 0.05, s.sens, (v) => Number(v).toFixed(2))}
       <div class="row"><label>Invert Y</label><button class="switch" role="switch" data-toggle="invertY" aria-checked="${s.invertY}" aria-label="Invert Y"></button></div>
@@ -144,6 +147,7 @@ export const menus = {
     if (d.change !== undefined) { app.state = 'select'; this.show('units', { redeploy: true, change: true }); return; }
     if (d.menu !== undefined) return app.toMenu();
     if (d.q) { save.settings.quality = d.q; save.write(); gfx.applyQuality(); t.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === t)); this.syncFast(); return; }
+    if (d.opt) { save.settings[d.opt] = d.val; save.write(); t.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === t)); return; }
     if (d.toggle) { save.settings[d.toggle] = !save.settings[d.toggle]; save.write(); t.setAttribute('aria-checked', String(save.settings[d.toggle])); return; }
     if (d.key) { t.classList.add('wait'); t.textContent = 'Press a key…'; input.capture = (code) => { if (code !== 'Escape') { save.settings.keys[d.key] = [code]; save.write(); } t.classList.remove('wait'); t.textContent = save.keysFor(d.key).map(keyName).join(' / '); }; return; }
     if (d.resetkeys !== undefined) { save.settings.keys = {}; save.write(); const s = stack; this.show('settings'); stack = s; }

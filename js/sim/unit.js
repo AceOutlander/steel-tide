@@ -76,9 +76,10 @@ export class Unit {
   damage(amount, attacker, hitPos, def) {
     if (!this.alive || amount <= 0) return;
     if (this.invuln > world.t) return;
+    if (this.isPlayer && attacker && !attacker.isPlayer) amount *= save.diff.dmgIn;
     this.hp -= amount; if (attacker && attacker !== this) this.lastHitBy = attacker; this.lastHitT = world.t;
-    if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); gfx.shake(clamp(amount / (this.maxHp * 0.12 + 40), 0.12, 0.7)); }
-    if (attacker && attacker.isPlayer && attacker !== this) attacker.hitMarker = world.t + 0.25;
+    if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); gfx.shake(clamp(amount / (this.maxHp * 0.12 + 40), 0.12, 0.7)); if (attacker && attacker !== this) world.hurt(this, attacker, hitPos); }
+    if (attacker && attacker.isPlayer && attacker !== this) { attacker.hitMarker = world.t + 0.25; world.struck(this, amount, this.hp - amount <= 0); }
     if (hitPos && amount >= 30 && this.lod0 && (this.kind === 'ship' || this.kind === 'sub')) this.addScorch(hitPos, Math.min(5, 1 + amount * 0.004));
     if (this.hp <= 0) { this.hp = 0; this.kill(attacker || this.lastHitBy); }
   }
@@ -118,7 +119,7 @@ export class Unit {
         else if (u.isAir || (u.kind === 'sub' && u.depth > 4) || u.kind === 'soldier') continue;
         const d0 = u.pos.distanceTo(_a); if (d0 > maxR) continue; const d = d0 * (u === this.aiTarget ? 0.5 : 1); if (d < bd) { bd = d; best = u; }
       }
-      if (best !== m.target) m.lock = 0; m.target = best;
+      if (best !== m.target) { m.lock = 0; m.react = world.t + save.diff.react * (0.7 + Math.random() * 0.6); } m.target = best;
     }
     return m.target;
   }
@@ -130,8 +131,8 @@ export class Unit {
     const ok = m.aimAt(tg.aimPos ? tg.aimPos(_c) : tg.pos, dt, m.def.type === 'missile' ? null : _b);
     if (m.def.type === 'missile') {
       m.lock += dt; if (tg.isPlayer) tg.lockedBy = world.t + 0.5;
-      if (m.lock >= m.def.lockTime && m.inArc && (tg.incoming || 0) < 2 && m.cd <= 0) m.fire(tg);
-    } else if (ok) m.fire();
+      if (m.lock >= m.def.lockTime * save.diff.lock && m.inArc && (tg.incoming || 0) < save.diff.salvo && m.cd <= 0) m.fire(tg);
+    } else if (ok && world.t >= (m.react || 0)) m.fire();
   }
   updateMounts(dt) {
     for (const m of this.mounts) {

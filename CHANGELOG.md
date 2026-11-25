@@ -1,5 +1,35 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.1.5 (targeting feedback, aiming help, survivability)
+
+- Reticle: red over an enemy, green over one of your own, white over nothing. The catch area is generous (about 2.4
+  degrees past the target's edge), so a corvette on the horizon registers. Over an enemy it shows name, type, range
+  and a health bar. Over one of your own it shows "HOLD FIRE" and the trigger is locked.
+- Hit feedback: a white X and a tick on every hit, a bigger red X and a heavier sound on a heavy hit or a kill, and
+  "+damage" or "TARGET DESTROYED" under the reticle.
+- Shell fall: each of your salvoes is called where it lands, against the target it was fired at: "SHORT 250 m",
+  "OVER 230 m", "LEFT", "RIGHT", "CLOSE" or "HIT".
+- Aim assistance (Settings, saved): FULL (default) the guns set range and lead on the target under the reticle, and a
+  yellow marker shows the aim-off point with "Impact in 6.2 s"; the same marker serves aircraft cannon, the chin gun,
+  deck guns and the rifle. PARTIAL sets the range only (the aim point is on your sight line at the target's range, so
+  lead is yours). OFF aims wherever the sight line meets the sea.
+- The 380 mm guns scatter a little less (0.005 rad, was 0.0065). In the test a battlecruiser sank a corvette crossing
+  at 4.6 km in 17 seconds with full assistance.
+- Under fire: red arcs round the reticle point at whoever is hitting you, with a warning naming them. Incoming
+  torpedoes (inside 1.7 km) give bearing and distance, an amber arc and the warning sound; incoming missiles get an
+  amber arc too.
+- Spawn protection is 5 seconds (was 3), shown as "PROTECTED".
+- Difficulty (Settings, saved): Easy, Normal (default), Hard. It changes the other side's gun scatter (x2.1, x1.7, x1),
+  the time a crew takes to open fire on a new target (2.6 s, 1.3 s, 0.5 s), missile lock time, how many missiles they
+  keep in the air at you, and the damage you take (70%, 90%, 115%). Before this every crew shot like Hard with no
+  reaction time. Measured on a corvette sitting still 3 km from the enemy for a minute: 466 damage on Easy, 1448 on
+  Normal (before the last softening of Normal), sunk on Hard.
+- Balance left alone on purpose: a corvette's 76 mm shells do 12% damage to a battlecruiser's armour (about a thousand
+  hits to sink one), while four 380 mm hits sink a corvette.
+- Radar and map: green = yours, red = theirs, white = you.
+- Not done: the colour-blind option and the earlier "radar fix" this request refers to were never received. Full
+  battles on each difficulty were not played by hand; the numbers above are from scripted runs.
+
 ## Beta 0.1.4 (detection: submarines stay hidden)
 
 One routine (`world.detects` in `js/world/world.js`) now decides every contact. The radar and map, target boxes and

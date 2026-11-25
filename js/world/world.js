@@ -26,6 +26,32 @@ function islandH(is, x, z) {
 
 export const world = {
   lost: [], // enemy contacts just lost: { x, z, t, nation, unit }
+  // ---- feedback for the HUD ----
+  hits: { t: -9, dmg: 0, big: false, kill: false, name: '' },     // what the player's fire last did
+  hurts: [],                                                       // who is hitting the player: { from, t, x, z }
+  falls: [],                                                       // where the player's shells landed: { x, y, z, t, text, hit }
+  struck(target, amount, kill) {
+    const h = this.hits; if (this.t - h.t > 1.2) h.dmg = 0;
+    h.t = this.t; h.dmg += Math.min(amount, target.hp); h.kill = kill; h.big = kill || amount >= target.maxHp * 0.12; h.name = kill ? this.label(target) : '';
+  },
+  hurt(victim, from, pos) {
+    let e = this.hurts.find((k) => k.from === from); if (!e) { e = { from }; this.hurts.push(e); if (this.hurts.length > 4) this.hurts.shift(); }
+    e.t = this.t; e.x = from.pos.x; e.z = from.pos.z;
+  },
+  // a shell from the player's guns has landed: say how it fell relative to the target it was fired at
+  shellFall(owner, p, target, struckUnit) {
+    if (this.t - (this._fallT || -9) < 0.5) return; this._fallT = this.t;
+    let text = '', hit = false;
+    if (struckUnit && struckUnit.nation !== owner.nation) { text = 'HIT'; hit = true; }
+    else if (target && target.alive) {
+      const lx = target.pos.x - owner.pos.x, lz = target.pos.z - owner.pos.z, l = Math.hypot(lx, lz) || 1, ax = lx / l, az = lz / l;
+      const dx = p.x - target.pos.x, dz = p.z - target.pos.z, along = dx * ax + dz * az, across = dx * -az + dz * ax, r = target.radius;
+      if (Math.abs(along) > r * 0.7 && Math.abs(along) >= Math.abs(across)) text = (along < 0 ? 'SHORT ' : 'OVER ') + Math.round(Math.abs(along) / 10) * 10 + ' m';
+      else if (Math.abs(across) > r * 0.5) text = (across > 0 ? 'RIGHT ' : 'LEFT ') + Math.round(Math.abs(across) / 10) * 10 + ' m';
+      else text = 'CLOSE';
+    } else return;
+    this.falls.push({ x: p.x, y: Math.max(p.y, 1), z: p.z, t: this.t, text, hit }); if (this.falls.length > 3) this.falls.shift();
+  },
   t: 0, units: [], islands: ISLANDS, pads: PADS, player: null, playerNation: 'aethia', carriers: {}, feed: [], onFeed: null, onKill: null, group: null,
   score: { aethia: 0, extro: 0 }, over: null, nextId: 1,
 
@@ -78,7 +104,7 @@ export const world = {
 
   add(u) { u.id = this.nextId++; this.units.push(u); if (u.root) gfx.scene.add(u.root); return u; },
   remove(u) { const i = this.units.indexOf(u); if (i >= 0) this.units.splice(i, 1); if (u.root && u.root.parent === gfx.scene) gfx.scene.remove(u.root); u.gone = true; },
-  clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.lost.length = 0; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
+  clear() { for (const u of [...this.units]) { if (u.dispose) u.dispose(); this.remove(u); } this.units.length = 0; this.lost.length = 0; this.hurts.length = 0; this.falls.length = 0; this.hits.t = -9; this.carriers = {}; this.over = null; this.score = { aethia: 0, extro: 0 }; this.feed.length = 0; this.player = null; },
 
   say(text, cls = '') { this.feed.push({ text, cls, t: this.t }); if (this.feed.length > 40) this.feed.shift(); this.onFeed && this.onFeed(text, cls); },
 

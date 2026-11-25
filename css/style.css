@@ -115,3 +115,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #h-scope span { position: absolute; left: 50%; top: 14vh; transform: translateX(-50%); color: #cfe; letter-spacing: .2em; font-size: .9em; text-shadow: 0 1px 2px #000; }
 #h-map { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(4, 12, 20, .6); } #h-map .mapwrap { display: flex; gap: 2em; align-items: flex-start; padding: 1.4em; background: var(--panel2); border: 1px solid var(--line); border-radius: .6em; } #h-map canvas { width: 40em; height: 40em; border: 1px solid var(--line); background: #0d2a3f; }
 .scoreboard { width: 22em; } .scoreboard h3 { margin: 0 0 .5em; letter-spacing: .14em; text-transform: uppercase; } .scoreboard .stat span:last-child { font-variant-numeric: tabular-nums; }
+
+/* ---- targeting feedback (reticle colours, hit markers, aim-off marker, shell-fall calls, damage direction) ---- */
+#h-cross.enemy::before, #h-cross.enemy::after { background: #ff4a3d; } #h-cross.enemy.circle { border-color: #ff4a3d; }
+#h-cross.friend::before, #h-cross.friend::after { background: #5fe07a; } #h-cross.friend.circle { border-color: #5fe07a; }
+#h-aimtg.enemy i { border-color: #ff4a3d; } #h-aimtg.friend i { border-color: #5fe07a; } #h-aimtg.friend span { color: #9df0ae; } #h-aimtg.friend b { display: none; }
+#h-aimtg b { position: absolute; top: -2em; left: -1.6em; width: 3.2em; height: .3em; background: rgba(0, 0, 0, .6); outline: 1px solid rgba(255, 255, 255, .45); } #h-aimtg b u { display: block; height: 100%; background: #ff4a3d; }
+#h-hitx { position: absolute; left: 50%; top: 50%; width: 1.6em; height: 1.6em; margin: -.8em 0 0 -.8em; }
+#h-hitx::before, #h-hitx::after { content: ""; position: absolute; left: 50%; top: -10%; width: 2px; height: 120%; margin-left: -1px; background: #fff; box-shadow: 0 0 2px #000; transform: rotate(45deg); -webkit-mask: linear-gradient(#000 30%, transparent 30% 70%, #000 70%); mask: linear-gradient(#000 30%, transparent 30% 70%, #000 70%); }
+#h-hitx::after { transform: rotate(-45deg); }
+#h-hitx.big { width: 2.6em; height: 2.6em; margin: -1.3em 0 0 -1.3em; } #h-hitx.big::before, #h-hitx.big::after { background: #ff3b30; width: 3px; }
+#h-dmg { position: absolute; left: 50%; top: calc(50% + 2.4em); transform: translateX(-50%); font-weight: 700; letter-spacing: .12em; font-size: .85em; color: #fff; text-shadow: 0 1px 3px #000; white-space: nowrap; } #h-dmg.kill { color: #ff6b5e; }
+#h-dirs { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+#h-dirs i { position: absolute; left: -7em; top: -7em; width: 14em; height: 14em; box-sizing: border-box; border-radius: 50%; border: .45em solid transparent; border-top-color: #ff3b30; opacity: 0; -webkit-mask: conic-gradient(from -20deg, #000 40deg, transparent 40deg); mask: conic-gradient(from -20deg, #000 40deg, transparent 40deg); }
+#h-dirs i.amber { border-top-color: #ffb347; }
+#h-lead i { left: -.55em; top: -.55em; width: 1.1em; height: 1.1em; box-sizing: border-box; border: 2px solid #ffd35a; border-radius: 50%; } #h-lead i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px; background: #ffd35a; border-radius: 50%; }
+#h-lead span { position: absolute; top: .9em; left: -6em; width: 12em; text-align: center; font-size: .7em; color: #ffd35a; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.fall span { position: absolute; top: -2.6em; left: -6em; width: 12em; text-align: center; font-size: .8em; font-weight: 700; letter-spacing: .1em; color: #fff; text-shadow: 0 1px 3px #000; white-space: nowrap; } .fall.hit span { color: #ff6b5e; }

@@ -1,6 +1,7 @@
 // Weapons and projectiles: pooled bullets/shells with tracers, guided missiles, bombs, torpedoes, flares, and turret mounts.
 import * as THREE from 'three';
 import { gfx } from '../gfx/renderer.js';
+import { save } from '../core/save.js';
 import { fx } from '../gfx/effects.js';
 import { MAT } from '../gfx/materials.js';
 import { waveHeight } from '../gfx/ocean.js';
@@ -68,7 +69,7 @@ export class Mount {
 }
 
 // ---- projectile pool -------------------------------------------------------------------------------------------------------
-const B = { n: 0, pos: new Float32Array(MAXB * 3), vel: new Float32Array(MAXB * 3), life: new Float32Array(MAXB), def: new Array(MAXB), owner: new Array(MAXB), tr: new Uint8Array(MAXB) };
+const B = { n: 0, tg: new Array(MAXB), pos: new Float32Array(MAXB * 3), vel: new Float32Array(MAXB * 3), life: new Float32Array(MAXB), def: new Array(MAXB), owner: new Array(MAXB), tr: new Uint8Array(MAXB) };
 let tracerMesh = null, shellMesh = null, missileGeo = null, bombGeo = null, torpGeo = null;
 
 export const weapons = {
@@ -93,7 +94,7 @@ export const weapons = {
   fireGun(owner, def, pos, dir, inherit, sound = true) {
     if (B.n >= MAXB) return;
     if (owner.isPlayer && (def.key === 'heavy' || def.key === 'deckgun')) gfx.shake(def.key === 'heavy' ? 0.3 : 0.1); // the player's own big guns
-    const i = B.n++, i3 = i * 3, sp = def.spread;
+    const i = B.n++, i3 = i * 3, sp = def.spread * (owner.isPlayer ? 1 : save.diff.spread); B.tg[i] = owner.isPlayer && def.type === 'shell' ? owner.fireTarget || null : null;
     _d.copy(dir); _d.x += rand(-sp, sp); _d.y += rand(-sp, sp); _d.z += rand(-sp, sp); _d.normalize();
     B.pos[i3] = pos.x; B.pos[i3 + 1] = pos.y; B.pos[i3 + 2] = pos.z;
     B.vel[i3] = _d.x * def.speed + (inherit ? inherit.x : 0); B.vel[i3 + 1] = _d.y * def.speed + (inherit ? inherit.y : 0); B.vel[i3 + 2] = _d.z * def.speed + (inherit ? inherit.z : 0);
@@ -167,7 +168,7 @@ export const weapons = {
           if (dx * dx + dy * dy + dz * dz > r * r) continue;
           if (u.hitTest(_a, _b, _hit, def.aa || def.key === 'cannon' ? 5 : def.type === 'shell' ? 1.5 : 0.6)) {
             u.damage(def.dmg * damageFactor(def, u), owner, _hit, def);
-            if (def.type === 'shell') { fx.explosion(_hit, def.key === 'heavy' ? 16 : 6); if (def.splash) this.blast(_hit, def.splash, def.dmg * 0.4, def, owner, u); }
+            if (def.type === 'shell') { fx.explosion(_hit, def.key === 'heavy' ? 16 : 6); if (def.splash) this.blast(_hit, def.splash, def.dmg * 0.4, def, owner, u); if (owner.isPlayer) world.shellFall(owner, _hit, B.tg[i], u); }
             else { fx.spark(_hit, _c.set(0, 1, 0)); if (Math.random() < 0.25) audio.play('hit', { pos: _hit, vol: 0.5 }); }
             dead = true; break;
           }
@@ -178,7 +179,7 @@ export const weapons = {
         const wy = waveHeight(_b.x, _b.z);
         if (_b.y < wy) {
           _b.y = wy; dead = true;
-          if (def.type === 'shell') { fx.splash(_b, def.key === 'heavy' ? 16 : 6); if (def.splash) this.blast(_b, def.splash * 0.7, def.dmg * 0.3, def, owner); if (def.key === 'heavy') audio.play('explosion', { pos: _b, vol: 0.5 }); }
+          if (def.type === 'shell') { fx.splash(_b, def.key === 'heavy' ? 16 : 6); if (owner.isPlayer) world.shellFall(owner, _b, B.tg[i], null); if (def.splash) this.blast(_b, def.splash * 0.7, def.dmg * 0.3, def, owner); if (def.key === 'heavy') audio.play('explosion', { pos: _b, vol: 0.5 }); }
           else if (Math.random() < 0.5) fx.splash(_b, 0.7, Math.random() < 0.15);
         }
       }
@@ -187,7 +188,7 @@ export const weapons = {
         if (gy > -1 && _b.y < gy) { dead = true; _b.y = gy; if (def.type === 'shell') { fx.explosion(_b, def.key === 'heavy' ? 14 : 5); if (def.splash) this.blast(_b, def.splash, def.dmg * 0.5, def, owner); } else fx.puff(_b, 0, 2, 0, 1.2, 0.6, 0.5, 1.2, 2); }
       }
       if (dead) { // swap-remove
-        const n = --B.n; if (i !== n) { const n3 = n * 3; B.pos[i3] = B.pos[n3]; B.pos[i3 + 1] = B.pos[n3 + 1]; B.pos[i3 + 2] = B.pos[n3 + 2]; B.vel[i3] = B.vel[n3]; B.vel[i3 + 1] = B.vel[n3 + 1]; B.vel[i3 + 2] = B.vel[n3 + 2]; B.life[i] = B.life[n]; B.def[i] = B.def[n]; B.owner[i] = B.owner[n]; B.tr[i] = B.tr[n]; }
+        const n = --B.n; if (i !== n) { const n3 = n * 3; B.pos[i3] = B.pos[n3]; B.pos[i3 + 1] = B.pos[n3 + 1]; B.pos[i3 + 2] = B.pos[n3 + 2]; B.vel[i3] = B.vel[n3]; B.vel[i3 + 1] = B.vel[n3 + 1]; B.vel[i3 + 2] = B.vel[n3 + 2]; B.life[i] = B.life[n]; B.def[i] = B.def[n]; B.owner[i] = B.owner[n]; B.tr[i] = B.tr[n]; B.tg[i] = B.tg[n]; }
         i--; continue;
       }
       B.pos[i3] = _b.x; B.pos[i3 + 1] = _b.y; B.pos[i3 + 2] = _b.z;
