@@ -90,7 +90,7 @@ function sharkMouth(group, model) {
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   const mat = new THREE.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.35, roughness: 0.6, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, side: THREE.DoubleSide });
-  const len = Math.max(2.2, nose.radius * 3.4), geo = new THREE.CylinderGeometry(nose.radius * 1.06, nose.radius * 0.5, len, 28, 1, true, Math.PI * 0.5, Math.PI * 2);
+  const len = Math.max(2.2, nose.radius * 3.4), geo = new THREE.CylinderGeometry(nose.radius * 0.5, nose.radius * 1.06, len, 28, 1, true, Math.PI * 0.5, Math.PI * 2); // narrow end toward the tip
   const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.copy(nose.pos); m.position.z += len * 0.5 + nose.radius * 0.55; m.name = 'paint-extra'; group.add(m);
 }
 

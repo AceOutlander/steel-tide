@@ -271,7 +271,8 @@ export const player = {
       if (k > 0) { cam.rotateX(k * 0.016 * Math.sin(t * 37)); cam.rotateY(k * 0.016 * Math.sin(t * 29 + 1)); cam.rotateZ(k * 0.024 * Math.sin(t * 23 + 2)); }
       gfx.trauma = Math.max(0, gfx.trauma - dt * 1.9);
     }
-    if (this.zoom > 0.01) fov = fov / (1 + this.zoom * (this.scopeView ? 3 : 2));
+    // right button: a marine on foot only leans into the sights (slight zoom); everything else zooms properly
+    if (this.zoom > 0.01) fov = fov / (1 + this.zoom * (this.scopeView ? 3 : u.kind === 'soldier' && !u.gun && !u.aboard ? 0.35 : 2));
     if (Math.abs(cam.fov - fov) > 0.05 || cam.near !== near) { cam.fov = fov; cam.near = near; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();
   },

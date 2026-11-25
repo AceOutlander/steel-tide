@@ -42,18 +42,19 @@ function template(type, nation, level, paint = '') {
     if (!o.isMesh || !o.visible || !o.geometry || !o.material || (o.material.transparent && o.material.opacity < 0.5)) return;
     for (let p = o; p && p !== g; p = p.parent) if (!p.visible) return;
     let sp = null; for (let p = o; p && p !== g; p = p.parent) if (spin.has(p)) { sp = p; break; }
-    const geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry, P = geo.attributes.position, N = geo.attributes.normal, U = geo.attributes.uv;
+    const geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry, P = geo.attributes.position, N = geo.attributes.normal, U = geo.attributes.uv, C = geo.attributes.color; // the new models are coloured per vertex
     if (!P || !N) return; _m3.getNormalMatrix(o.matrixWorld);
     for (let i = 0; i < P.count; i += 3) {
       _a.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); _b.fromBufferAttribute(P, i + 1).applyMatrix4(o.matrixWorld); _c.fromBufferAttribute(P, i + 2).applyMatrix4(o.matrixWorld);
       const cx = (_a.x + _b.x + _c.x) / 3, cz = (_a.z + _b.z + _c.z) / 3;
       const id = sp ? 'spin' + sp.id : bin(cx, xe, S) + '_' + bin(cz, ze, L);
       let z = zones.get(id); if (!z) { z = { mats: new Map(), n: 0, cx: 0, cy: 0, cz: 0, spin: !!sp, wing: !sp && Math.abs(cx) > 0.13 * S }; zones.set(id, z); }
-      let arr = z.mats.get(o.material); if (!arr) { arr = { p: [], n: [], u: [] }; z.mats.set(o.material, arr); }
+      let arr = z.mats.get(o.material); if (!arr) { arr = { p: [], n: [], u: [], c: [] }; z.mats.set(o.material, arr); }
       for (let k = 0; k < 3; k++) {
         const v = k === 0 ? _a : k === 1 ? _b : _c; arr.p.push(v.x, v.y, v.z); z.cx += v.x; z.cy += v.y; z.cz += v.z; z.n++;
         _n.fromBufferAttribute(N, i + k).applyMatrix3(_m3).normalize(); arr.n.push(_n.x, _n.y, _n.z);
         if (U) arr.u.push(U.getX(i + k), U.getY(i + k)); else arr.u.push(0, 0);
+        if (C) arr.c.push(C.getX(i + k), C.getY(i + k), C.getZ(i + k)); else arr.c.push(1, 1, 1);
       }
     }
   });
@@ -64,7 +65,7 @@ function template(type, nation, level, paint = '') {
     for (const [mat, a] of z.mats) {
       for (let i = 0; i < a.p.length; i += 3) { a.p[i] -= c.x; a.p[i + 1] -= c.y; a.p[i + 2] -= c.z; r = Math.max(r, Math.hypot(a.p[i], a.p[i + 1], a.p[i + 2])); }
       const bg = new THREE.BufferGeometry();
-      bg.setAttribute('position', new THREE.Float32BufferAttribute(a.p, 3)); bg.setAttribute('normal', new THREE.Float32BufferAttribute(a.n, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(a.u, 2));
+      bg.setAttribute('position', new THREE.Float32BufferAttribute(a.p, 3)); bg.setAttribute('normal', new THREE.Float32BufferAttribute(a.n, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(a.u, 2)); bg.setAttribute('color', new THREE.Float32BufferAttribute(a.c, 3));
       parts.push({ geo: bg, mat: scorch(mat) });
     }
     pieces.push({ parts, off: c, r, spin: z.spin, wing: z.wing, tris: z.n / 3 });

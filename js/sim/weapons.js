@@ -1,6 +1,7 @@
 // Weapons and projectiles: pooled bullets/shells with tracers, guided missiles, bombs, torpedoes, flares, and turret mounts.
 import * as THREE from 'three';
 import { gfx } from '../gfx/renderer.js';
+import { buildAAM, buildSAM, buildAGM, buildBomb, buildTorpedo } from '../units/v2/ordnance.js';
 import { save } from '../core/save.js';
 import { fx } from '../gfx/effects.js';
 import { MAT } from '../gfx/materials.js';
@@ -45,6 +46,7 @@ export class Mount {
     const pw = clamp(pitchWant, t.minPitch, t.maxPitch);
     t.elev = approach(t.elev, pw, rate);
     t.node.rotation.y = t.rest + t.yaw; t.pitch.rotation.x = t.elev;
+    if (t.barrels && t.spinV > 0.2) { t.barrels.rotation.z += t.spinV * dt; t.spinV *= Math.max(0, 1 - 1.8 * dt); }
     this.aligned = this.inArc && Math.abs(wrapPi(yawWant - t.yaw)) < 0.035 && Math.abs(pw - t.elev) < 0.03 && Math.abs(pw - pitchWant) < 0.08;
     return this.aligned;
   }
@@ -63,14 +65,14 @@ export class Mount {
       const mz = t.muzzles[this.barrel++ % t.muzzles.length]; mz.getWorldPosition(_a);
       weapons.fireGun(u, def, _a, _c, u.vel, i === 0);
     }
-    this.cd = 1 / def.rof; this.ammo--;
+    this.cd = 1 / def.rof; this.ammo--; if (t.barrels) t.spinV = 42;
     return true;
   }
 }
 
 // ---- projectile pool -------------------------------------------------------------------------------------------------------
 const B = { n: 0, tg: new Array(MAXB), pos: new Float32Array(MAXB * 3), vel: new Float32Array(MAXB * 3), life: new Float32Array(MAXB), def: new Array(MAXB), owner: new Array(MAXB), tr: new Uint8Array(MAXB) };
-let tracerMesh = null, shellMesh = null, missileGeo = null, bombGeo = null, torpGeo = null;
+let tracerMesh = null, shellMesh = null, missileGeo = null, bombGeo = null, torpGeo = null, samGeo = null, agmGeo = null;
 
 export const weapons = {
   missiles: [], bombs: [], torps: [], flares: [],
@@ -87,6 +89,8 @@ export const weapons = {
     bombGeo = b.build(tmp).map((m) => ({ geo: m.geometry, mat: m.material }));
     b = new PartBuilder(0); b.add(MAT.black, new THREE.CapsuleGeometry(0.27, 5.2, 4, 8), 0, 0, 0, [Math.PI / 2, 0, 0]); b.cyl(MAT.orange, 0.275, 0.275, 0.5, 0, 0, -2.2, 'z', 8);
     torpGeo = b.build(tmp).map((m) => ({ geo: m.geometry, mat: m.material }));
+    // the detailed, full-size weapons replace the placeholder shapes above
+    missileGeo = buildAAM(); samGeo = buildSAM(); agmGeo = buildAGM(); bombGeo = buildBomb(); torpGeo = buildTorpedo();
   },
   mesh(parts, scale = 1) { const g = new THREE.Group(); for (const p of parts) g.add(new THREE.Mesh(p.geo, p.mat)); g.scale.setScalar(scale); gfx.scene.add(g); return g; },
   clear() { B.n = 0; for (const l of [this.missiles, this.bombs, this.torps]) { for (const o of l) gfx.scene.remove(o.mesh); l.length = 0; } this.flares.length = 0; },
@@ -103,7 +107,7 @@ export const weapons = {
   },
 
   fireMissile(owner, def, pos, dir, target) {
-    const m = { def, owner, nation: owner.nation, pos: pos.clone(), vel: dir.clone().multiplyScalar(Math.max(80, owner.vel.length() + 40)).add(_s.set(0, 0, 0)), dir: dir.clone().normalize(), speed: Math.max(80, owner.vel.length() + 40), target, life: def.life, decoy: null, mesh: this.mesh(missileGeo, def.key === 'sam' ? 1.7 : def.key === 'agm' ? 0.8 : 1.2), t: 0, lost: false, chk: 0 };
+    const m = { def, owner, nation: owner.nation, pos: pos.clone(), vel: dir.clone().multiplyScalar(Math.max(80, owner.vel.length() + 40)).add(_s.set(0, 0, 0)), dir: dir.clone().normalize(), speed: Math.max(80, owner.vel.length() + 40), target, life: def.life, decoy: null, mesh: this.mesh(def.key === 'sam' ? samGeo : def.key === 'agm' ? agmGeo : missileGeo, 1), t: 0, lost: false, chk: 0 };
     this.missiles.push(m);
     if (target) { target.incoming = (target.incoming || 0) + 1; m.counted = true; }
     audio.play(def.sound, { pos, vol: 1 });
@@ -111,11 +115,11 @@ export const weapons = {
     return m;
   },
   dropBomb(owner, def, pos, vel) {
-    this.bombs.push({ def, owner, pos: pos.clone(), vel: vel.clone(), mesh: this.mesh(bombGeo, 1.5), life: 40 });
+    this.bombs.push({ def, owner, pos: pos.clone(), vel: vel.clone(), mesh: this.mesh(bombGeo, 1), life: 40 });
     audio.play('bombdrop', { pos, vol: 0.6 });
   },
   fireTorpedo(owner, def, pos, yaw, target) {
-    const t = { def, owner, nation: owner.nation, pos: pos.clone(), yaw, target, life: def.life, mesh: this.mesh(torpGeo, 1.2), run: 0, depth: Math.min(-3, pos.y) };
+    const t = { def, owner, nation: owner.nation, pos: pos.clone(), yaw, target, life: def.life, mesh: this.mesh(torpGeo, 1), run: 0, depth: Math.min(-3, pos.y) };
     this.torps.push(t); audio.play('torpedo', { pos, vol: 1 });
     return t;
   },

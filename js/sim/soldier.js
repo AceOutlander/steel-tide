@@ -15,7 +15,7 @@ const _a = new V3(), _b = new V3(), _l = new V3(), _q = new THREE.Quaternion(), 
 const surf = { y: 0, ship: null, type: 'water', localY: 0 };
 // With ?v2 the new figure is in use: it has its own death, jump and reload animations, sprinting lowers the rifle, and the
 // first-person view (js/sim/v2/fpview.js) reads shots / landN / landV / sprintT from here. Without it nothing below changes.
-const V2 = /[?&]v2/.test(location.search), _qs = new THREE.Quaternion();
+const V2 = true, _qs = new THREE.Quaternion();
 
 export class Soldier extends Unit {
   constructor(nation, name = '') {

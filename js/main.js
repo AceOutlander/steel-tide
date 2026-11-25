@@ -24,7 +24,7 @@ import { menus } from './ui/menus.js';
 const STEP = 1 / 60, _a = new V3(), _b = new V3();
 let last = 0, acc = 0, fpsT = 0, fpsN = 0, fpsWatch = 0, orbit = 0, deadT = 0;
 let fpview = null;
-if (/[?&]v2/.test(location.search)) import('./sim/v2/fpview.js').then((m) => { fpview = m.fpview; }).catch((e) => console.warn('v2 first-person view not loaded: ' + e.message));
+import('./sim/v2/fpview.js').then((m) => { fpview = m.fpview; }).catch((e) => console.warn('v2 first-person view not loaded: ' + e.message));
 const wakeList = [], shipList = [];
 
 export const app = {

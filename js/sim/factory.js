@@ -8,10 +8,10 @@ import { buildCorvette } from '../units/corvette.js';
 import { buildBattlecruiser } from '../units/battlecruiser.js';
 import { buildCarrier } from '../units/carrier.js';
 import { buildReconSub, buildAttackSub } from '../units/submarines.js';
-import { buildFighter } from '../units/fighter.js';
-import { buildBomber } from '../units/bomber.js';
-import { buildReconPlane } from '../units/reconplane.js';
-import { buildTransportHeli, buildAttackHeli } from '../units/helicopters.js';
+import { buildFighter } from '../units/v2/fighter.js';
+import { buildBomber } from '../units/v2/bomber.js';
+import { buildReconPlane } from '../units/v2/reconplane.js';
+import { buildTransportHeli, buildAttackHeli } from '../units/v2/helicopters.js';
 
 // Work in progress lives in js/units/v2/ and is only loaded when the address has ?v2, so unfinished models can never
 // break the game. js/units/v2/index.js may export any of the builder names below; missing ones fall back to the current model.
