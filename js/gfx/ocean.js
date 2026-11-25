@@ -92,9 +92,10 @@ void main(){
   col += uSunColor * spec * 14.0 * (0.25 + fres);
   // foam: wave crests, shorelines, hulls and wakes
   float fn = texture2D(uFoamMap, uv * 0.03 + vec2(uTime * 0.01, 0.0)).r;
-  float fn2 = texture2D(uFoamMap, uv * 0.11 - vec2(0.0, uTime * 0.02)).r;
+  vec2 uvr = vec2(uv.x * 0.8 - uv.y * 0.6, uv.x * 0.6 + uv.y * 0.8);
+  float fn2 = texture2D(uFoamMap, uvr * 0.087 - vec2(0.0, uTime * 0.02)).r;
   #ifndef SIMPLE
-  float foam = smoothstep(1.5, 2.3, vH + fn * 0.75) * 0.42 * fn2 * (1.0 - smoothstep(1200.0, 4000.0, dist));
+  float foam = smoothstep(1.65, 2.45, vH + fn * 0.7) * 0.2 * fn2 * (1.0 - smoothstep(1200.0, 4000.0, dist));
 #else
   float foam = 0.0;
 #endif
@@ -113,7 +114,7 @@ void main(){
       float wdt = hb * (0.9 + t * 2.2) + 1.0;
       foam += (1.0 - smoothstep(wdt * 0.35, wdt, a)) * pow(1.0 - t, 1.8) * spd * (0.12 + 0.95 * fn2 * (0.6 + 0.6 * fn));
       float arm = back * 0.33 + hb; float aw = 1.5 + back * 0.035;
-      foam += exp(-pow((a - arm) / aw, 2.0)) * (1.0 - t) * spd * 0.55 * (0.4 + fn);
+      foam += exp(-pow((a - arm) / aw, 2.0)) * (1.0 - t) * spd * 0.5 * (0.12 + 1.5 * fn * fn2);
     }
   }
   foam = clamp(foam, 0.0, 1.0);
