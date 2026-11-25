@@ -119,7 +119,8 @@ export const menus = {
   showroomActive: false,
   init(a) {
     app = a; root = el('screens');
-    root.addEventListener('click', (e) => this.click(e)); root.addEventListener('input', (e) => this.inputEv(e));
+    root.addEventListener('click', (e) => this.click(e));
+    root.addEventListener('pointerover', (e) => { const b = e.target.closest('button'); if (b && b !== this._hov) { this._hov = b; audio.play('hover'); } else if (!b) this._hov = null; }); root.addEventListener('input', (e) => this.inputEv(e));
     el('notice').addEventListener('click', (e) => { if (e.target.dataset.act && this._noticeFn) this._noticeFn(); el('notice').hidden = true; });
     nation = save.data.last.nation; unit = save.data.last.unit;
   },
@@ -140,7 +141,7 @@ export const menus = {
   click(e) {
     const t = e.target.closest('button, a'); if (!t || t.tagName === 'A') return; const d = t.dataset; audio.init(); audio.play('click');
     if (d.fast !== undefined) { app.setFast(!save.settings.fast, true); return; }
-    if (d.go) { if (d.go === 'nation') audio.music('menu'); this.show(d.go); return; }
+    if (d.go) { this.show(d.go); return; }
     if (d.back !== undefined) return this.back();
     if (d.nation) { nation = d.nation; this.show('units'); return; }
     if (d.unit) { unit = d.unit; root.querySelectorAll('.unitbtn').forEach((b) => b.classList.toggle('on', b.dataset.unit === unit)); showroomSet(); unitInfo(); return; }

@@ -3,6 +3,10 @@
 
 let ctx = null;
 let master = null, comp = null, sfxBus = null, sfxLP = null, musicBus = null, musicGate = null;
+// Two buses: everything that belongs to the battle goes through battleBus, which is faded to silence whenever a menu is
+// open; interface sounds and the showroom ambience go through uiBus and are never affected by it.
+let battleBus = null, uiBus = null, scene = 'menu', amb = null, ambTimer = 0;
+const UI_SOUNDS = new Set(['click', 'hover']);
 let white = null, brown = null;
 let sfxVol = 0.8, musicVol = 0.5;
 let underwater = false;
@@ -181,6 +185,7 @@ const SOUNDS = {
     nz(o, t, { ft: 'bandpass', f0: 3200 * p, f1: 1500 * p, q: 0.8, g: 0.4, a: 0.01, d: 0.38 });
     tn(o, t, { f0: 300 * p, f1: 90 * p, g: 0.25, d: 0.06 });
   }],
+  hover: [1, 0.05, (o, t, p) => { tn(o, t, { f0: 1500 * p, f1: 1250 * p, g: 0.06, a: 0.002, d: 0.03 }); }],
   click: [1, 0.07, (o, t, p) => { tn(o, t, { f0: 920 * p, f1: 600 * p, g: 0.2, a: 0.002, d: 0.05 }); }],
   alarm: [200, 1.5, (o, t, p) => {
     for (let i = 0; i < 4; i++) {
@@ -212,6 +217,8 @@ function play(name, opts) {
   try {
     const def = SOUNDS[name];
     if (!def) return;
+    const ui = UI_SOUNDS.has(name);
+    if (!ui && scene !== 'battle') return; // nothing from the battle starts while a menu is open, so nothing can pile up
     const nowMs = performance.now();
     if (nowMs - (lastPlayed[name] || 0) < 35) return;
     const o = opts || {};
@@ -240,7 +247,7 @@ function play(name, opts) {
       p.pan.value = pan;
       node.connect(p); node = p;
     }
-    node.connect(sfxBus);
+    node.connect(ui ? uiBus : battleBus);
     voices++;
     const tail = node;
     setTimeout(() => {
@@ -369,14 +376,14 @@ function makeLoop(type) {
   lp.mix.connect(lp.filt);
   if (ctx.createStereoPanner) {
     lp.pan = ctx.createStereoPanner();
-    lp.filt.connect(lp.pan); lp.pan.connect(sfxBus);
-  } else lp.filt.connect(sfxBus);
+    lp.filt.connect(lp.pan); lp.pan.connect(battleBus);
+  } else lp.filt.connect(battleBus);
   def[2](lp);
   return lp;
 }
 
 function setLoop(id, type, opts) {
-  if (!ctx) return;
+  if (!ctx || scene !== 'battle') return;
   try {
     const def = LOOPS[type];
     if (!def) return;
@@ -513,6 +520,8 @@ function init() {
     sfxLP.type = 'lowpass'; sfxLP.frequency.value = underwater ? 500 : 20000; sfxLP.Q.value = 0.5;
     sfxBus = ctx.createGain(); sfxBus.gain.value = sfxVol;
     sfxBus.connect(sfxLP); sfxLP.connect(master);
+    battleBus = ctx.createGain(); battleBus.gain.value = scene === 'battle' ? 1 : 0; battleBus.connect(sfxBus);
+    uiBus = ctx.createGain(); uiBus.gain.value = sfxVol * 0.8; uiBus.connect(master);
     musicBus = ctx.createGain(); musicBus.gain.value = musicVol * 0.6;
     musicBus.connect(master);
     musicGate = ctx.createGain(); musicGate.gain.value = 0;
@@ -520,7 +529,7 @@ function init() {
     white = makeNoise('white');
     brown = makeNoise('brown');
     loopTimer = setInterval(sweepLoops, 200);
-    if (musicMode !== 'off') { const m = musicMode; musicMode = 'off'; music(m); }
+    { const m = musicMode === 'off' ? scene : musicMode; musicMode = 'off'; music(m); } // menus have their own calm music from the first click
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   } catch (e) { ctx = null; }
 }
@@ -535,7 +544,7 @@ export const audio = {
     musicVol = clamp(+music01 || 0, 0, 1);
     if (!ctx) return;
     try {
-      sfxBus.gain.setTargetAtTime(sfxVol, ctx.currentTime, 0.05);
+      sfxBus.gain.setTargetAtTime(sfxVol, ctx.currentTime, 0.05); uiBus.gain.setTargetAtTime(sfxVol * 0.8, ctx.currentTime, 0.05);
       musicBus.gain.setTargetAtTime(musicVol * 0.6, ctx.currentTime, 0.05);
     } catch (e) { /* ignore */ }
   },
@@ -555,6 +564,39 @@ export const audio = {
     underwater = on;
     if (!ctx) return;
     try { sfxLP.frequency.setTargetAtTime(on ? 500 : 20000, ctx.currentTime, 0.12); } catch (e) { /* ignore */ }
+  },
+  // 'battle' while the player is in the fight, 'menu' on every menu screen (title, nation, unit select and redeploy,
+  // settings, how to play, hangar, pause). The battle bus fades over half a second each way; music follows the scene.
+  setScene(next) {
+    if (next !== 'battle') next = 'menu';
+    if (next === scene) return; scene = next; music(next);
+    if (!ctx) return;
+    try {
+      const t = ctx.currentTime, g = battleBus.gain;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(next === 'battle' ? 1 : 0, t + 0.5);
+      if (next === 'menu') setTimeout(() => { if (scene === 'menu' && ctx) for (const [id, lp] of [...loops]) killLoop(id, lp); }, 650); // engines and sea stop once faded
+    } catch (e) { /* ignore */ }
+  },
+  get scene() { return scene; },
+  get debug() { return { scene, battleGain: battleBus ? +battleBus.gain.value.toFixed(2) : null, loops: loops.size, voices, music: musicMode, ambience: !!amb }; },
+  // quiet harbour ambience for the unit showroom: slow water wash and a distant gull now and then
+  ambience(on) {
+    if (!ctx || !!amb === !!on) return;
+    try {
+      if (on) {
+        const src = ctx.createBufferSource(); src.buffer = brown; src.loop = true;
+        const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 0.4;
+        const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.16, ctx.currentTime, 0.8);
+        const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.13; lg.gain.value = 0.07; lfo.connect(lg); lg.connect(g.gain);
+        src.connect(f); f.connect(g); g.connect(uiBus); src.start(); lfo.start();
+        amb = { src, g, lfo };
+        ambTimer = setInterval(() => { if (!amb || Math.random() > 0.35) return; const t = ctx.currentTime, o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine'; const f0 = 1500 + Math.random() * 500; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.7, t + 0.28); og.gain.setValueAtTime(0, t); og.gain.linearRampToValueAtTime(0.018, t + 0.04); og.gain.exponentialRampToValueAtTime(0.0005, t + 0.3); o.connect(og); og.connect(uiBus); o.start(t); o.stop(t + 0.32); }, 4200);
+      } else {
+        const a = amb; amb = null; clearInterval(ambTimer);
+        a.g.gain.cancelScheduledValues(ctx.currentTime); a.g.gain.setTargetAtTime(0, ctx.currentTime, 0.2);
+        setTimeout(() => { try { a.src.stop(); a.lfo.stop(); a.g.disconnect(); } catch (e) { /* gone */ } }, 900);
+      }
+    } catch (e) { amb = null; }
   },
   play,
   setLoop,

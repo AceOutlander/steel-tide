@@ -57,7 +57,7 @@ export const app = {
 
   // ---- flow ------------------------------------------------------------------------------------------------------------------
   play(nation, type, opts = {}) {
-    audio.init(); audio.resume(); audio.music('battle');
+    audio.init(); audio.resume(); audio.setScene('battle');
     if (world.playerNation !== nation || world.over || !battle.active) { battle.start(nation); world.playerKills = 0; hud.clearFeed(); }
     if (player.unit && player.unit.alive && player.unit.isPlayer) battle.releasePlayer(player.unit);
     const u = battle.spawnPlayer(type, opts); player.soldier = null; player.setUnit(u);
@@ -89,7 +89,6 @@ export const app = {
     requestAnimationFrame((t) => this.frame(t));
     let dt = (now - last) / 1000; last = now; if (dt > 0.1) dt = 0.1; if (dt <= 0) return;
     fpsT += dt; fpsN++; if (fpsT >= 1) { this.fps = fpsN / fpsT; fpsT = 0; fpsN = 0; this.fpsTick(); }
-    if (menus.showroomActive && (this.state === 'select' || this.state === 'menu')) { menus.renderShowroom(dt); input.endFrame(); return; }
     // if the browser refused to give the mouse back (it does for a moment after Esc), fall back to the pause menu
     if (this.state === 'battle' && !input.locked) { this._noLock = (this._noLock || 0) + dt; if (this._noLock > 0.6) { this._noLock = 0; this.pause(); } } else this._noLock = 0;
     const sim = this.state !== 'paused' && this.state !== 'boot';
@@ -101,6 +100,9 @@ export const app = {
       this.alpha = acc / STEP;
       if (this.state === 'dead') { deadT -= dt; if (deadT <= 0) { if (battle.active) this.redeploy(); else this.state = 'over'; } }
     }
+    audio.setScene(this.state === 'battle' || this.state === 'dead' ? 'battle' : 'menu');
+    const showroom = menus.showroomActive && (this.state === 'select' || this.state === 'menu'); audio.ambience(showroom);
+    if (showroom) { menus.renderShowroom(dt); input.endFrame(); return; } // the battle above still ran; it is just not drawn or heard
     this.present(dt, sim);
     input.endFrame();
   },
