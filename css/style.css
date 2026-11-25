@@ -179,3 +179,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #hud { --ally: #5fe07a; --foe: #ff4a3d; }
 #h-feed .win, #h-feed .good { border-color: var(--ally); } #h-feed .mine { border-color: var(--ally); color: #fff; font-weight: 600; } #h-feed .loss { border-color: var(--foe); } #h-feed .bad { border-color: var(--foe); color: #ffd9d4; }
 #h-radar .legend { display: grid; grid-template-columns: 1fr 1fr; gap: .1em .6em; margin-top: .35em; font-size: .62em; letter-spacing: .04em; color: var(--dim); } #h-radar .legend b { font-weight: 700; }
+
+/* ---- Credits ---- */
+.wallet { display: inline-block; padding: .3em .8em; border: 1px solid #c9a94a; border-radius: .3em; color: #ffe9a8; font-weight: 700; letter-spacing: .06em; background: rgba(60, 46, 10, .45); white-space: nowrap; }
+.title-col .wallet { margin: .2em 0 .6em; }
+#h-econ { position: absolute; right: 1.4em; bottom: 12.5em; padding: .45em .8em; font-size: .82em; min-width: 15em; }
+#h-econ .cr { color: #ffe9a8; font-weight: 700; font-size: 1.15em; letter-spacing: .05em; }
+#h-econ .inf { margin-top: .25em; color: var(--dim); font-size: .85em; } #h-econ .inf i { display: block; height: .3em; margin-top: .2em; background: rgba(255, 255, 255, .12); border-radius: .15em; overflow: hidden; } #h-econ .inf u { display: block; height: 100%; background: #ffd35a; }
+#h-econ .inf.full { color: #8a959c; } #h-econ .inf.full u { background: #7b858c; }
+#h-pops { position: absolute; left: calc(50% + 3.2em); top: calc(50% - 1.6em); display: flex; flex-direction: column; gap: .15em; pointer-events: none; }
+#h-pops div { color: #ffe07a; font-weight: 700; letter-spacing: .06em; text-shadow: 0 1px 3px #000; animation: payup 1.9s ease-out forwards; white-space: nowrap; }
+@keyframes payup { 0% { opacity: 0; transform: translateY(.6em); } 12% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-1.2em); } }
+.paytable { width: 100%; border-collapse: collapse; margin: .8em 0; } .paytable th, .paytable td { text-align: left; padding: .35em .2em; border-bottom: 1px solid rgba(160, 200, 230, .14); } .paytable th { color: var(--dim); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: .8em; } .paytable td:last-child, .paytable th:last-child { text-align: right; color: #ffe9a8; }
+.stat em { font-style: normal; color: #ffb347; font-size: .85em; margin-left: .4em; } .stat.total { border-top: 1px solid var(--line); font-weight: 700; } .stat.total span:last-child { color: #ffe9a8; }
+#h-feed .mine { border-color: #ffe07a; }

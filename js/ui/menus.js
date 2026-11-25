@@ -8,6 +8,7 @@ import { NATIONS, UNITS, UNIT_ORDER, WEAPONS, QUALITY, DEFAULT_KEYS, KEY_LABELS,
 import { el, KTS } from '../core/util.js';
 import { world } from '../world/world.js';
 import { BUILDERS } from '../sim/factory.js';
+import { econ, fmtCredits, PAY, PAY_TABLE, CREDIT } from '../core/economy.js';
 import { battle } from '../world/battle.js';
 import { buildSoldier, animateSoldier } from '../units/human.js';
 
@@ -21,10 +22,12 @@ const insignia = (n) => n === 'aethia'
 const fastRow = () => `<div class="fastrow"><button class="switch" role="switch" data-fast aria-checked="${save.settings.fast}" aria-label="Fast Graphics"></button><div><b>Fast Graphics</b><span>For older laptops and PCs without a graphics card. Takes effect at once.</span></div></div>`;
 const keyName = (c) => (c || '').replace(/^Key/, '').replace(/^Digit/, '').replace('ShiftLeft', 'Shift').replace('ControlLeft', 'Ctrl').replace('ControlRight', 'Ctrl').replace('ShiftRight', 'Shift').replace('ArrowUp', '↑').replace('ArrowDown', '↓').replace('ArrowLeft', '←').replace('ArrowRight', '→').replace('Escape', 'Esc').replace('Equal', '+').replace('Minus', '-').replace('NumpadAdd', 'Num +').replace('NumpadSubtract', 'Num -');
 
+const wallet = () => `<div class="wallet" title="Credits">${CREDIT} ${Math.round(econ.credits).toLocaleString('en-US')}</div>`;
 const SCREENS = {
   title: () => `<div class="screen dim"><div class="title-col">
       <div class="logo">STEEL<br>TIDE<small>MODERN NAVAL WARFARE</small></div>
       <div class="menu"><button class="btn primary" data-go="nation">Play</button><button class="btn" data-go="settings">Settings</button><button class="btn" data-go="howto">How to Play</button></div>
+      ${wallet()}
       ${fastRow()}
       <a class="homelink" href="/">← Back to HunterAceDev</a>
     </div><div class="ver">${VERSION} · PC · keyboard &amp; mouse</div></div>`,
@@ -33,7 +36,7 @@ const SCREENS = {
       <p style="color:var(--dim);margin-top:1.4em;text-align:center">Both nations field the same twelve unit types with identical performance. Only the look and the names differ.</p></div></div>`,
   units: () => {
     const cats = ['Surface', 'Subsurface', 'Air', 'On Foot'], N = NATIONS[nation];
-    return `<div class="screen"><div class="topbar"><h1 style="color:${N.color}">${N.name} · choose your unit</h1>${opts.redeploy ? '' : '<button class="btn small" data-back>Back</button>'}</div>
+    return `<div class="screen"><div class="topbar"><h1 style="color:${N.color}">${N.name} · choose your unit</h1><span style="display:flex;gap:.8em;align-items:center">${wallet()}${opts.redeploy ? '' : '<button class="btn small" data-back>Back</button>'}</span></div>
       ${opts.redeploy ? `<div class="redeploy-banner">${opts.change ? 'Change unit' : opts.next ? (battle.lastWinner === nation ? 'Victory! The enemy carrier is sunk. A new battle begins' : battle.lastWinner ? 'Defeat. Our carrier is lost. A new battle begins' : 'New battle') : 'Unit lost. Redeploy'}</div>` : ''}
       <div class="unitsel"><div class="unitlist">${cats.map((c) => `<h4>${c}</h4>${UNIT_ORDER.filter((k) => UNITS[k].cat === c).map((k) => `<button class="unitbtn${k === unit ? ' on' : ''}" data-unit="${k}">${UNITS[k].label}<small>${N.classes[k]}</small></button>`).join('')}`).join('')}
         ${opts.redeploy ? '<button class="btn small" data-menu style="margin-top:1em;width:100%">Main menu</button>' : ''}</div><div></div><div class="unitinfo" id="unitinfo"></div></div></div>`;
@@ -74,7 +77,24 @@ const SCREENS = {
       <div><h3>Helicopters</h3><p><b>W / S</b> collective (up and down) · <b>mouse</b> tilts (pitch and roll) · <b>A / D</b> turn · <b>Space</b> levels out · <b>X</b> flares.</p><p>Land gently on helipads, decks and islands. The transport carries marines; the gunship has a chin gun and guided missiles (hold the target near the centre to lock).</p>
         <h3>Marine</h3><p><b>WASD</b> move · <b>Shift</b> run · <b>C</b> crouch · <b>Space</b> jump · <b>R</b> reload.</p><p>Walk up to a machine gun and press <b>E</b> to man it. Board a landed helicopter with <b>E</b>; as a passenger press <b>T</b> to take the controls. Overboard you swim slowly: reach a ship and press <b>E</b> to climb back.</p>
         <h3>Missiles</h3><p>A <b>RADAR LOCK</b> or <b>MISSILE</b> warning means act now: drop flares (<b>X</b>), turn hard across the missile, or get low.</p></div>
-    </div><div class="actions"><button class="btn primary" data-back>Back</button></div></div></div>`,
+    </div><div class="actions"><button class="btn" data-go="pay">Pay: how Credits are earned</button><button class="btn primary" data-back>Back</button></div></div></div>`,
+  pay: () => `<div class="screen center"><div class="panel" style="width:40em"><h2>Pay</h2>
+      <p style="color:var(--dim);line-height:1.5">Credits (${CREDIT}) are earned in battle and spent on looks in the Hangar. Only your own kills pay; an assist pays half.</p>
+      <table class="paytable"><tr><th>Destroyed</th><th>Pays</th></tr>${PAY_TABLE.map((r) => `<tr><td>${r[0]}</td><td>${fmtCredits(r[1])}</td></tr>`).join('')}
+        <tr><td>Assist</td><td>half the value</td></tr><tr><td>Taking part in a battle</td><td>${fmtCredits(PAY.participation)}</td></tr><tr><td>Winning the battle</td><td>${fmtCredits(PAY.win)} more</td></tr></table>
+      <p style="line-height:1.5">Soldiers pay ${fmtCredits(PAY.soldier)} each, up to ${fmtCredits(PAY.infantryCap)} per battle, so going down with a ship doesn't flood your wallet.</p>
+      <p style="color:var(--dim);line-height:1.5">That limit counts everyone: marines you shoot, and the crews lost with the ships and aircraft you destroy. Ships and aircraft themselves always pay in full. The meter beside your Credits in battle shows how much infantry pay is left.</p>
+      <div class="actions"><button class="btn primary" data-back>Back</button></div></div></div>`,
+  // after every battle: what it paid, line by line
+  results: () => {
+    const r = econ.last || {}, row = (a, b, note = '') => `<div class="stat"><span>${a}${note ? ` <em>${note}</em>` : ''}</span><span>${fmtCredits(b || 0)}</span></div>`;
+    return `<div class="screen center"><div class="panel" style="width:30em"><h2 style="color:${r.won ? 'var(--good)' : 'var(--bad)'}">${r.won ? 'Victory' : 'Defeat'}</h2>
+      <p style="color:var(--dim)">${r.won ? 'The enemy carrier is sunk.' : 'Our carrier is lost.'} Your kills: ${r.kills || 0}${r.assists ? `, assists: ${r.assists}` : ''}.</p>
+      ${row('Ships and submarines', r.ships)}${row('Aircraft', r.aircraft)}${row(`Infantry (${fmtCredits(PAY.infantryCap)} max)`, r.infantry, r.capped ? 'limit reached' : '')}${row('Participation', r.participation)}${row('Win bonus', r.win)}
+      <div class="stat total"><span>This battle</span><span>${fmtCredits(r.total || 0)}</span></div>
+      <div class="stat"><span>Your Credits</span><span>${fmtCredits(econ.credits)}</span></div>
+      <div class="actions"><button class="btn primary" data-continue>Next battle</button></div></div></div>`;
+  },
   pause: () => `<div class="screen center"><div class="panel" style="width:26em;text-align:center"><h2>Paused</h2>
       <div class="menu" style="width:100%;margin:0"><button class="btn primary" data-resume>Resume</button><button class="btn" data-change>Change unit</button><button class="btn" data-go="settings">Settings</button><button class="btn" data-go="howto">How to Play</button><button class="btn" data-menu>Main menu</button></div>
       <div style="margin-top:1em;text-align:left">${fastRow().replace('width:24em', '')}</div></div></div>`,
@@ -125,7 +145,8 @@ export const menus = {
     nation = save.data.last.nation; unit = save.data.last.unit;
   },
   show(name, o = {}) {
-    if (cur && name !== cur && (name === 'settings' || name === 'howto')) stack.push(cur); else if (name === 'title' || name === 'pause' || (name === 'units' && o.redeploy)) stack = [];
+    if (cur && name !== cur && (name === 'settings' || name === 'howto' || name === 'pay')) stack.push(cur); else if (name === 'title' || name === 'pause' || (name === 'units' && o.redeploy)) stack = [];
+    if (name === 'results') opts = o;
     if (name === 'units') { opts = o; if (o.redeploy) nation = world.playerNation; }
     cur = name; root.innerHTML = SCREENS[name](); this.showroomActive = name === 'units';
     if (name === 'units') { showroomSet(); unitInfo(); document.documentElement.style.setProperty('--nation', NATIONS[nation].color); }
@@ -147,6 +168,7 @@ export const menus = {
     if (d.unit) { unit = d.unit; root.querySelectorAll('.unitbtn').forEach((b) => b.classList.toggle('on', b.dataset.unit === unit)); showroomSet(); unitInfo(); return; }
     if (d.dock !== undefined) { startDock = d.dock === '1'; unitInfo(); return; }
     if (d.deploy !== undefined) { app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub' }); return; }
+    if (d.continue !== undefined) { this.show('units', { redeploy: true, next: true }); return; }
     if (d.resume !== undefined) return app.resume();
     if (d.change !== undefined) { app.state = 'select'; this.show('units', { redeploy: true, change: true }); return; }
     if (d.menu !== undefined) return app.toMenu();

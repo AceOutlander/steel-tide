@@ -7,6 +7,7 @@ import { save } from '../core/save.js';
 import { NATIONS, WEAPONS, UNITS, MAP, otherNation } from '../core/config.js';
 import { V3, clamp, el, KTS } from '../core/util.js';
 import { audio } from '../audio/audio.js';
+import { econ, fmtCredits, PAY, CREDIT } from '../core/economy.js';
 
 const _v = new V3();
 const PAL = { ally: '#5fe07a', foe: '#ff4a3d' }, PAL_CB = { ally: '#4da3ff', foe: '#ff9a2e' }, RANGES = [1000, 3000, 7000, 15000];
@@ -35,14 +36,14 @@ export const hud = {
       <div id="h-radar" class="hud-box"><canvas width="256" height="256"></canvas><div class="lbl" id="h-rlbl"></div><div class="legend" id="h-rleg" hidden></div></div>
       <div id="h-status" class="hud-box"><div class="cl" id="h-cl"></div><div class="nm" id="h-nm"></div><div class="bar"><i id="h-hp"></i></div><div class="grid2" id="h-grid"></div></div>
       <div class="thr" id="h-thr"><i></i><b></b></div>
-      <div id="h-weap" class="hud-box"></div>
+      <div id="h-weap" class="hud-box"></div><div id="h-econ" class="hud-box"></div><div id="h-pops"></div>
       <div id="h-cross" class="r"><i class="l t"></i><i class="l b"></i><i class="l lf"></i><i class="l rt"></i><i class="ring"></i><i class="dot"></i></div><div id="h-rinfo"></div><div id="h-hitx" hidden></div><div id="h-dmg" hidden></div><div id="h-dirs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div id="h-lead" class="mark" hidden><i></i><span></span></div><div id="h-fall0" class="mark fall" hidden><span></span></div><div id="h-fall1" class="mark fall" hidden><span></span></div><div id="h-fall2" class="mark fall" hidden><span></span></div>
       <div id="h-nose" class="mark" hidden><i></i></div><div id="h-fpm" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
       <div id="h-stick" hidden><i></i></div>
       <div id="h-warn"></div><div id="h-prompt" hidden></div><div id="h-msg" hidden></div><div id="h-hint"></div>
       <div id="h-map" hidden><div class="mapwrap"><canvas width="640" height="640"></canvas><div class="scoreboard" id="h-sb"></div></div></div>`;
-    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'rleg', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
+    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'rleg', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'econ', 'pops', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
@@ -139,6 +140,10 @@ export const hud = {
     if (veh.hp < veh.maxHp * 0.25 && veh.alive) w.push(['CRITICAL DAMAGE', 'amber']);
     const wk = w.map((x) => x[0]).join('|'); if (E.warn._k !== wk) { E.warn._k = wk; E.warn.innerHTML = w.map((x) => `<div class="${x[1]}">${x[0]}</div>`).join(''); }
     warnT -= step; if (warnT <= 0 && w.length && w[0][1] === '') { warnT = 0.7; audio.play(w[0][0] === 'STALL' ? 'stall' : 'warning'); }
+    // Credits: the wallet, and how much of this battle's infantry pay is used (grey when the limit is reached)
+    { const inf = econ.b ? econ.b.infantry : 0, full = inf >= PAY.infantryCap;
+      const eh = `<div class="cr">${CREDIT} ${Math.round(econ.credits).toLocaleString('en-US')}</div><div class="inf${full ? ' full' : ''}"><span>Infantry pay: ${fmtCredits(inf)} / ${fmtCredits(PAY.infantryCap)}</span><i><u style="width:${Math.min(100, (inf / PAY.infantryCap) * 100)}%"></u></i></div>`;
+      if (E.econ._h !== eh) { E.econ.innerHTML = eh; E.econ._h = eh; } }
     if (E.hint._t !== player.hint) { E.hint.textContent = player.hint; E.hint._t = player.hint; }
     if (player.scopeView) E.scopetxt.textContent = `PERISCOPE  ${hdgOf(player.yaw)}°  x${(1 + player.zoom * 3).toFixed(1)}`;
     // score bar: your side on the left, the goal in the middle, the enemy on the right. Kills and carrier health are labelled.
@@ -156,6 +161,12 @@ export const hud = {
     racc += step; if (racc > 0.18) { racc = 0; this.radar(veh); if (!E.map.hidden) this.bigMap(veh); }
   },
 
+  // "+800" style popup beside the reticle when a kill pays
+  pop(text) {
+    const d = document.createElement('div'); d.textContent = text; E.pops.appendChild(d);
+    while (E.pops.children.length > 4) E.pops.removeChild(E.pops.firstChild);
+    setTimeout(() => d.remove(), 1900);
+  },
   // which reticle and HUD layout the player's current seat uses
   kindOf(u) {
     if (!u.alive) return 'none';

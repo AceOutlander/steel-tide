@@ -79,7 +79,7 @@ export class Unit {
     if (this.isPlayer && attacker && !attacker.isPlayer) amount *= save.diff.dmgIn;
     this.hp -= amount; if (attacker && attacker !== this) this.lastHitBy = attacker; this.lastHitT = world.t; this.lastHitDef = def || null; this.lastHitAmount = amount;
     if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); gfx.shake(clamp(amount / (this.maxHp * 0.12 + 40), 0.12, 0.7)); if (attacker && attacker !== this) world.hurt(this, attacker, hitPos); }
-    if (attacker && attacker.isPlayer && attacker !== this) { attacker.hitMarker = world.t + 0.25; world.struck(this, amount, this.hp - amount <= 0); }
+    if (attacker && attacker.isPlayer && attacker !== this) { this.playerDmg = (this.playerDmg || 0) + Math.min(amount, this.hp + amount); attacker.hitMarker = world.t + 0.25; world.struck(this, amount, this.hp - amount <= 0); }
     if (hitPos && amount >= 30 && this.lod0 && (this.kind === 'ship' || this.kind === 'sub')) this.addScorch(hitPos, Math.min(5, 1 + amount * 0.004));
     if (this.hp <= 0) { this.hp = 0; this.kill(attacker || this.lastHitBy); }
   }
@@ -98,7 +98,8 @@ export class Unit {
     const by = attacker && attacker !== this ? attacker : null;
     const verb = this.kind === 'ship' || this.kind === 'sub' ? 'sunk' : this.kind === 'soldier' ? (by ? 'killed' : 'lost') : by ? 'shot down' : 'crashed';
     const mine = by && by.isPlayer, cls = this.isPlayer ? 'bad' : mine ? 'mine' : this.nation === world.playerNation ? 'loss' : 'win';
-    world.say(`${this.label} ${verb}${by ? ' by ' + by.label : ''}`, cls);
+    const pay = world.onPay ? world.onPay(this, by) : null; // Credits for the player's own kills and assists
+    world.say(pay && pay.mine ? `${this.label} ${verb}: ${pay.text}` : `${this.label} ${verb}${by ? ' by ' + by.label : ''}${pay ? `. Assist: ${pay.text}` : ''}`, pay ? 'mine' : cls);
     if (by) { by.kills++; world.score[by.nation] += this.def.score; if (mine) save.addKill(this.type, this.kind); }
     world.tally(this, by);
     world.onKill && world.onKill(this, by);

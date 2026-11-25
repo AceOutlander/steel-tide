@@ -34,7 +34,7 @@ export const battle = {
   },
 
   start(playerNation) {
-    world.clear(); weapons.clear(); wrecks.clear(); this.respawns.length = 0; this.nameIdx = { aethia: 0, extro: 0 }; this.endT = 0; this.active = true; world.t = 0;
+    world.clear(); weapons.clear(); wrecks.clear(); world.onBattleStart && world.onBattleStart(); this.respawns.length = 0; this.nameIdx = { aethia: 0, extro: 0 }; this.endT = 0; this.active = true; world.t = 0;
     world.playerNation = playerNation;
     for (const n of ['aethia', 'extro']) this.spawnSide(n);
     world.say(`${NATIONS.aethia.name} and ${NATIONS.extro.name} fleets are closing. Sink the enemy carrier.`, 'info');
@@ -144,6 +144,7 @@ export const battle = {
   finish(winner) {
     if (!this.active) return; this.active = false; this.endT = world.t + 9; world.over = winner; this.lastWinner = winner;
     const won = winner === world.playerNation; if (won) save.stats.battlesWon++; else save.stats.battlesLost++; save.write();
+    world.onBattleEnd && world.onBattleEnd(won);
     audio.play(won ? 'win' : 'lose');
     world.say(`${NATIONS[otherNation(winner)].adj} carrier lost. ${NATIONS[winner].name} holds the sea.`, won ? 'win' : 'bad');
   },

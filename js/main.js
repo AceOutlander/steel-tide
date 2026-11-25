@@ -14,6 +14,7 @@ import { weapons } from './sim/weapons.js';
 import { player } from './sim/player.js';
 import { crew } from './sim/crewpick.js';
 import { wrecks } from './sim/wreck.js';
+import { econ, fmtCredits, PAY } from './core/economy.js';
 import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
@@ -37,6 +38,18 @@ export const app = {
         gfx.init(canvas); prog(45, 'Filling the sea');
         fx.init(); ocean.init(); weapons.init(); world.buildIslands(); crew.init(); wrecks.init(BUILDERS); world.missiles = weapons.missiles; world.torps = weapons.torps;
         input.init(canvas); hud.init(); menus.init(app);
+        // Credits: only the player's own kills (and assists where they did a fifth of the damage) pay
+        world.onBattleStart = () => econ.startBattle();
+        world.onBattleEnd = (won) => econ.finish(won);
+        world.onPay = (u, by) => {
+          const pu = player.unit; if (!pu || u.nation === world.playerNation || !(this.state === 'battle' || this.state === 'dead')) return null;
+          const mine = by && (by === pu || by.isPlayer || (pu.gun && pu.gun.unit === by));
+          if (mine) return { mine: true, text: econ.credit(u, 1) };
+          if ((u.playerDmg || 0) >= u.maxHp * 0.2) return { mine: false, text: econ.credit(u, PAY.assist) };
+          return null;
+        };
+        econ.onPop = (t) => hud.pop(t);
+        econ.onCap = () => { world.say(`Infantry pay limit reached (${fmtCredits(PAY.infantryCap)} this battle). Ships and aircraft still pay full. Go after bigger targets!`, 'info'); };
         world.onKill = (u, by) => { battle.onKill(u, by); if (by && by.isPlayer) world.playerKills = (world.playerKills || 0) + 1; if (u.isPlayer || (player.soldier === u && player.unit && player.unit.pilot === u)) this.playerDied(u, by); };
         battle.onEnd = () => this.nextBattle();
         input.onLockChange = (l) => { if (!l && this.state === 'battle') this.pause(); };
@@ -64,6 +77,7 @@ export const app = {
     if (player.unit && player.unit.alive && player.unit.isPlayer) battle.releasePlayer(player.unit);
     const u = battle.spawnPlayer(type, opts); player.soldier = null; player.setUnit(u);
     document.documentElement.style.setProperty('--nation', NATIONS[nation].color);
+    econ.join(); if (econ.data.battles < 3 && !econ.b.tipped) { econ.b.tipped = true; world.say('Tip: sinking ships pays more than taking out soldiers.', 'info'); }
     this.state = 'battle'; menus.hide(); hud.show(true); input.lock(); fpsWatch = 7; fpsT = 0; fpsN = 0; acc = 0;
     hud.message(u.def.label.toUpperCase(), `${NATIONS[nation].classes[type]}${u.name ? ' · ' + u.name : ''}`, 3.5);
   },
@@ -79,7 +93,7 @@ export const app = {
   nextBattle() {
     const n = world.playerNation; if (this.state === 'menu') { battle.start(n); return; } // the title-screen battle just starts over
     if (player.unit && player.unit.alive) battle.releasePlayer(player.unit); player.unit = null;
-    battle.start(n); world.playerKills = 0; hud.clearFeed(); this.state = 'select'; input.unlock(); hud.show(false); menus.show('units', { redeploy: true, next: true });
+    battle.start(n); world.playerKills = 0; hud.clearFeed(); this.state = 'select'; input.unlock(); hud.show(false); menus.show(econ.last && econ.last.played ? 'results' : 'units', { redeploy: true, next: true });
   },
   setFast(on, silent) { save.settings.fast = on; save.settings.fastAsked = true; save.write(); gfx.applyQuality(); menus.syncFast(); if (!silent) audio.play('click'); },
 
