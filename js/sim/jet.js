@@ -170,7 +170,8 @@ export class Jet extends Unit {
     for (const g of m.gear) g.visible = this.gearDown;
     const hot = this.state === 'fly' || this.state === 'cat';
     for (const b of m.burners) { const on = hot && (this.abOn || this.state === 'cat'); b.visible = on; if (on) b.scale.z = 0.8 + Math.random() * 0.4; }
-    for (const s of m.spinners) { s.node.rotation[s.axis] += s.speed * dt * (s.blades ? Math.max(0.25, this.throttle) : 1); if (s.disc) { s.disc.visible = true; s.blades.visible = false; } }
+    for (const s of m.spinners) { s.node.rotation[s.axis] += s.speed * dt * (s.blades ? Math.max(0.25, this.throttle) : 1); if (s.disc) { const blur = !(s.park && this.state === 'deck' && this.throttle < 0.05); s.disc.visible = blur; s.blades.visible = !blur; } } // v2 propellers (park: true) show their blades while parked
+    if (m.surfaces && m.surfaces.ailL) { m.surfaces.ailL.rotation.x = this.ctlS.roll * 0.4; m.surfaces.ailR.rotation.x = -this.ctlS.roll * 0.4; } // v2 models: ailerons
     if (m.surfaces && m.surfaces.elevL) { m.surfaces.elevL.rotation.x = -this.ctlS.pitch * 0.35 + this.ctlS.roll * 0.15; m.surfaces.elevR.rotation.x = -this.ctlS.pitch * 0.35 - this.ctlS.roll * 0.15; }
     if (m.rudders) for (const r of m.rudders) r.rotation.y = this.ctlS.yaw * 0.4;
     if (m.swing) { this.sweep = damp(this.sweep, clamp((this.speed - 150) / 110, 0, 1), 0.8, dt); m.swing[0].rotation.y = m.swingSign[0] * this.sweep * 0.85; m.swing[1].rotation.y = m.swingSign[1] * this.sweep * 0.85; }

@@ -13,6 +13,9 @@ import { surfaceBelow, deckUnder, blocked } from './surface.js';
 
 const _a = new V3(), _b = new V3(), _l = new V3(), _q = new THREE.Quaternion(), YA = new V3(0, 1, 0);
 const surf = { y: 0, ship: null, type: 'water', localY: 0 };
+// With ?v2 the new figure is in use: it has its own death, jump and reload animations, sprinting lowers the rifle, and the
+// first-person view (js/sim/v2/fpview.js) reads shots / landN / landV / sprintT from here. Without it nothing below changes.
+const V2 = /[?&]v2/.test(location.search), _qs = new THREE.Quaternion();
 
 export class Soldier extends Unit {
   constructor(nation, name = '') {
@@ -23,6 +26,9 @@ export class Soldier extends Unit {
     this.ctl = { mx: 0, mz: 0, run: false, crouch: false, jump: false, fire: false }; this.look = 0; this.lookPitch = 0;
     this.on = null; this.local = new V3(); this.vy = 0; this.grounded = false; this.state = 'idle'; this.swim = false;
     this.aboard = null; this.gun = null; this.mag = WEAPONS.rifle.mag; this.reloadT = 0; this.cd = 0; this.moving = 0; this.selKey = 'rifle';
+    // shots: rounds fired so far. shotT: own clock at the last shot. landN / landV: landings so far and the speed of the last one (m/s).
+    // sprintT > 0: sprinting or still bringing the rifle back up (no firing). airT: seconds off the ground. land: 0..1 knee dip.
+    this.shots = 0; this.shotT = -9; this.landN = 0; this.landV = 0; this.sprintT = 0; this.airT = 0; this.land = 0; this._ex = { fire: 9, reload: -1, vy: 0, land: 0, dead: 0, dist: 0, back: false, strafe: 0 };
   }
   updateLod(cam) { this.camDist = this.pos.distanceTo(cam); this.root.visible = !this.aboard && this.camDist < this.lodDist * 1.5 && !this.hideBody; }
   eye(out) { return out.set(this.pos.x, this.pos.y + (this.swim ? 0.25 : this.ctl.crouch ? 1.15 : 1.68), this.pos.z); }
@@ -42,7 +48,12 @@ export class Soldier extends Unit {
 
   update(dt) {
     this.t += dt; this.cd -= dt;
-    if (!this.alive) { this.deadT = (this.deadT || 0) + dt; this.lod0.rotation.x = Math.max(-1.5, this.lod0.rotation.x - dt * 4); if (this.on && this.on.alive !== undefined) this.on.toWorld(this.local, this.pos); if (this.deadT > 6) world.remove(this); this.sync(); return; }
+    if (!this.alive) {
+      this.deadT = (this.deadT || 0) + dt;
+      if (V2) { const e = this._ex; e.dead = this.deadT; e.dist = this.camDist || 0; e.fire = 9; e.reload = -1; e.land = 0; animateSoldier(this.lod0, 'dead', this.t, 0, 0, e); this.groundShadow(); } // falls and stays down
+      else this.lod0.rotation.x = Math.max(-1.5, this.lod0.rotation.x - dt * 4);
+      if (this.on && this.on.alive !== undefined) this.on.toWorld(this.local, this.pos); if (this.deadT > (V2 ? 14 : 6)) world.remove(this); this.sync(); return;
+    }
     if (this.ai) this.ai.update(dt);
     if (this.reloadT > 0) { this.reloadT -= dt; if (this.reloadT <= 0) this.mag = WEAPONS.rifle.mag; }
     if (this.aboard) { const h = this.aboard; if (!h.alive) { this.aboard = null; this.kill(h.lastHitBy || null); return; } this.pos.copy(h.pos); this.vel.copy(h.vel); this.quat.copy(h.quat); return; }
@@ -51,7 +62,8 @@ export class Soldier extends Unit {
       const m = this.gun, u = m.unit; if (!u.alive) { this.gun = null; m.manned = null; this.on = null; } else {
         const t = m.t, y = t.rest + t.yaw; _a.copy(t.gunner || _b.set(0, 0, 0.9)).applyAxisAngle(YA, y).add(t.node.position); u.toWorld(_a, this.pos);
         this.look = wrapPi(u.yaw + y); _q.setFromAxisAngle(YA, y); this.quat.copy(u.quat).multiply(_q); this.vel.copy(u.vel);
-        animateSoldier(this.lod0, 'gun', this.t, 0, 0); this.local.copy(_a); this.on = u; return;
+        if (V2) { const e = this._ex; e.dist = this.camDist || 0; e.fire = 9; e.reload = -1; e.land = 0; animateSoldier(this.lod0, 'gun', this.t, 0, 0, e); this.grounded = true; this.groundShadow(); } else animateSoldier(this.lod0, 'gun', this.t, 0, 0);
+        this.local.copy(_a); this.on = u; return;
       }
     }
     // movement in the horizontal plane, relative to where the soldier is looking
@@ -72,7 +84,7 @@ export class Soldier extends Unit {
         if (c.jump && this.grounded) { this.vy = 4.6; this.grounded = false; }
         this.vy -= 9.81 * dt; this.local.y += this.vy * dt;
         _l.copy(this.local); const d = deckUnder(ship, _l, 0.7);
-        if (d && this.local.y <= d.y) { this.local.y = d.y; this.vy = 0; this.grounded = true; }
+        if (d && this.local.y <= d.y) { if (!this.grounded) this.landed(-this.vy); this.local.y = d.y; this.vy = 0; this.grounded = true; }
         else if (!d) { // walked off the edge: now in free fall in the world
           ship.toWorld(this.local, this.pos); this.on = null; this.grounded = false; this.vel.copy(ship.vel);
         } else this.grounded = false;
@@ -92,6 +104,7 @@ export class Soldier extends Unit {
         this.swim = false;
         if (this.pos.y <= surf.y) {
           if (this.vy < -13) this.damage((-this.vy - 13) * 9, null, null, null);
+          if (!this.grounded) this.landed(-this.vy);
           this.pos.y = surf.y; this.vy = 0; this.grounded = true;
           if (surf.type === 'deck') { this.on = surf.ship; surf.ship.toLocal(this.pos, this.local); this.local.y = surf.localY; }
         } else this.grounded = false;
@@ -102,14 +115,33 @@ export class Soldier extends Unit {
     this.yaw = this.look; _q.setFromAxisAngle(YA, this.look); this.quat.copy(_q);
     this.state = this.swim ? 'swim' : c.crouch ? 'crouch' : this.moving > 0.1 ? (c.run ? 'run' : 'walk') : c.fire || this.isPlayer ? 'aim' : 'idle';
     this.box.y1 = c.crouch ? 1.25 : 1.85;
-    if ((this.camDist || 0) < 500) animateSoldier(this.lod0, this.state, this.t, this.moving, this.lookPitch);
+    if (V2) {
+      // sprinting carries the rifle low: no firing until it has come back up. Off the ground for a moment = jumping or falling.
+      this.airT = this.grounded || this.swim ? 0 : this.airT + dt; this.land = Math.max(0, this.land - dt * 3.2);
+      if (this.state === 'run') this.sprintT = 0.24; else this.sprintT = Math.max(0, this.sprintT - dt);
+      if (this.airT > 0.09 && !this.swim) this.state = 'air';
+      if ((this.camDist || 0) < 500) {
+        const e = this._ex; e.fire = this.t - this.shotT; e.reload = this.reloadT > 0 ? 1 - this.reloadT / WEAPONS.rifle.reload : -1; e.vy = this.vy; e.land = this.land; e.dist = this.camDist || 0;
+        e.back = c.mz < -0.3; e.strafe = e.back ? 0 : clamp(c.mx, -1, 1) * (Math.abs(c.mz) > 0.3 ? 0.6 : 1);
+        animateSoldier(this.lod0, this.state, this.t, this.moving, this.lookPitch, e); this.groundShadow();
+      }
+    } else if ((this.camDist || 0) < 500) animateSoldier(this.lod0, this.state, this.t, this.moving, this.lookPitch);
     if (c.fire && !this.swim) this.shoot();
+  }
+  // a landing: how hard (m/s), for the knees of the figure and the dip of the first-person rifle
+  landed(v) { if (v < 1.2) return; this.landV = v; this.landN++; this.land = clamp(v / 9, 0.15, 1); }
+  // the soft shadow under the feet lies in the plane of the deck the soldier stands on
+  groundShadow() {
+    const sh = this.lod0.userData.shadow; if (!sh) return;
+    if (this.on && this.on.quat) { _qs.copy(this.quat).invert().multiply(this.on.quat); sh.quaternion.copy(_qs); } else sh.quaternion.identity();
+    if (!this.grounded && this.alive) sh.visible = false;
   }
   shoot() {
     if (this.cd > 0 || this.reloadT > 0) return false;
+    if (V2 && this.sprintT > 0) return false;
     if (this.mag <= 0) { this.reloadT = WEAPONS.rifle.reload; audio.play('click', { pos: this.pos }); return false; }
     this.eye(_a); this.aimDir(_b); _a.addScaledVector(_b, 0.8);
-    weapons.fireGun(this, WEAPONS.rifle, _a, _b, null, true); this.cd = 1 / WEAPONS.rifle.rof; this.mag--;
+    weapons.fireGun(this, WEAPONS.rifle, _a, _b, null, true); this.cd = 1 / WEAPONS.rifle.rof; this.mag--; this.shots++; this.shotT = this.t;
     return true;
   }
   reload() { if (this.reloadT <= 0 && this.mag < WEAPONS.rifle.mag) this.reloadT = WEAPONS.rifle.reload; }
