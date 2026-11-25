@@ -523,17 +523,6 @@ function drawSmoke(ctx, w, h) {
     ctx.fillRect(0, 0, w, h);
   }
 }
-function drawFoam(ctx, w, h) {
-  fbm(ctx, w, h, 151, 4, 6);
-  const im = ctx.getImageData(0, 0, w, h), d = im.data;
-  for (let i = 0; i < d.length; i += 4) {
-    let t = (d[i] / 255 - 0.42) / 0.22;
-    t = t < 0 ? 0 : t > 1 ? 1 : t;
-    d[i] = d[i + 1] = d[i + 2] = 255;
-    d[i + 3] = t * t * (3 - 2 * t) * 255;
-  }
-  ctx.putImageData(im, 0, 0);
-}
 function drawConcrete(ctx, w, h) {
   ctx.fillStyle = '#9a9b97';
   ctx.fillRect(0, 0, w, h);
@@ -559,14 +548,6 @@ export function initMaterials(texSize = 1024, anisotropy = 4) {
 
   // --- textures
   TEX.noise = T('noise', { scale: 0.5, draw: (c, w, h) => fbm(c, w, h, 1, 4, 6) });
-  TEX.waterNormal = T('waterNormal', {
-    kind: 'normal', strength: 3.2,
-    draw: (c, w, h) => {
-      fbm(c, w, h, 201, 8, 5);
-      fillTiled(c, w, h, noiseTile(16, 203), w / 8, h / 16, { alpha: 0.35 }); // stretched swell
-      fillTiled(c, w, h, noiseTile(32, 205), w / 32, h / 32, { alpha: 0.3 });
-    },
-  });
   TEX.hull = per((n) => T('hull_' + n, { aspect: 2, draw: (c, w, h) => drawHull(c, w, h, n, 'color') }));
   TEX.hullNormal = T('hullNormal', { aspect: 2, kind: 'normal', strength: 2.2, draw: (c, w, h) => drawHull(c, w, h, 'aethia', 'height') });
   TEX.hullRough = T('hullRough', { aspect: 2, scale: 0.5, kind: 'rough', draw: (c, w, h) => drawHull(c, w, h, 'aethia', 'rough') });
@@ -595,7 +576,6 @@ export function initMaterials(texSize = 1024, anisotropy = 4) {
   TEX.smoke = T('smoke', { size: 128, wrap: false, draw: drawSmoke });
   TEX.glow = T('glow', { size: 128, wrap: false, draw: (c, w, h) => drawGlow(c, w, h, false) });
   TEX.spark = T('spark', { size: 64, wrap: false, draw: (c, w, h) => drawGlow(c, w, h, true) });
-  TEX.foam = T('foam', { scale: 0.25, draw: drawFoam });
   // afterburner plume: v = 1 (canvas top) is the hot blue-white nozzle end, fading through orange to black at v = 0
   TEX.afterburner = T('afterburner', {
     size: 32, aspect: 0.25, wrap: false,

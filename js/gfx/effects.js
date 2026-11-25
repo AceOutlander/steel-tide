@@ -4,6 +4,7 @@ import { gfx } from './renderer.js';
 import { TEX } from './materials.js';
 import { audio } from '../audio/audio.js';
 import { rand } from '../core/util.js';
+import { ocean } from './ocean.js';
 
 const vsh = /* glsl */`
 attribute float size; attribute vec4 pcolor; uniform float uScale; varying vec4 vC; varying float vFog; uniform float uFogDensity;
@@ -103,6 +104,7 @@ export const fx = {
     if (sound) audio.play(size > 18 ? 'bigexplosion' : 'explosion', { pos: p, vol: Math.min(1.4, 0.5 + size * 0.04) });
   },
   splash(p, size = 3, sound = true) {
+    if (size >= 2) ocean.addFoam(p.x, p.z, 1.5 + size * 0.9, 4 + size * 0.35);
     const n = this.count(Math.min(18, 4 + size));
     for (let i = 0; i < n; i++) { const a = rand(0, 6.283), s = rand(0, 0.35) * size; this.smoke.emit(p.x, p.y, p.z, Math.cos(a) * s, rand(1.5, 4.2) * size * 0.8, Math.sin(a) * s, 0.9, 0.95, 0.97, 0.75, size * rand(0.3, 0.6), size * 0.35, rand(0.8, 1.8) * (0.7 + size * 0.03), 0.3, 9.8); }
     for (let i = 0; i < n / 2; i++) { const a = rand(0, 6.283), s = rand(0.5, 1.5) * size; this.smoke.emit(p.x, p.y, p.z, Math.cos(a) * s, 0.3, Math.sin(a) * s, 0.92, 0.96, 0.98, 0.5, size * 0.5, size * 0.8, rand(1.5, 3), 0.8, 0); }

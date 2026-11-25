@@ -38,10 +38,14 @@ export const gfx = {
     this.sky = mkSky(); this.sky.renderOrder = -10; this.scene.add(this.sky);
     // environment: render the sky once into a cube (water reflections) and prefilter it (PBR reflections on metal and glass)
     const skyScene = new THREE.Scene(); skyScene.add(mkSky());
-    const cubeRT = new THREE.WebGLCubeRenderTarget(128, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    // the water's copy of the sky has no sun disc: a few pixels of sun in a small cube reflect as hard white blotches,
+    // so the ocean shader draws its own sun glitter instead
+    const bare = mkSky(); bare.material.fragmentShader = bare.material.fragmentShader.replace('L0 += ( vSunE * 19000.0 * Fex ) * sundisk;', '');
+    const bareScene = new THREE.Scene(); bareScene.add(bare);
+    const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
     const cubeCam = new THREE.CubeCamera(1, 1000000, cubeRT);
-    const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping; cubeCam.update(r, skyScene); r.toneMapping = tm;
-    this.skyCube = cubeRT.texture;
+    const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping; cubeCam.update(r, bareScene); r.toneMapping = tm;
+    this.skyCube = cubeRT.texture; bare.material.dispose(); bare.geometry.dispose();
     const pmrem = new THREE.PMREMGenerator(r);
     this.scene.environment = pmrem.fromScene(skyScene, 0.02).texture;
     this.scene.environmentIntensity = 0.55;

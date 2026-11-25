@@ -44,6 +44,7 @@ export const app = {
         this.state = 'menu'; menus.show('title'); el('boot').hidden = true;
         audio.setVolumes(save.settings.sfx, save.settings.music);
         const q = new URLSearchParams(location.search);
+        if (q.has('devtest')) import('./debug.js').then((m) => { window.__steelTide.dev = m.dev; });
         if (q.has('auto')) this.play(q.get('nation') || save.data.last.nation, q.get('auto'), { dock: q.has('dock') });
         last = performance.now(); requestAnimationFrame((t) => this.frame(t));
       } catch (e) { console.error(e); txt.textContent = 'Could not start: ' + e.message; }
@@ -104,9 +105,10 @@ export const app = {
     for (let i = U.length - 1; i >= 0; i--) { const u = U[i]; if (u) u.update(dt); }
     weapons.update(dt); world.updateDetection(dt); battle.update(dt);
   },
-  present(dt, sim) {
+  present(dt, sim, keepCam) {
     const cam = gfx.camera, pu = player.unit;
-    if ((this.state === 'battle' || this.state === 'dead' || this.state === 'paused') && pu) { if (sim) player.camera(dt); }
+    if (keepCam) { /* a developer check has placed the camera */ }
+    else if ((this.state === 'battle' || this.state === 'dead' || this.state === 'paused') && pu) { if (sim) player.camera(dt); }
     else this.attractCamera(dt);
     // sync transforms, LOD, wakes
     shipList.length = 0; const cp = cam.position;

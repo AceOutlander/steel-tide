@@ -1,5 +1,28 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.1.1 (water)
+
+The sea no longer shows white blotches or a repeating pattern.
+
+- Cause of the blotches: the sun's disc, a few pixels wide in the small sky image the water reflects, came back as hard
+  white patches; and the ripple and foam textures were 8-bit images tiled across the whole sea.
+- The water now uses no textures at all. Ripples, glitter and foam are worked out from world position in the shader, so
+  nothing can repeat. Every layer fades out before it gets smaller than a pixel, and what is faded is added to the
+  surface roughness instead, so the far sea is smooth and the sun's path is soft, with no shimmer.
+- Foam appears only on the steepest wave crests (with a short fading trail), along hulls, in wakes, on beaches, and
+  where shells, bombs and aircraft hit the water. In open water it covers a few percent of the surface.
+- Colour: dark blue-green looking straight down, sky reflection growing toward the horizon, a green glow through thin
+  crests seen against the sun, and a sun glitter path drawn by the shader (the reflected sky has no sun disc).
+- The swell is now eight waves loosely lined up with the wind instead of five crossing at wide angles. The hulls use the
+  same eight, so ships still ride exactly on the waves drawn. In the shading only, the shorter waves are bent and made
+  uneven so they never form straight rows seen from high up.
+- Three water levels: Fast Graphics (three ripple layers, simple sky reflection), Low (four), Medium and up (five, plus
+  foam trails). All of them have no tiling.
+- Other textures: anisotropic filtering is now 16x on Medium and up, 8x on Low, 4x in Fast Graphics.
+- Fixed: in Fast Graphics the water mesh ended 3.5 km out, which showed as a hard edge from the air.
+- `?devtest` in the address loads `js/debug.js` (developer checks: several camera views in one picture). Nothing in it
+  is reachable without that flag.
+
 ## Beta 0.1.0 (first release)
 
 A complete single-player battle: two fictional fleets (Aethia and Extro), twelve playable unit types per side, a living

@@ -1,7 +1,7 @@
 // Game data: nations, unit classes, weapons. Both nations share identical stats; only looks and names differ.
 import { KTS } from './util.js';
 
-export const VERSION = 'Beta 0.1.0';
+export const VERSION = 'Beta 0.1.1';
 export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {
@@ -77,11 +77,11 @@ export const WEAPONS = {
 };
 
 export const QUALITY = {
-  fast: { label: 'Fast', shadows: 0, post: false, tex: 256, aniso: 1, prCap: 0.8, ocean: 44, view: 7500, fog: 2.0, particles: 0.35, crew: 0.3, lod: 0.45, wakes: 4, simpleWater: true, clouds: false },
-  low: { label: 'Low', shadows: 0, post: false, tex: 512, aniso: 2, prCap: 1, ocean: 80, view: 13000, fog: 1.25, particles: 0.6, crew: 0.5, lod: 0.75, wakes: 8, simpleWater: false, clouds: true },
-  medium: { label: 'Medium', shadows: 1024, post: false, tex: 1024, aniso: 4, prCap: 1.25, ocean: 112, view: 18000, fog: 1, particles: 0.85, crew: 0.8, lod: 1, wakes: 12, simpleWater: false, clouds: true },
-  high: { label: 'High', shadows: 2048, post: true, tex: 1024, aniso: 8, prCap: 1.5, ocean: 128, view: 22000, fog: 1, particles: 1, crew: 1, lod: 1.3, wakes: 16, simpleWater: false, clouds: true },
-  ultra: { label: 'Ultra', shadows: 4096, post: true, tex: 2048, aniso: 16, prCap: 2, ocean: 160, view: 24000, fog: 0.9, particles: 1.4, crew: 1.3, lod: 1.8, wakes: 16, simpleWater: false, clouds: true },
+  fast: { label: 'Fast', shadows: 0, post: false, tex: 256, aniso: 4, prCap: 0.8, ocean: 44, view: 7500, fog: 2.0, particles: 0.35, crew: 0.3, lod: 0.45, wakes: 4, water: 0, simpleWater: true, clouds: false },
+  low: { label: 'Low', shadows: 0, post: false, tex: 512, aniso: 8, prCap: 1, ocean: 80, view: 13000, fog: 1.25, particles: 0.6, crew: 0.5, lod: 0.75, wakes: 8, water: 1, simpleWater: false, clouds: true },
+  medium: { label: 'Medium', shadows: 1024, post: false, tex: 1024, aniso: 16, prCap: 1.25, ocean: 112, view: 18000, fog: 1, particles: 0.85, crew: 0.8, lod: 1, wakes: 12, water: 2, simpleWater: false, clouds: true },
+  high: { label: 'High', shadows: 2048, post: true, tex: 1024, aniso: 16, prCap: 1.5, ocean: 128, view: 22000, fog: 1, particles: 1, crew: 1, lod: 1.3, wakes: 16, water: 2, simpleWater: false, clouds: true },
+  ultra: { label: 'Ultra', shadows: 4096, post: true, tex: 2048, aniso: 16, prCap: 2, ocean: 160, view: 24000, fog: 0.9, particles: 1.4, crew: 1.3, lod: 1.8, wakes: 16, water: 2, simpleWater: false, clouds: true },
 };
 
 export const DEFAULT_KEYS = {
