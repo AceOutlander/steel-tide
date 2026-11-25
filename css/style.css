@@ -204,3 +204,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hnote { color: var(--dim); font-size: .8em; line-height: 1.4; margin: .5em 0 0; } .hmsg { min-height: 2.6em; color: #ffd98a; } .need { color: #ff9c92; font-weight: 700; }
 .hact { display: flex; flex-direction: column; gap: .5em; margin-top: auto; } .unitinfo .hact .btn { margin-top: 0; }
 .hdrag { cursor: grab; pointer-events: auto; } .hdrag:active { cursor: grabbing; }
+
+/* ---- store and account ---- */
+.storerow { display: flex; gap: .5em; margin: 0 0 .6em; } .soon { color: var(--dim); font-size: .8em; letter-spacing: .12em; text-transform: uppercase; margin: 0 0 .6em; }
+.packs { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8em; margin: 1em 0; }
+.pack { position: relative; display: flex; flex-direction: column; align-items: center; gap: .5em; padding: 1.3em .6em 1em; border: 1px solid var(--line); border-radius: .5em; background: rgba(20, 44, 64, .7); }
+.pack b { font-size: 1.35em; color: #ffe9a8; } .pack .price { font-weight: 700; letter-spacing: .04em; } .pack.best { border-color: #ffcf4a; box-shadow: 0 0 0 1px #ffcf4a inset; }
+.pack .tag { position: absolute; top: -.75em; padding: .15em .6em; border-radius: .25em; background: #ffcf4a; color: #2b2204; font-size: .68em; font-weight: 800; letter-spacing: .1em; }
+.field { display: flex; flex-direction: column; gap: .3em; margin: .7em 0; color: var(--dim); font-size: .85em; letter-spacing: .08em; text-transform: uppercase; }
+.field input { padding: .6em .7em; font: inherit; font-size: 1.15em; letter-spacing: .04em; text-transform: none; color: #e8f1f7; background: #10273a; border: 1px solid var(--line); border-radius: .3em; }

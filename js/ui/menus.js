@@ -31,6 +31,7 @@ const SCREENS = {
       <div class="logo">STEEL<br>TIDE<small>MODERN NAVAL WARFARE</small></div>
       <div class="menu"><button class="btn primary" data-go="nation">Play</button><button class="btn" data-go="hangar">Hangar</button><button class="btn" data-go="settings">Settings</button><button class="btn" data-go="howto">How to Play</button></div>
       ${wallet()}
+      ${store.enabled ? `<div class="storerow"><button class="btn small" data-go="store">Get Credits</button><button class="btn small" data-go="account">${store.signedIn ? 'Account' : 'Sign in'}</button></div>` : '<div class="soon">Store coming soon</div>'}
       ${fastRow()}
       <a class="homelink" href="/">← Back to HunterAceDev</a>
     </div><div class="ver">${VERSION} · PC · keyboard &amp; mouse</div></div>`,
@@ -88,6 +89,29 @@ const SCREENS = {
       <p style="line-height:1.5">Soldiers pay ${fmtCredits(PAY.soldier)} each, up to ${fmtCredits(PAY.infantryCap)} per battle, so going down with a ship doesn't flood your wallet.</p>
       <p style="color:var(--dim);line-height:1.5">That limit counts everyone: marines you shoot, and the crews lost with the ships and aircraft you destroy. Ships and aircraft themselves always pay in full. The meter beside your Credits in battle shows how much infantry pay is left.</p>
       <div class="actions"><button class="btn primary" data-back>Back</button></div></div></div>`,
+  // Get Credits: the four packs. Prices come from the server and are always shown with CAD; Credits always with the anchor.
+  store: () => `<div class="screen center"><div class="panel" style="width:46em"><h2>Get Credits</h2>
+      ${!store.signedIn ? `<p>Sign in to buy Credits, so they are kept with your account on any computer.</p><div class="actions"><button class="btn primary" data-go="account">Sign in</button><button class="btn" data-back>Back</button></div>`
+    : `<p style="color:var(--dim)">Credits (${CREDIT}) buy looks in the Hangar: paint, helmets, uniforms and accessories. They never change how a unit performs. Your Credits: <b style="color:#ffe9a8">${fmtCredits(econ.credits)}</b></p>
+      <div class="packs">${(store.packs || []).map((p) => `<div class="pack${p.best ? ' best' : ''}">${p.best ? '<span class="tag">BEST VALUE</span>' : ''}<b>${fmtCredits(p.credits)}</b><span class="price">${p.label}</span><button class="btn primary small" data-pack="${p.id}">Buy</button></div>`).join('') || '<p>Loading the packs…</p>'}</div>
+      <p class="hmsg">${st.msg}</p>
+      <p style="color:var(--dim);font-size:.85em;line-height:1.5">Payments are handled by Stripe and open in a new tab. Prices are in Canadian dollars (CAD). Purchases may need a parent's or guardian's permission. <a href="store.html" target="_blank" rel="noopener" style="color:#9fd0ff">What you are buying, refunds, accounts and privacy</a></p>
+      <div class="actions"><button class="btn" data-go="account">Account and purchases</button><button class="btn primary" data-back>Back</button></div>`}</div></div>`,
+  account: () => {
+    const m = store.me, pur = (m && m.purchases) || [];
+    return `<div class="screen center"><div class="panel" style="width:36em"><h2>Account</h2>
+      ${store.signedIn ? `<div class="stat"><span>Signed in as</span><span>${m ? m.email : '…'}</span></div><div class="stat"><span>Credits</span><span>${fmtCredits(econ.credits)}</span></div>
+        <div class="stat"><span>Server</span><span>${store.online ? 'connected' : 'offline: battles will sync later, purchases wait until it is back'}</span></div>
+        <h3>Purchases</h3>${pur.length ? pur.map((p) => `<div class="stat"><span>${new Date(p.created * 1000).toLocaleDateString()} · ${p.status}</span><span>${fmtCredits(p.credits)} · ${'$' + (p.amount / 100).toFixed(2)} ${String(p.currency).toUpperCase()}</span></div>`).join('') : '<p style="color:var(--dim)">No purchases yet.</p>'}
+        <p class="hmsg">${st.msg}</p>
+        <div class="actions"><button class="btn" data-signout>Sign out</button><button class="btn" data-delacct>${st.del ? 'Confirm: delete my account for good' : 'Delete my account'}</button><button class="btn primary" data-back>Back</button></div>`
+      : `<p style="color:var(--dim);line-height:1.5">Sign in with your email. We send a one-time code: there is no password. Playing as a guest still works; your Credits and looks then stay on this computer only. The first time you sign in, what you have earned here moves into your account.</p>
+        <label class="field">Email<input id="acct-email" type="email" autocomplete="email" value="${st.email}" placeholder="you@example.com"></label>
+        ${st.sent ? '<label class="field">Code from the email<input id="acct-code" inputmode="numeric" maxlength="6" placeholder="6 digits"></label>' : ''}
+        <p class="hmsg">${st.msg}</p>
+        <div class="actions">${st.sent ? '<button class="btn primary" data-verify>Sign in</button><button class="btn" data-sendcode>Send a new code</button>' : '<button class="btn primary" data-sendcode>Email me a code</button>'}<button class="btn" data-back>Back</button></div>`}
+      <p style="font-size:.85em;margin-top:1em"><a href="store.html" target="_blank" rel="noopener" style="color:#9fd0ff">How accounts work, and privacy</a></p></div></div>`;
+  },
   // Hangar: try on, buy and equip looks. Left: tabs and the list; middle: the 3D preview; right: the selected item.
   hangar: () => {
     const tabs = [['paint', 'Paint'], ['helmet', 'Helmets'], ['uniform', 'Uniforms'], ['accessory', 'Accessories']], N = NATIONS[hg.nation];
@@ -114,6 +138,8 @@ const SCREENS = {
       <div style="margin-top:1em;text-align:left">${fastRow().replace('width:24em', '')}</div></div></div>`,
 };
 
+// ---- store and account screens ----
+const st = { msg: '', email: '', sent: false, del: false, fresh: false };
 // ---- Hangar ----
 const hg = { tab: 'paint', sel: '', unit: 'fighter', nation: 'aethia', confirm: '', msg: '', spin: 0.6, zoom: 1, drag: false };
 function hangarPreview() {
@@ -189,12 +215,14 @@ export const menus = {
     nation = save.data.last.nation; unit = save.data.last.unit;
   },
   show(name, o = {}) {
-    if (cur && name !== cur && (name === 'settings' || name === 'howto' || name === 'pay' || name === 'hangar' || name === 'store')) stack.push(cur); else if (name === 'title' || name === 'pause' || (name === 'units' && o.redeploy)) stack = [];
+    if (cur && name !== cur && (name === 'settings' || name === 'howto' || name === 'pay' || name === 'hangar' || name === 'store' || name === 'account')) stack.push(cur); else if (name === 'title' || name === 'pause' || (name === 'units' && o.redeploy)) stack = [];
     if (name === 'results') opts = o;
     if (name === 'units') { opts = o; if (o.redeploy) nation = world.playerNation; }
     if (name === 'hangar' && !hg.sel) { hg.nation = world.playerNation || nation; hg.sel = ITEMS.find((i) => i.kind === hg.tab).id; }
     cur = name; root.innerHTML = SCREENS[name](); this.showroomActive = name === 'units' || name === 'hangar';
     if (name === 'hangar') { hangarPreview(); hangarInfo(); }
+    if (name === 'store' && store.signedIn && !store.packs) store.loadPacks().then(() => { if (cur === 'store') this.refresh(); });
+    if (name === 'account' && store.signedIn && !st.fresh) { st.fresh = true; store.refresh().then(() => { if (cur === 'account') this.refresh(); }); }
     if (name === 'units') { showroomSet(); unitInfo(); document.documentElement.style.setProperty('--nation', NATIONS[nation].color); }
     if (name === 'settings') this.syncFast();
   },
@@ -215,11 +243,18 @@ export const menus = {
     if (d.unit) { unit = d.unit; root.querySelectorAll('.unitbtn').forEach((b) => b.classList.toggle('on', b.dataset.unit === unit)); showroomSet(); unitInfo(); return; }
     if (d.dock !== undefined) { startDock = d.dock === '1'; unitInfo(); return; }
     if (d.deploy !== undefined) { app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub' }); return; }
+    if (d.pack) { st.msg = 'Opening Stripe in a new tab. Waiting for the payment…'; this.refresh(); store.checkout(d.pack, (got) => { st.msg = got ? `Purchase complete: +${fmtCredits(got)}` : 'No payment seen yet. If you paid, your Credits will appear shortly: open Account to check.'; if (cur === 'store') this.refresh(); }).then((r) => { if (!r.ok) { st.msg = r.message || 'Could not start the checkout.'; if (cur === 'store') this.refresh(); } }); return; }
+    if (d.sendcode !== undefined) { const em = (el('acct-email') || {}).value || st.email; st.email = em.trim(); st.msg = 'Sending…'; this.refresh(); store.requestCode(st.email).then((r) => { st.sent = !!r.ok; st.msg = r.ok ? 'Code sent. Check your email (it works for 10 minutes).' : r.message || 'Could not send the code.'; if (cur === 'account') this.refresh(); }); return; }
+    if (d.verify !== undefined) { const code = ((el('acct-code') || {}).value || '').trim(); st.msg = 'Checking…'; store.verify(st.email, code).then((r) => { st.msg = r.ok ? 'Signed in. Your progress is now kept with your account.' : r.message || 'That code is not right.'; if (r.ok) { st.sent = false; st.fresh = true; } if (cur === 'account') this.refresh(); }); return; }
+    if (d.signout !== undefined) { store.signOut().then(() => { st.msg = 'Signed out. Playing as a guest.'; st.fresh = false; if (cur === 'account') this.refresh(); }); return; }
+    if (d.delacct !== undefined) { if (!st.del) { st.del = true; st.msg = 'This removes your account, Credits and cosmetics from the server for good.'; return this.refresh(); } st.del = false; store.deleteAccount().then((r) => { st.msg = r.ok ? 'Account deleted.' : r.message || 'Could not delete the account.'; st.fresh = false; if (cur === 'account') this.refresh(); }); return; }
     if (d.htab) { hg.tab = d.htab; hg.sel = ITEMS.find((i) => i.kind === hg.tab).id; hg.confirm = ''; hg.msg = ''; return this.refresh(); }
     if (d.hnation) { hg.nation = d.hnation; hg.msg = ''; return this.refresh(); }
     if (d.item) { hg.sel = d.item; hg.confirm = ''; hg.msg = ''; return this.refresh(); }
-    if (d.buy) { if (hg.confirm !== d.buy) { hg.confirm = d.buy; hangarInfo(); return; } const r = cosmetics.buy(d.buy); hg.confirm = ''; hg.msg = r.ok ? 'Bought. It is yours for good.' : ''; return this.refresh(); }
-    if (d.equip) { const r = cosmetics.toggle(hg.nation, d.equip, d.all ? 'all' : hg.unit); hg.msg = r.ok ? '' : r.why; return this.refresh(); }
+    if (d.buy) { if (hg.confirm !== d.buy) { hg.confirm = d.buy; hangarInfo(); return; } hg.confirm = '';
+      if (store.signedIn) { hg.msg = 'Buying…'; hangarInfo(); store.buyCosmetic(d.buy).then((r) => { hg.msg = r.ok ? 'Bought. It is yours for good.' : r.error === 'offline' ? 'The server cannot be reached. Purchases wait until it is back.' : r.message || 'Could not buy that.'; if (cur === 'hangar') this.refresh(); }); return; }
+      const r = cosmetics.buy(d.buy); hg.msg = r.ok ? 'Bought. It is yours for good.' : ''; return this.refresh(); }
+    if (d.equip) { const r = cosmetics.toggle(hg.nation, d.equip, d.all ? 'all' : hg.unit); hg.msg = r.ok ? '' : r.why; if (r.ok) store.saveEquip(); return this.refresh(); }
     if (d.store !== undefined) { if (store.enabled) this.show('store'); else { hg.msg = 'Store coming soon.'; if (cur === 'hangar') hangarInfo(); else this.notice('Store coming soon.'); } return; }
     if (d.continue !== undefined) { this.show('units', { redeploy: true, next: true }); return; }
     if (d.resume !== undefined) return app.resume();

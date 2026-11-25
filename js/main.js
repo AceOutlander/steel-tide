@@ -16,6 +16,7 @@ import { crew } from './sim/crewpick.js';
 import { wrecks } from './sim/wreck.js';
 import { econ, fmtCredits, PAY } from './core/economy.js';
 import { applyPaint } from './gfx/paint.js';
+import { store } from './core/store.js';
 import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
@@ -43,7 +44,8 @@ export const app = {
         world.onBattleStart = () => econ.startBattle();
         world.onAdd = (u) => { if (!battle.spawning) battle.dressRandom(u); }; // not the unit the player is about to take
         wrecks.paintFn = applyPaint;
-        world.onBattleEnd = (won) => econ.finish(won);
+        world.onBattleEnd = (won) => { econ.finish(won); store.refresh(); }; // with an account: send the result to be checked, then take the server's balance
+        if (store.signedIn) store.refresh();
         world.onPay = (u, by) => {
           const pu = player.unit; if (!pu || u.nation === world.playerNation || !(this.state === 'battle' || this.state === 'dead')) return null;
           const mine = by && (by === pu || by.isPlayer || (pu.gun && pu.gun.unit === by));
