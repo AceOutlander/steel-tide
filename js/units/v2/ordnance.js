@@ -91,9 +91,9 @@ export function buildTorpedo() {
     k.lathe(T.green, [[-2.45, r], [1.55, r], [2.0, 0.21], [2.45, 0.12], [2.7, 0.07]], 16);
     k.cyl(C.orange, r + 0.003, r + 0.003, 0.22, 0, 0, -2.2, 'z', 16, true); k.cyl(C.brass, r + 0.003, r + 0.003, 0.04, 0, 0, -0.6, 'z', 16, true); k.cyl(C.dark, r + 0.003, r + 0.003, 0.5, 0, 0, 1.25, 'z', 16, true);
     fins(k, T.green, 4, 0.13, 2.05, 0.5, 0.15, 0.3, 0.14, 0, 0.05);
-    k.cyl(C.gun, 0.265, 0.24, 0.3, 0, 0, 2.62, 'z', 16, true); k.cyl(C.gun, 0.235, 0.215, 0.3, 0, 0, 2.62, 'z', 16, true);
+    k.lathe(C.gun, [[2.47, 0.235], [2.5, 0.25], [2.77, 0.225]], 16); k.lathe(C.iron, [[2.77, 0.205], [2.47, 0.225]], 16);   // propulsor shroud, outside and inside
     k.lathe(C.brass, [[2.6, 0.075], [2.8, 0.06], [2.9, 0.012]], 10);
-    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; k.box(C.brass, 0.17, 0.012, 0.09, Math.cos(a) * 0.14, Math.sin(a) * 0.14, 2.7, [0.5, 0, a]); }
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; k.box(C.brass, 0.14, 0.012, 0.09, Math.cos(a) * 0.135, Math.sin(a) * 0.135, 2.66, [0.5, 0, a]); }
     return k.merged();
   });
 }

@@ -104,7 +104,7 @@ function make(nation, lod, fine) {
   k.tube(C.steel, [0.5, -0.35, -12.3], [0.5, -0.35, -13.35], 0.026, 5, 0.01);
   k.sphere(C.lampRed, 0.07, 0, bot(-4) - 0.01, -4, [1, 0.6, 1.4], 8); k.sphere(C.lampWhite, 0.06, 0, 0.64, 13.03, null, 8); k.sphere(C.lampRed, 0.07, 0, A ? 5.42 : finY + FH + 0.03, A ? 12.6 : 11.8, [1, 0.8, 1.5], 8);
   if (fine) k.tube(C.gun, [0, top(-6.5) + 0.3, -6.5], [0, finY + FH * 0.8, fS(FH * 0.8).z + 0.1], 0.006, 3);
-  model.nose = { pos: new V3(0, -0.18, -13), radius: 0.9 };
+  model.nose = { pos: new V3(0, -0.18, -13), radius: 0.68 };
   k.build(g);
   // ---- landing gear: nose leg, mains folding into the nacelles
   const door = (q, x, y, z, w, l, ang) => q.add(M.bodyDark, cboxGeo(0.03, w, l, 0.012), x, y - Math.cos(ang) * w * 0.5, z, [0, 0, ang]);

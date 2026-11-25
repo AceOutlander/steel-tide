@@ -14,7 +14,7 @@
 //       sight (Vector3s), mag (Object3D), wristR / wristL (where the hands hold it).
 import * as THREE from 'three';
 import { gfx } from '../../gfx/renderer.js';
-import { kit, uniformDef, helmetColor, ROLES, SKIN, hairline, blobGeometry, UNIFORM_ALIAS, HELMET_ALIAS, HELMETS, UNIFORMS } from './humankit.js';
+import { kit, uniformDef, helmetColor, ROLES, SKIN, hairline, blobGeometry, UNIFORM_ALIAS, HELMET_ALIAS, HELMETS, UNIFORMS, ACCESSORIES } from './humankit.js';
 
 const PI = Math.PI, clamp = (v, a, b) => (v < a ? a : v > b ? b : v), sm = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }, lerp = (a, b, t) => a + (b - a) * t;
 
@@ -308,7 +308,7 @@ function buildFigure(S) {
     shell(A, 'gear', [0, 1.713, 0.004], [0.0875, 0.09, 0.106], { rows: hrows, seg: hseg, rim: sideRim(1.738, 1.722, 1.706), lip: 0.93, b: HEAD, c: hc, tint: tintBot });
     shell(A, 'gear', [0, 0, 0], [0.074, 0.006, 0.066], { rows: 4, seg: L <= 0 ? 12 : 8, b: HEAD, c: hc, tint: tintBot, m: TM(0, 1.736, -0.118, -0.16) });
   } else if (H === 'cranial') {
-    const hc = vt ? WHITE : C(U.top);
+    const hc = vt ? WHITE : C(U.tintTop ? U.top : 0xd9ad18);
     shell(A, 'gear', [0, 1.706, 0.005], [0.099, 0.103, 0.12], { rows: hrows, seg: hseg, rim: sideRim(1.742, 1.704, 1.656), lip: 0.9, b: HEAD, c: hc, tint: vt });
     if (L <= 1) {
       for (const s of [-1, 1]) shell(A, 'gear', [s * 0.091, 1.684, 0.012], [0.024, 0.046, 0.04], { rows: 5, seg: 8, b: HEAD, c: C(0x1b1c1e) }); // ear cups
@@ -324,6 +324,88 @@ function buildFigure(S) {
       shell(A, 'gear', [0, 1.628, -0.086], [0.044, 0.048, 0.044], { rows: 6, seg: 10, b: HEAD, c: C(0x24272a) }); // oxygen mask
       tube(A, 'gear', [R(1.6, 0.015, 0.015, HEAD, { z: -0.112 }), R(1.54, 0.014, 0.014, [HEAD, CHEST, 0.5], { x: 0.02, z: -0.125 }), R(1.46, 0.014, 0.014, CHEST, { x: 0.045, z: -0.133 }), R(1.38, 0.014, 0.014, CHEST, { x: 0.06, z: -0.138 })], { seg: 6, c: C(0x2a2d30) });
     }
+  }
+  else if (H === 'arctic') { // white-covered helmet with a fur edge, and a balaclava
+    shell(A, 'gear', [0, 1.705, 0.006], [0.103, 0.108, 0.127], { rows: hrows, seg: hseg, rim: sideRim(1.73, 1.676, 1.65), lip: 0.9, b: HEAD, c: C(0xe4e7ea) });
+    if (L <= 1) {
+      shell(A, 'gear', [0, 1.705, 0.006], [0.112, 0.108, 0.136], { rows: 3, seg: hseg, p0: 1.05, rim: sideRim(1.722, 1.668, 1.642), b: HEAD, c: C(0x8f7d66) });
+      shell(A, 'gear', HC, [0.085, 0.124, 0.104], { rows: 6, seg: hseg, p0: 1.62, p1: PI, b: HEAD, c: C(0x2a2d31) });
+      tube(A, 'gear', [R(1.5, 0.066, 0.066, [CHEST, NECK, 0.6], { z: 0.012 }), R(1.62, 0.062, 0.066, [NECK, HEAD, 0.6], { z: 0.012 })], { seg: 8, c: C(0x2a2d31), cap0: false, cap1: false });
+    }
+  } else if (H === 'tacops') { // cut high over the ears for a headset, rails, a night-vision mount
+    shell(A, 'gear', [0, 1.705, 0.006], [0.102, 0.107, 0.126], { rows: hrows, seg: hseg, rim: sideRim(1.735, 1.716, 1.66), lip: 0.9, b: HEAD, c: C(0x1d1f21) });
+    if (L <= 1) {
+      for (const s of [-1, 1]) { shell(A, 'gear', [s * 0.09, 1.684, 0.012], [0.024, 0.044, 0.038], { rows: 5, seg: 8, b: HEAD, c: C(0x2b2e30) }); rbox(A, 'gear', 0.008, 0.02, 0.1, TM(s * 0.102, 1.728, 0.012), { b: HEAD, c: C(0x0f1011), seg: 6, n: 5 }); }
+      rbox(A, 'gear', 0.05, 0.04, 0.014, TM(0, 1.75, -0.116, -0.35), { b: HEAD, c: C(0x0f1011), seg: 6, n: 5 });
+      rbox(A, 'gear', 0.075, 0.035, 0.07, TM(0, 1.812, -0.085, 0.3), { b: HEAD, c: C(0x141516), seg: 8, n: 5 }); // goggles folded up
+      addGeo(A, 'gear', new THREE.CylinderGeometry(0.004, 0.004, 0.11, 5), TM(-0.07, 1.645, -0.055, 0.9, 0, 0.5), HEAD, C(0x0f1011)); // microphone boom
+    }
+  } else if (H === 'peaked') { // officer's cap: band, wide flat crown, glossy peak, badge
+    const wc = C(S.nation === 'aethia' ? 0xe6e6e1 : 0x24332c), bk = C(0x121315);
+    tube(A, 'gear', [R(1.722, 0.089, 0.106, HEAD, { z: 0.004, c: bk }), R(1.756, 0.09, 0.107, HEAD, { z: 0.004, c: bk }), R(1.758, 0.091, 0.108, HEAD, { z: 0.004, c: wc }), R(1.792, 0.12, 0.132, HEAD, { z: 0.0, c: wc }), R(1.806, 0.112, 0.124, HEAD, { z: 0.004, c: wc })], { seg: hseg, cap0: false });
+    shell(A, 'gear', [0, 0, 0], [0.078, 0.006, 0.06], { rows: 4, seg: L <= 0 ? 12 : 8, b: HEAD, c: bk, m: TM(0, 1.722, -0.118, -0.3) });
+    if (L <= 1) rbox(A, 'gear', 0.03, 0.03, 0.008, TM(0, 1.772, -0.118, 0.25), { b: HEAD, c: C(0xc9a23a), seg: 6, n: 4 });
+  } else if (H === 'diver') { // full-face dive helmet with a lamp
+    shell(A, 'gear', [0, 1.69, 0.004], [0.122, 0.128, 0.134], { rows: hrows + 2, seg: hseg, p1: PI * 0.84, lip: 0.85, b: HEAD, c: C(0xc7a51c) });
+    grid(A, 'glass', 4, L <= 0 ? 10 : 6, (i, j, f, out) => { const th = -0.72 + 1.44 * f, y = lerp(1.74, 1.635, i / 3), k = 1.03; out.x = Math.sin(th) * 0.122 * k; out.y = y; out.z = 0.004 - Math.cos(th) * 0.134 * k * (1 - 0.6 * Math.pow((y - 1.69) / 0.128, 2)); }, { open: true, b: HEAD, c: WHITE, center: [0, 1.69, 0] });
+    if (L <= 1) {
+      addGeo(A, 'gear', new THREE.CylinderGeometry(0.024, 0.02, 0.05, 8), TM(0.085, 1.79, -0.07, PI / 2), HEAD, C(0x2a2c2e)); // lamp
+      addGeo(A, 'gear', new THREE.CylinderGeometry(0.03, 0.03, 0.04, 8), TM(0, 1.615, -0.135, PI / 2), HEAD, C(0x2a2c2e)); // regulator
+      tube(A, 'gear', [R(1.535, 0.085, 0.088, [CHEST, NECK, 0.5], { z: 0.01 }), R(1.575, 0.09, 0.093, [NECK, HEAD, 0.5], { z: 0.01 })], { seg: 10, c: C(0x2a2c2e) });
+    }
+  } else if (H === 'heavy') { // full coverage: deep shell, armoured visor, jaw guard
+    const hc = C(S.nation === 'aethia' ? 0x414a54 : 0x1c2221);
+    shell(A, 'gear', [0, 1.703, 0.006], [0.109, 0.113, 0.133], { rows: hrows + 1, seg: hseg, rim: sideRim(1.732, 1.63, 1.612), lip: 0.9, b: HEAD, c: hc });
+    const band = (slot, y0, y1, k, a, col, n = 2) => grid(A, slot, n, L <= 0 ? 12 : 6, (i, j, f, out) => { const th = -a + 2 * a * f, y = lerp(y0, y1, i / (n - 1)); out.x = Math.sin(th) * 0.106 * k; out.y = y; out.z = 0.004 - Math.cos(th) * 0.128 * k; }, { open: true, b: HEAD, c: col, center: [0, 1.7, 0] });
+    band('glass', 1.735, 1.655, 1.0, 1.05, WHITE, 3); band('gear', 1.658, 1.572, 0.97, 1.2, hc, 3);
+  }
+  /* ---- extra parts of the Hangar uniforms ---- */
+  if (L <= 1) {
+    if (U.fur) tube(A, 'gear', [{ y: 1.5, rx: 0.108, rf: 0.098, rb: 0.108, b: CHEST }, { y: 1.535, rx: 0.115, rf: 0.104, rb: 0.114, b: CHEST }, { y: 1.57, rx: 0.1, rf: 0.09, rb: 0.106, b: [CHEST, NECK, 0.4] }], { seg: tseg, n: 2.2, c: C(U.fur), cap0: false, cap1: false });
+    if (U.kneeboard) { rbox(A, 'gear', 0.1, 0.15, 0.012, TM(-0.092, 0.72, -0.094, 0.06), { b: LEG_L, c: C(0xd8d8d2), seg: 6, n: 5 }); tube(A, 'gear', [R(0.735, 0.085, 0.09, LEG_L, { x: -0.092 }), R(0.705, 0.083, 0.088, LEG_L, { x: -0.092 })], { seg: lseg, c: C(0x151617), cap0: false, cap1: false }); }
+    if (U.ribbons) {
+      const RC = [0xb32d24, 0x2552a6, 0xd9ad18, 0x2c7a36, 0xe2e2de, 0x6d3a94];
+      for (let k = 0; k < 6; k++) { const x = -0.108 + (k % 3) * 0.021, y = 1.392 - Math.floor(k / 3) * 0.012; rbox(A, 'gear', 0.019, 0.01, 0.004, TM(x, y, -(surfZ(y, x) + 0.008)), { b: CHEST, c: C(RC[k]), seg: 4, n: 4 }); }
+      for (const s of [-1, 1]) rbox(A, 'gear', 0.055, 0.009, 0.1, TM(s * 0.142, 1.487, 0.002, 0, 0, -s * 0.22), { b: CHEST, c: C(0x15171c), seg: 6, n: 5 }); // shoulder boards
+      rbox(A, 'gear', 0.045, 0.04, 0.012, TM(0, 1.022, -0.126), { b: HIPS, c: C(0xc9a23a), seg: 6, n: 5 });
+    }
+    if (U.sword) { rbox(A, 'gear', 0.018, 0.74, 0.036, TM(-0.205, 0.7, 0.03, 0.14, 0, 0.05), { b: HIPS, c: C(0x121214), seg: 6, n: 4 }); rbox(A, 'gear', 0.022, 0.13, 0.03, TM(-0.2, 1.125, -0.03, 0.14), { b: HIPS, c: C(0xc9a23a), seg: 6, n: 4 }); }
+    if (U.weights) for (let k = 0; k < 6; k++) { const a = (k / 6) * 2 * PI + 0.5, t = torsoAt(1.02); rbox(A, 'gear', 0.06, 0.05, 0.03, TM(Math.sin(a) * (t[0] + 0.02), 1.022, Math.cos(a) * ((Math.cos(a) < 0 ? t[1] : t[2]) + 0.02), 0, a, 0), { b: HIPS, c: C(0x6f747a), seg: 6, n: 5 }); }
+    if (U.fins) for (const s of [-1, 1]) rbox(A, 'gear', 0.13, 0.5, 0.02, TM(s * 0.075, 1.2, 0.14, 0.06, 0, s * 0.08), { b: CHEST, c: C(U.stripe), seg: 8, n: 3 });
+    if (U.stripe) for (const s of [-1, 1]) tube(A, 'gear', [R(1.33, 0.057, 0.061, armBase(s), { x: 0.204 * s }), R(1.3, 0.055, 0.059, armBase(s), { x: 0.204 * s })], { seg: lseg, c: C(U.stripe), cap0: false, cap1: false });
+    if (U.plates) {
+      tube(A, 'gear', [{ y: 1.5, rx: 0.102, rf: 0.092, rb: 0.102, b: CHEST }, { y: 1.575, rx: 0.094, rf: 0.088, rb: 0.1, b: [CHEST, NECK, 0.4] }], { seg: tseg, n: 2.6, c: C(U.vestCol, 0.85), cap0: false, cap1: false }); // neck guard
+      rbox(A, 'gear', 0.2, 0.17, 0.03, TM(0, 0.9, -0.122, 0.12), { b: HIPS, c: C(U.vestCol), seg: 8, n: 5 }); // groin plate
+      for (const s of [-1, 1]) { shell(A, 'gear', [s * 0.214, 1.47, 0], [0.07, 0.05, 0.08], { rows: 5, seg: 8, b: armBase(s), c: C(U.vestCol) }); shell(A, 'gear', [s * 0.236, 1.36, 0], [0.034, 0.1, 0.064], { rows: 5, seg: 8, b: armBase(s), c: C(U.vestCol, 0.85) }); rbox(A, 'gear', 0.03, 0.22, 0.125, TM(s * 0.176, 0.72, 0), { b: legBase(s), c: C(U.vestCol, 0.85), seg: 8, n: 5 }); }
+    }
+  }
+  /* ---- accessories (looks only): each sits at one of the attachment points ---- */
+  if (S.acc && S.acc.length && L <= 1) {
+    const has = (k) => S.acc.includes(k), arm = V === 'carrier' || V === 'flak' || V === 'float', zf = arm ? 0.168 : surfZ(1.3, 0) + 0.01, zb = V === 'carrier' ? 0.178 : arm ? 0.15 : 0.124;
+    const pc = C(U.pouchCol ?? U.nat.pouch), dk = C(0x16181a), sg = hi ? 10 : 6, G = 'gear';
+    if (has('tacpack')) { rbox(A, G, 0.27, 0.36, 0.14, TM(0, 1.29, zb + 0.07), { b: CHEST, c: pc, seg: sg, n: 4 }); rbox(A, G, 0.2, 0.15, 0.05, TM(0, 1.23, zb + 0.16), { b: CHEST, c: C(U.nat.web), seg: sg, n: 4 }); rbox(A, G, 0.25, 0.08, 0.1, TM(0, 1.49, zb + 0.055), { b: CHEST, c: C(U.nat.web), seg: sg, n: 3 }); }
+    if (has('parachute')) { rbox(A, G, 0.31, 0.4, 0.11, TM(0, 1.26, zb + 0.055), { b: CHEST, c: C(0x4c4f3c), seg: sg, n: 4 }); rbox(A, G, 0.24, 0.1, 0.03, TM(0, 1.38, zb + 0.12), { b: CHEST, c: C(0x3a3d2e), seg: sg, n: 4 }); rbox(A, G, 0.035, 0.03, 0.02, TM(0.105, 1.34, -zf - 0.012), { b: CHEST, c: C(0xb32d24), seg: 6, n: 4 }); }
+    if (has('oxygen') || has('dualoxygen')) {
+      const dual = has('dualoxygen'), r = dual ? 0.056 : 0.07, tc = C(dual ? 0xc9b21e : 0x9aa0a6);
+      for (const x of dual ? [-0.064, 0.064] : [0]) tube(A, G, [{ y: 1.07, rx: r * 0.75 }, { y: 1.1, rx: r }, { y: 1.43, rx: r }, { y: 1.47, rx: r * 0.6 }, { y: 1.5, rx: 0.018 }, { y: 1.525, rx: 0.024 }], { seg: sg, c: tc, b: CHEST, m: TM(x, 0, zb + r) });
+      const hose = new THREE.TorusGeometry(0.15, 0.008, 5, 12, PI); addGeo(A, G, hose, TM(0.085, 1.41, 0.01, 0, PI / 2, 0), CHEST, dk); rbox(A, G, 0.05, 0.05, 0.03, TM(0.085, 1.4, -zf - 0.01), { b: CHEST, c: dk, seg: 6, n: 4 });
+    }
+    if (has('magpouches')) for (const [x, yaw] of arm ? [[-0.165, 0.9], [0.165, -0.9]] : [[-0.09, 0.3], [0, 0], [0.09, -0.3]]) tube(A, G, [R(1.148, 0.036, 0.022, [SPINE, CHEST, 0.5]), R(1.255, 0.037, 0.024, [SPINE, CHEST, 0.5]), R(1.262, 0.04, 0.028, [SPINE, CHEST, 0.5]), R(1.285, 0.039, 0.027, [SPINE, CHEST, 0.5])], { seg: 6, n: 4, c: pc, m: TM(x, 0, -(arm ? 0.085 : zf + 0.012 - Math.abs(x) * 0.12), 0, yaw, 0), a0: PI / 4 });
+    if (has('radio')) { rbox(A, G, 0.055, 0.13, 0.04, TM(0.115, 1.37, -zf - 0.002, 0, -0.25, 0), { b: CHEST, c: dk, seg: sg, n: 5 }); addGeo(A, G, new THREE.CylinderGeometry(0.0025, 0.004, 0.42, 5), TM(0.13, 1.64, -zf + 0.02, 0.1, 0, -0.06), CHEST, C(0x0c0c0c)); }
+    if (has('grenades')) for (const x of [-0.11, 0.11]) { addGeo(A, G, new THREE.SphereGeometry(0.031, 8, 6), TM(x, 1.2, -zf - 0.012 + Math.abs(x) * 0.12, 0, 0, 0, [1, 1.25, 1]), [SPINE, CHEST, 0.5], C(0x3f4a34)); rbox(A, G, 0.02, 0.03, 0.02, TM(x, 1.245, -zf - 0.012 + Math.abs(x) * 0.12), { b: [SPINE, CHEST, 0.5], c: C(0x8d9093), seg: 4, n: 4 }); }
+    if (has('flaregun')) { rbox(A, G, 0.035, 0.13, 0.075, TM(-0.196, 0.93, -0.035, -0.1), { b: HIPS, c: dk, seg: sg, n: 4 }); rbox(A, G, 0.03, 0.07, 0.04, TM(-0.198, 1.03, -0.005, -0.4), { b: HIPS, c: C(0xe0641a), seg: 6, n: 4 }); }
+    if (has('diveknife')) { rbox(A, G, 0.02, 0.2, 0.038, TM(-0.19, 0.9, 0.065, 0.1), { b: HIPS, c: dk, seg: 6, n: 4 }); rbox(A, G, 0.022, 0.09, 0.028, TM(-0.19, 1.04, 0.078, 0.1), { b: HIPS, c: C(0xc9b21e), seg: 6, n: 4 }); }
+    if (has('sidearm')) { rbox(A, G, 0.036, 0.18, 0.09, TM(0.19, 0.77, 0.005), { b: LEG_R, c: dk, seg: sg, n: 4 }); rbox(A, G, 0.03, 0.075, 0.045, TM(0.192, 0.885, 0.03, -0.3), { b: LEG_R, c: C(0x0d0e0f), seg: 6, n: 4 }); tube(A, G, [R(0.79, 0.089, 0.094, LEG_R, { x: 0.094 }), R(0.765, 0.087, 0.092, LEG_R, { x: 0.094 })], { seg: lseg, c: dk, cap0: false, cap1: false }); }
+    if (has('gasmask') && H !== 'diver' && H !== 'flight' && H !== 'heavy') {
+      shell(A, G, [0, 1.648, -0.058], [0.066, 0.072, 0.062], { rows: 6, seg: sg, b: HEAD, c: C(0x1b1d1e) });
+      for (const s of [-1, 1]) addGeo(A, 'glass', new THREE.SphereGeometry(0.023, 8, 6), TM(s * 0.031, 1.692, -0.092, 0, 0, 0, [1, 0.9, 0.5]), HEAD, WHITE);
+      addGeo(A, G, new THREE.CylinderGeometry(0.036, 0.036, 0.05, 10), TM(-0.05, 1.622, -0.108, PI / 2, 0, 0.5), HEAD, C(0x33373a));
+    }
+    if (has('binoculars')) { for (const s of [-1, 1]) addGeo(A, G, new THREE.CylinderGeometry(0.02, 0.016, 0.11, 8), TM(s * 0.027, 1.32, -zf - 0.03), CHEST, dk); rbox(A, G, 0.03, 0.04, 0.02, TM(0, 1.33, -zf - 0.03), { b: CHEST, c: dk, seg: 6, n: 4 }); const st = new THREE.TorusGeometry(0.1, 0.004, 4, 14); addGeo(A, G, st, TM(0, 1.44, -0.03, 1.2, 0, 0, [0.9, 1.25, 1]), CHEST, dk); }
+    if (has('kneepads') || has('padset')) for (const s of [-1, 1]) shell(A, G, [s * 0.092, 0.488, -0.05], [0.064, 0.082, 0.042], { rows: 5, seg: sg, th0: -1.75, th1: 1.75, p0: 0.25, p1: PI - 0.25, b: legBase(s) + 1, c: dk, center: [s * 0.092, 0.49, 0] });
+    if (has('shoulderpads') || has('padset')) for (const s of [-1, 1]) { shell(A, G, [s * 0.212, 1.47, 0], [0.068, 0.048, 0.078], { rows: 5, seg: 8, b: armBase(s), c: dk }); shell(A, G, [s * 0.234, 1.385, 0], [0.032, 0.07, 0.06], { rows: 4, seg: 8, b: armBase(s), c: C(0x202326) }); }
+    if (has('dogtags')) { const ch = new THREE.TorusGeometry(0.085, 0.002, 3, 14); addGeo(A, G, ch, TM(0, 1.46, -0.035, 1.15, 0, 0, [0.9, 1.3, 1]), CHEST, C(0xaeb3b8)); for (const dx of [-0.006, 0.008]) rbox(A, G, 0.018, 0.03, 0.003, TM(dx, 1.385, -zf - 0.004 - dx * 0.3, 0, 0, dx * 20), { b: CHEST, c: C(0xaeb3b8), seg: 4, n: 4 }); }
+    if (has('chemlights')) { const CL = [0x55ff7a, 0xff9a2e, 0x4aa8ff]; for (let k = 0; k < 3; k++) addGeo(A, G, new THREE.CylinderGeometry(0.006, 0.006, 0.085, 6), TM(-0.125 + k * 0.017, 1.4, -zf * 0.93 + 0.004), CHEST, C(CL[k], 1.6)); rbox(A, G, 0.03, 0.022, 0.04, TM(0, 1.812, 0.06), { b: HEAD, c: dk, seg: 6, n: 4 }); }
   }
   if (S.prop === 'binoculars' && L <= 1) {
     for (const s of [-1, 1]) { const g = new THREE.CylinderGeometry(0.019, 0.015, 0.1, 8); addGeo(A, 'gear', g, TM(s * 0.032, 1.699, -0.15, PI / 2), HEAD, C(0x121314)); }
@@ -383,7 +465,7 @@ export function buildRifle(lod = 0) {
 /* ============================================================ the figure */
 const GEO = new Map();
 function figureGeo(S) {
-  const key = [S.nation, S.ukey, S.helmet, S.jersey || '', S.vest ? 1 : 0, S.prop || '', S.lod, S.parts || '', S.tintable ? 1 : 0].join('|');
+  const key = [S.nation, S.ukey, S.helmet, S.jersey || '', S.vest ? 1 : 0, S.prop || '', S.lod, S.parts || '', S.tintable ? 1 : 0, S.acc.join('+')].join('|');
   let g = GEO.get(key); if (!g) { g = finish(buildFigure(S), true); GEO.set(key, g); }
   return g;
 }
@@ -397,7 +479,7 @@ export function buildSoldier(nation, opts = {}) {
   let ukey = UNIFORM_ALIAS[opts.uniform] || opts.uniform; if (!UNIFORMS[ukey]) ukey = RD.uniform;
   let helmet = HELMET_ALIAS[opts.helmet] || opts.helmet; if (!HELMETS.includes(helmet)) helmet = RD.helmet;
   const U = uniformDef(nation, ukey, opts), arms = opts.parts === 'arms';
-  const base = { nation, U, ukey, helmet, jersey: ukey === 'jersey' ? opts.jersey || 'yellow' : '', vest: !!opts.vest, prop: opts.prop || RD.prop || '', parts: opts.parts || '', tintable: !!opts.tintable, skin: opts.skin ?? (SEED * 7) % SKIN.length };
+  const base = { nation, U, ukey, helmet, jersey: ukey === 'jersey' ? opts.jersey || 'yellow' : '', vest: !!opts.vest, prop: opts.prop || RD.prop || '', acc: arms || !Array.isArray(opts.acc) ? [] : opts.acc.filter((k) => ACCESSORIES.includes(k)).sort(), parts: opts.parts || '', tintable: !!opts.tintable, skin: opts.skin ?? (SEED * 7) % SKIN.length };
   const root = new THREE.Group(), bones = [];
   for (let i = 0; i < NB; i++) { const d = SK[i], b = new THREE.Bone(); b.name = d[0]; const p = d[1]; if (p < 0) { b.position.set(d[2], d[3], d[4]); root.add(b); } else { b.position.set(d[2] - SK[p][2], d[3] - SK[p][3], d[4] - SK[p][4]); bones[p].add(b); } bones.push(b); }
   root.updateMatrixWorld(true);
@@ -417,7 +499,7 @@ export function buildSoldier(nation, opts = {}) {
   if (!arms && opts.shadow !== false) { shadow = new THREE.Mesh(blobGeometry(), kit.blob()); shadow.scale.set(0.95, 1, 0.95); shadow.position.y = 0.015; shadow.renderOrder = 2; root.add(shadow); }
   const rig = { bones, skeleton, meshes, lods, tris, rifle, rifles, shadow, hasRifle: !!rifle, role, M: bones.map(() => new THREE.Matrix4()), w: {}, poses: {}, out: newPose(), t: -1e9, ph: (SEED * 0.37) % 6.28, seed: ((SEED * 0.618034) % 1), lod: 0, cur: '' };
   SEED++;
-  root.userData.rig2 = rig; root.userData.attach = attach; root.userData.rifle = rifle; root.userData.shadow = shadow; root.userData.uniform = ukey; root.userData.helmet = helmet;
+  root.userData.rig2 = rig; root.userData.attach = attach; root.userData.rifle = rifle; root.userData.shadow = shadow; root.userData.uniform = opts.uniform || ukey; root.userData.helmet = opts.helmet || helmet; root.userData.acc = base.acc;
   root.userData.tris = tris; root.userData.size = 2.6;
   if (!arms) animateSoldier(root, rifle ? 'idle' : 'stand', 0, 0, 0, { snap: true });
   return root;

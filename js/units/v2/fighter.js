@@ -126,7 +126,7 @@ function make(nation, lod, fine) {
   k.add(M.frame, wingGeo([{ x: 0, z: 0, c: 0.45, t: 0.08 }, { x: 0.3, z: 0.2, c: 0.18, t: 0.08 }], { n: 2, tip: 'flat' }), 0, by(-2.6) + 0.02, -2.7, [0, 0, -PI / 2]);
   k.sphere(C.lampRed, 0.055, 0, surf(fuse, 3.2, 0.5, 0).y, 3.2, [1, 0.7, 1.5], 8); k.sphere(C.lampRed, 0.055, 0, by(3.5), 3.5, [1, 0.7, 1.5], 8);
   k.tube(C.gun, [0, by(6.2) + 0.03, 6.2], [0, by(8.3) - 0.1, 8.5], 0.045, 6); k.cbox(C.iron, 0.09, 0.12, 0.2, 0.02, 0, by(8.3) - 0.14, 8.58);       // arrestor hook
-  model.nose = { pos: new V3(0, -0.06, -9.5), radius: 0.62 };
+  model.nose = { pos: new V3(0, -0.06, -9.5), radius: 0.42 };
   k.build(g);
   // ---- landing gear: nose leg and two mains, each with its doors and dark bay (hidden with the leg)
   const door = (q, x, y, z, w, l, ang) => q.add(M.bodyDark, cboxGeo(0.03, w, l, 0.012), x, y - Math.cos(ang) * w * 0.5, z, [0, 0, ang]);

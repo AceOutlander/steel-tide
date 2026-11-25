@@ -161,7 +161,7 @@ function makeAttack(nation, lod, fine) {
     }
     // wing tip: fairing and navigation light (Extro carries a short-range missile on a tip rail)
     k.lathe(M.bodyDark, [[-0.6, 0.01], [-0.45, 0.07], [0.3, 0.075], [0.55, 0.02]], 10, s * 3.06, -0.185, -0.02);
-    k.sphere(s < 0 ? C.lampRed : C.lampGreen, 0.045, s * 3.1, -0.17, -0.5, [1, 1, 1.6], 8);
+    k.sphere(s < 0 ? C.lampRed : C.lampGreen, 0.03, s * 3.1, -0.17, -0.52, [1, 1, 1.6], 8);
     if (!A) { k.box(C.gun, 0.05, 0.06, 1.0, s * 3.12, -0.27, 0.0); k.parts(buildAAM(), s * 3.12, -0.37, 0.0, null, 0.52); }
     // main gear: trailing arm, shock strut, wheel
     k.tube(C.gearWhite, [s * 0.84, -0.66, -3.02], [s * 1.14, -1.66, -2.32], 0.075, 10, 0.06);
@@ -190,7 +190,7 @@ function makeAttack(nation, lod, fine) {
   }
   k.cyl(C.iron, 0.13, 0.15, 0.1, 0, 0.2, -5.6, 'y', 12); k.sphere(M.bodyDark, 0.17, 0, 0.36, -5.6, [1, 0.9, 1.05], 12);
   k.cyl(C.gun, 0.085, 0.09, 0.05, 0, 0.37, -5.765, 'z', 10); k.cyl(C.lensGold, 0.07, 0.07, 0.012, 0, 0.37, -5.79, 'z', 10);
-  model.nose = { pos: new V3(0, -0.3, nz - 0.41), radius: 0.3 };
+  model.nose = { pos: new V3(0, -0.26, nz), radius: 0.42 };   // the fuselage nose behind the sensor turret
   // ---- sensors, antennas, lights, fittings
   const top = (z, d = 0) => surf(dog, z, 0.5, d).y;
   k.cyl(C.iron, 0.2, 0.26, 0.22, 0, top(0.2) + 0.08, 0.2, 'y', 14);                                                      // mast fairing
@@ -322,7 +322,7 @@ function makeTransport(nation, lod, fine) {
   k.cyl(C.iron, 0.12, 0.12, 0.08, 0, -1.47, 0.2, 'y', 10); k.torus(C.steel, 0.07, 0.018, 0, -1.56, 0.2, null, 10);
   k.sphere(C.radome, 0.3, 0, -1.25, -6.6, [1, 0.5, 1.5], 12);
   if (fine) for (const s of [-1, 1]) k.box(C.black, 0.02, 0.012, 0.42, s * 0.42, surf(fuse, -7.3, 0.4, 0).y + 0.06, -7.42, [0.9, 0, s * 0.35]);
-  model.nose = { pos: new V3(0, -0.2, -8.0), radius: 0.9 };
+  model.nose = { pos: new V3(0, -0.2, -8.0), radius: 1.0 };
   k.build(g);
   // ---- rotors (counter-rotating, blades interleaved)
   const mk = (hub, spd, phase) => { const r = makeRotor(M, { radius: 9, n: 3, chord: 0.78, axis: 'y', speed: spd, hubR: 0.4, kind: 'main', mast: 0.75, phase, fine }); r.node.position.copy(hub); g.add(r.node); model.spinners.push({ node: r.node, axis: 'y', speed: spd, blades: r.blades, disc: r.disc }); return r; };

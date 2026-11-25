@@ -30,6 +30,13 @@ export class Soldier extends Unit {
     // sprintT > 0: sprinting or still bringing the rifle back up (no firing). airT: seconds off the ground. land: 0..1 knee dip.
     this.shots = 0; this.shotT = -9; this.landN = 0; this.landV = 0; this.sprintT = 0; this.airT = 0; this.land = 0; this._ex = { fire: 9, reload: -1, vy: 0, land: 0, dead: 0, dist: 0, back: false, strafe: 0 };
   }
+  // Looks only: rebuild the figure wearing { helmet, uniform, acc } (keys from js/core/cosmetics.js). The first-person view
+  // reads the uniform back from the model, so the sleeves and gloves follow.
+  setOutfit(outfit) {
+    if (!V2 || !outfit) return;
+    const o = { role: 'marine', helmet: outfit.helmet, uniform: outfit.uniform, acc: outfit.acc }, key = JSON.stringify(o); if (key === this._outfit) return; this._outfit = key; this.outfit = outfit;
+    const old = this.lod0; this.lod0 = buildSoldier(this.nation, o); this.root.remove(old); this.root.add(this.lod0);
+  }
   updateLod(cam) { this.camDist = this.pos.distanceTo(cam); this.root.visible = !this.aboard && this.camDist < this.lodDist * 1.5 && !this.hideBody; }
   eye(out) { return out.set(this.pos.x, this.pos.y + (this.swim ? 0.25 : this.ctl.crouch ? 1.15 : 1.68), this.pos.z); }
   aimDir(out) { const cp = Math.cos(this.lookPitch); return out.set(-Math.sin(this.look) * cp, Math.sin(this.lookPitch), -Math.cos(this.look) * cp); }

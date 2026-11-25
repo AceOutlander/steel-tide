@@ -18,18 +18,18 @@ function make(nation, lod, fine) {
   const k = new Kit(shade);
   // ---- shapes
   const wk = A ? 0.96 : 1, n = 2.3, nb = A ? 2.4 : 2.9;
-  const base = S(-19.4, 1.0 * wk, 0.92, 0.85, 0, n, nb);
-  const fuse = [...ogive(-22, base, 5, 0.66, -0.2), base, S(-17.4, 1.45 * wk, 1.38, 1.2, 0.02, n, nb), S(-14, 1.82 * wk, 1.7, 1.6, 0, n, nb), S(-8, 2.15 * wk, 1.9, 1.85, 0, n, nb), S(0, 2.28 * wk, 1.95, 1.95, 0, n, nb),
-    S(8, 2.1 * wk, 1.85, 1.8, 0, n, nb), S(14, 1.6 * wk, 1.5, 1.4, 0.1, n, n), S(19, 0.9, 1.0, 0.8, 0.3, n, n), S(21.6, 0.36, 0.42, 0.36, 0.48), S(22, 0.12, 0.14, 0.12, 0.5)];
+  const base = S(-19.4, 0.84 * wk, 0.82, 0.76, 0, n, nb);
+  const fuse = [...ogive(-22, base, 5, 0.66, -0.2), base, S(-17.4, 1.2 * wk, 1.26, 1.1, 0.02, n, nb), S(-14, 1.5 * wk, 1.5, 1.4, 0, n, nb), S(-8, 1.75 * wk, 1.65, 1.6, 0, n, nb), S(0, 1.85 * wk, 1.7, 1.7, 0, n, nb),
+    S(8, 1.7 * wk, 1.6, 1.55, 0, n, nb), S(14, 1.3 * wk, 1.3, 1.2, 0.1, n, n), S(19, 0.75, 0.9, 0.7, 0.3, n, n), S(21.6, 0.32, 0.4, 0.34, 0.48), S(22, 0.12, 0.14, 0.12, 0.5)];
   const top = (z) => surf(fuse, z, 0.5, 0).y, bot = (z) => surf(fuse, z, 0, 0).y, edge = (f) => (f < 0.03 ? 0.6 : 1);
   const spine = [[-11, 0.15, 0.08], [-7, 0.42, 0.34], [9, 0.42, 0.34], [13.5, 0.2, 0.1]].map(([z, w, h]) => S(z, w, h, 0.3, top(z) - 0.1, 3, 2));
-  const glove = [{ x: 1.0, y: -0.3, z: -13.6, c: 16.4, t: 0.045 }, { x: 6.3, y: -0.12, z: -2.7, c: 4.9, t: 0.11 }];
-  const shoulder = [{ x: 1.2, y: -0.35, z: 1.0, c: 10.6, t: 0.06 }, { x: 6.1, y: -0.2, z: 1.6, c: 7.2, t: 0.07 }];
+  const glove = [{ x: 0.7, y: -0.3, z: -13.6, c: 16.4, t: 0.045 }, { x: 6.3, y: -0.12, z: -2.7, c: 4.9, t: 0.11 }];
+  const shoulder = [{ x: 0.9, y: -0.35, z: 1.0, c: 10.6, t: 0.06 }, { x: 6.1, y: -0.2, z: 1.6, c: 7.2, t: 0.07 }];
   const PX = 5.2, PY = -0.05, PZ = -0.5;
   const wR = { x: 4.7, y: PY, z: -2.85, c: 5.3, t: 0.09 }, wT = { x: 20.5, y: 0.26, z: -0.2, c: 2.0, t: 0.075 };
   const lip = S(1.6, 1.72, 1.35, 0.8, NY, 5, 5, { x: NX, sk: A ? -0.35 : 0 });
   const nac = [lipSt(lip, 0.06, 0.07), lip, S(3.2, 1.78, 1.45, 0.86, NY, 5, 5, { x: NX }), S(9, 1.72, 1.45, 0.86, NY, 5, 5, { x: NX }), S(11.0, 1.58, 1.05, 0.8, NY, 4, 4, { x: NX })];
-  const FH = 5.9, finY = 1.3, fS = (h) => midSec({ x: 0, z: 10.5, c: 8.5, t: 0.06 }, { x: FH, z: 16.6, c: 3.0, t: 0.06 }, h / FH), RF = 0.7;
+  const FH = 5.9, finY = 1.05, fS = (h) => midSec({ x: 0, z: 10.5, c: 8.5, t: 0.06 }, { x: FH, z: 16.6, c: 3.0, t: 0.06 }, h / FH), RF = 0.7;
   const stabS = [{ x: 0.2, y: 3.3, z: 14.6, c: 4.6, t: 0.06 }, { x: 6.65, y: 3.3, z: 18.3, c: 1.6, t: 0.05 }];
 
   if (lod) {
@@ -98,14 +98,14 @@ function make(nation, lod, fine) {
   for (const [z, up] of [[-6, 1], [3, 1], [-11, -1], [6, -1]]) k.add(M.frame, wingGeo([{ x: 0, z: 0, c: 0.75, t: 0.08 }, { x: 0.5, z: 0.35, c: 0.3, t: 0.08 }], { n: 2, tip: 'flat' }), 0, up > 0 ? top(z) + 0.18 : bot(z) + 0.02, z, [0, 0, (up * PI) / 2]);
   k.sphere(C.lampRed, 0.09, 0, top(-2) + 0.26, -2, [1, 0.7, 1.5], 8); k.sphere(C.lampRed, 0.09, 0, bot(7), 7, [1, 0.7, 1.5], 8);
   if (fine) { for (const s of [-1, 1]) { const v = surf(fuse, -19.2, s > 0 ? 0.22 : 0.78, 0); k.tube(C.steel, [v.x, v.y, v.z], [v.x + s * 0.12, v.y, v.z - 0.5], 0.02, 5, 0.008); } k.cyl(C.red, 0.2, 0.2, 0.012, 0, top(-13.5) + 0.004, -13.5, 'y', 14); }
-  model.nose = { pos: new V3(0, -0.2, -22), radius: 1.05 };
+  model.nose = { pos: new V3(0, -0.2, -22), radius: 0.6 };
   k.build(g);
   // ---- landing gear: nose leg, two four-wheel main bogies
   const door = (q, x, y, z, w, l, ang) => q.add(M.bodyDark, cboxGeo(0.04, w, l, 0.015), x, y - Math.cos(ang) * w * 0.5, z, [0, 0, ang]);
-  const ny = bot(-14) + 1.4, my = -1.05 + 1.0;
-  model.gear.push(gearLeg(M, 0, -1.4, -14, 1.8, 0.5, { twin: true, light: true, brace: -1, fine, extra: (q) => { q.box(C.black, 0.9, 0.012, 2.4, 0, ny - 0.01, 0.3); for (const s of [-1, 1]) door(q, s * 0.5, ny, 0.3, 0.7, 2.4, s * 0.1); } }));
-  for (const s of [-1, 1]) model.gear.push(gearLeg(M, s * 2.0, -1.0, 3, 2.1, 0.6, { twin: true, brace: 1, fine, extra: (q) => {
-    q.cbox(C.gearWhite, 0.16, 0.14, 1.9, 0.03, 0, -2.1, 0.55); for (const wx of [-0.27, 0.27]) { q.add(C.rubber, tyreGeo(0.6, 0.37, 18), wx, -2.1, 1.3); q.cyl(C.gearWhite, 0.35, 0.35, 0.29, wx, -2.1, 1.3, 'x', 14); }
+  const ny = bot(-14) + 1.2, my = -0.62 + 0.6;
+  model.gear.push(gearLeg(M, 0, -1.2, -14, 2.0, 0.5, { twin: true, light: true, brace: -1, fine, extra: (q) => { q.box(C.black, 0.9, 0.012, 2.4, 0, ny - 0.01, 0.3); for (const s of [-1, 1]) door(q, s * 0.5, ny, 0.3, 0.7, 2.4, s * 0.1); } }));
+  for (const s of [-1, 1]) model.gear.push(gearLeg(M, s * 2.1, -0.6, 3, 2.5, 0.6, { twin: true, brace: 1, fine, extra: (q) => {
+    q.cbox(C.gearWhite, 0.16, 0.14, 1.9, 0.03, 0, -2.5, 0.55); for (const wx of [-0.27, 0.27]) { q.add(C.rubber, tyreGeo(0.6, 0.37, 18), wx, -2.5, 1.3); q.cyl(C.gearWhite, 0.35, 0.35, 0.29, wx, -2.5, 1.3, 'x', 14); }
     q.box(C.black, 1.1, 0.012, 3.4, 0, my - 0.02, 0.6); door(q, -s * 0.52, my + 0.05, 0.6, 0.9, 3.4, -s * 0.15);
   } }));
   for (const leg of model.gear) g.add(leg);

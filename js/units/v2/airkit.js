@@ -2,11 +2,13 @@
 // the ordnance models. Axes as everywhere: +Y up, forward = -Z, starboard = +X, metres.
 //
 // MATERIALS (all shared, created once):
-//   paint[nation]  the airframe paint. One UV set in METRES (u runs along the airframe, v across it); the shader lays a
-//                  16 m camouflage tile (turned 20 degrees, so it never lines up with the panels) under a 6 m panel-detail
-//                  tile (panel lines, rivets, hatches, stencils, grime) with matching normal and roughness maps. Vertex
-//                  colours tint it (dark anti-glare panels, lighter undersides, exhaust soot).
-//   trim / metal   vertex-coloured satin paint and bare metal for all the small parts: one draw call each, whatever the colours.
+//   paint[nation]  the airframe paint. One UV set in METRES (u runs along the airframe, v across it). Its map is a 16 m
+//                  camouflage tile (turned 20 degrees, so it never lines up with the panels); the shader lays an 8 m
+//                  panel-detail tile over it (panel lines, rivets, hatches, stencils, grime) with matching normal and
+//                  roughness maps. Vertex colours tint it (dark frames and anti-glare panels, lighter undersides, exhaust
+//                  soot). Paint schemes (js/gfx/paint.js) repaint the camouflage map, so they recolour the whole airframe.
+//   trim / metal   vertex-coloured satin paint and bare metal for all the small parts: one draw call each, whatever the
+//                  colours. Paint schemes leave them alone (see their names below).
 //   lamp           unlit vertex-coloured (navigation lights, lenses).
 //   glass / glassDark  tinted canopy glass that turns mirror-like at grazing angles, and opaque dark glazing for windows.
 // GEOMETRY: loft() (smooth body through cross-section stations), wingGeo() (real aerofoil sections), latheZ(), cboxGeo(),
@@ -224,6 +226,15 @@ function drawDisc(ctx, w, h, n, tip) {
 
 const DETAIL_M = 8, CAMO_M = 16;
 const CAMO_ROT = 0.35;
+// Geometry rebuilt without its vertex colours (the wreckage cutter keeps only position, normal and uv) would draw black:
+// treat an all-zero vertex colour as "no tint" instead. Real tints here are never exactly zero.
+const COLOR_FRAG = `#if defined( USE_COLOR )
+  diffuseColor.rgb *= ( vColor.r + vColor.g + vColor.b < 0.0001 ) ? vec3( 1.0 ) : vColor.rgb;
+#endif`;
+class Fitting extends THREE.MeshStandardMaterial { // vertex-coloured small parts; a class so that clones keep the shader patch
+  constructor(o) { super(o); }
+  onBeforeCompile(sh) { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', COLOR_FRAG); }
+}
 // `map` is the camouflage (so the paint schemes in js/gfx/paint.js, which repaint a material's map, recolour the whole
 // airframe); the panel detail is a second texture laid over it at its own scale: 0.5 = neutral, darker and lighter marks.
 class AirPaint extends THREE.MeshStandardMaterial {
@@ -233,6 +244,7 @@ class AirPaint extends THREE.MeshStandardMaterial {
     sh.uniforms.tDetail = { value: this.detailMap };
     const k = CAMO_M / DETAIL_M, c = (Math.cos(CAMO_ROT) * k).toFixed(4), s = (Math.sin(CAMO_ROT) * k).toFixed(4); // undo the camo tile's scale and turn
     sh.fragmentShader = sh.fragmentShader
+      .replace('#include <color_fragment>', COLOR_FRAG)
       .replace('#include <map_pars_fragment>', '#include <map_pars_fragment>\nuniform sampler2D tDetail;')
       .replace('#include <map_fragment>', `#ifdef USE_MAP
         vec3 stCamo = texture2D( map, vMapUv ).rgb;
@@ -244,8 +256,8 @@ class AirPaint extends THREE.MeshStandardMaterial {
 
 // The names end in "insignia" on purpose: js/gfx/paint.js then treats these as markings, not paint, and (having no
 // texture) leaves them alone, so tyres, pilots, gun barrels and glazing keep their own colours under any paint scheme.
-export const trim = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.12 }); trim.name = 'airTrim.fittings.insignia';
-export const metal = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.82 }); metal.name = 'airMetal.fittings.insignia';
+export const trim = new Fitting({ vertexColors: true, roughness: 0.6, metalness: 0.12 }); trim.name = 'airTrim.fittings.insignia';
+export const metal = new Fitting({ vertexColors: true, roughness: 0.44, metalness: 0.62 }); metal.name = 'airMetal.fittings.insignia';
 export const lamp = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }); lamp.name = 'airLamp';
 
 /** A material with a colour: what every Kit call takes as its first argument. k scales the brightness (lamps above 1 glow). */

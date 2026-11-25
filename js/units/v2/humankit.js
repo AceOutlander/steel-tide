@@ -72,6 +72,12 @@ export const UNIFORMS = {
   battle: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: 0x8a8672, vest: 'flak', vestCol: NAT[n].flak, belt: BELT }),
   flightsuit: (n) => ({ cloth: 'plain', top: NAT[n].flight, bottom: NAT[n].flight, glove: NAT[n].glove, vest: 'harness', vestCol: NAT[n].web, pouchCol: NAT[n].pouch, belt: NAT[n].web, zip: true }),
   jersey: (n, o) => { const j = JERSEY[o.jersey] ?? JERSEY.yellow; return { cloth: 'plain', top: j, bottom: NAT[n].deck, glove: 0x86704c, vest: 'float', vestCol: j, vestShade: 0.78, belt: BELT, tintTop: true }; },
+  // looks sold in the Hangar
+  arctic: (n) => ({ cloth: 'plain', top: 0xdde1e4, bottom: 0xd0d5d9, glove: 0x2b2e31, vest: null, belt: NAT[n].web, fur: 0x8f7d66, pockets: true }),
+  tacops: (n) => ({ ...UNIFORMS.fatigues(n), vestCol: 0x1b1d1f, pouchCol: 0x25282a, glove: 0x151617, belt: 0x151617, kneeboard: true }),
+  dress: (n) => ({ cloth: 'plain', top: n === 'aethia' ? 0xe2e2dd : 0x25342d, bottom: n === 'aethia' ? 0x1c2535 : 0x141917, glove: 0xe6e6e2, vest: null, belt: n === 'aethia' ? 0xe6e6e2 : 0x121212, shirt: true, ribbons: true, sword: true }),
+  drysuit: (n) => ({ cloth: 'plain', top: 0x17191b, bottom: 0x17191b, glove: 0x0e0f10, vest: null, belt: 0x25282b, weights: true, fins: true, stripe: n === 'aethia' ? 0x3a6ea8 : 0x1f7a66 }),
+  heavy: (n) => ({ ...UNIFORMS.fatigues(n), vestCol: n === 'aethia' ? 0x3c444d : 0x1a1f1e, plates: true }),
 };
 // what each role wears unless opts.uniform / opts.helmet say otherwise
 export const ROLES = {
@@ -91,9 +97,10 @@ export function uniformDef(nation, key, opts = {}) {
   return u;
 }
 // names used by the cosmetics shop (js/core/cosmetics.js) for the looks that exist so far; unknown keys fall back to the role's own
-export const UNIFORM_ALIAS = { standard: 'fatigues', deckcrew: 'jersey', flight: 'flightsuit', officer: 'khaki' };
-export const HELMET_ALIAS = { standard: 'combat', deckcrew: 'cranial', officer: 'cap' };
-export const HELMETS = ['combat', 'cap', 'cranial', 'flight', 'none'];
+export const UNIFORM_ALIAS = { standard: 'fatigues', deckcrew: 'jersey', flight: 'flightsuit', officer: 'dress', diver: 'drysuit' };
+export const HELMET_ALIAS = { standard: 'combat', deckcrew: 'cranial', officer: 'peaked' };
+export const HELMETS = ['combat', 'cap', 'cranial', 'flight', 'none', 'arctic', 'tacops', 'peaked', 'diver', 'heavy'];
+export const ACCESSORIES = ['tacpack', 'parachute', 'oxygen', 'dualoxygen', 'magpouches', 'radio', 'grenades', 'flaregun', 'diveknife', 'sidearm', 'gasmask', 'binoculars', 'kneepads', 'shoulderpads', 'padset', 'dogtags', 'chemlights'];
 export function helmetColor(nation, key) { const k = NAT[nation]; return key === 'flight' ? k.flightHelmet : key === 'cap' ? k.cap : k.helmet; }
 
 /* ------------------------------------------------------------------ faces */
