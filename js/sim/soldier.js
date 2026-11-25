@@ -8,7 +8,7 @@ import { WEAPONS } from '../core/config.js';
 import { V3, clamp, wrapPi, rand } from '../core/util.js';
 import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
-import { buildSoldier, animateSoldier } from '../units/marine.js';
+import { buildSoldier, animateSoldier } from '../units/human.js';
 import { surfaceBelow, deckUnder, blocked } from './surface.js';
 
 const _a = new V3(), _b = new V3(), _l = new V3(), _q = new THREE.Quaternion(), YA = new V3(0, 1, 0);

@@ -12,12 +12,14 @@ import { world } from './world/world.js';
 import { battle } from './world/battle.js';
 import { weapons } from './sim/weapons.js';
 import { player } from './sim/player.js';
-import { crew } from './sim/crew.js';
+import { crew } from './sim/crewpick.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
 
 const STEP = 1 / 60, _a = new V3(), _b = new V3();
 let last = 0, acc = 0, fpsT = 0, fpsN = 0, fpsWatch = 0, orbit = 0, deadT = 0;
+let fpview = null;
+if (/[?&]v2/.test(location.search)) import('./sim/v2/fpview.js').then((m) => { fpview = m.fpview; }).catch((e) => console.warn('v2 first-person view not loaded: ' + e.message));
 const wakeList = [], shipList = [];
 
 export const app = {
@@ -46,7 +48,7 @@ export const app = {
         const q = new URLSearchParams(location.search);
         // Ctrl is the plane's throttle-down key and Ctrl+W closes a browser tab: ask before leaving a battle
         addEventListener('beforeunload', (e) => { if (this.state === 'battle' && !input.noLock) { e.preventDefault(); e.returnValue = ''; } });
-        if (q.has('devtest')) import('./debug.js').then((m) => { window.__steelTide.dev = m.dev; });
+        if (q.has('devtest') || q.has('debugtest')) import('./debug.js').then((m) => { window.__steelTide.dev = m.dev; });
         if (q.has('auto')) this.play(q.get('nation') || save.data.last.nation, q.get('auto'), { dock: q.has('dock') });
         last = performance.now(); requestAnimationFrame((t) => this.frame(t));
       } catch (e) { console.error(e); txt.textContent = 'Could not start: ' + e.message; }
@@ -134,7 +136,9 @@ export const app = {
     if (focus) gfx.focusShadow(pu && pu.kind === 'soldier' ? pu.pos : focus.pos, focus.dims ? Math.max(focus.dims.length * 0.62, 40) : 60);
     this.audioScene(dt, cam);
     if (this.state === 'battle' || this.state === 'dead') hud.update(dt);
+    if (fpview) fpview.update(sim ? dt : 0, player, gfx);
     gfx.render();
+    if (fpview) fpview.render(gfx);
     for (let i = 0; i < U.length; i++) U[i].popRender();
   },
   attractCamera(dt) {

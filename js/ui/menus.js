@@ -9,7 +9,7 @@ import { el, KTS } from '../core/util.js';
 import { world } from '../world/world.js';
 import { BUILDERS } from '../sim/factory.js';
 import { battle } from '../world/battle.js';
-import { buildSoldier, animateSoldier } from '../units/marine.js';
+import { buildSoldier, animateSoldier } from '../units/human.js';
 
 let app = null, root = null, cur = null, stack = [];
 let nation = 'aethia', unit = 'patrol', startDock = false, opts = {};
