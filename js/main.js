@@ -44,6 +44,8 @@ export const app = {
         this.state = 'menu'; menus.show('title'); el('boot').hidden = true;
         audio.setVolumes(save.settings.sfx, save.settings.music);
         const q = new URLSearchParams(location.search);
+        // Ctrl is the plane's throttle-down key and Ctrl+W closes a browser tab: ask before leaving a battle
+        addEventListener('beforeunload', (e) => { if (this.state === 'battle' && !input.noLock) { e.preventDefault(); e.returnValue = ''; } });
         if (q.has('devtest')) import('./debug.js').then((m) => { window.__steelTide.dev = m.dev; });
         if (q.has('auto')) this.play(q.get('nation') || save.data.last.nation, q.get('auto'), { dock: q.has('dock') });
         last = performance.now(); requestAnimationFrame((t) => this.frame(t));

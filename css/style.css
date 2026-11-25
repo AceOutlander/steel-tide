@@ -132,3 +132,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #h-lead i { left: -.55em; top: -.55em; width: 1.1em; height: 1.1em; box-sizing: border-box; border: 2px solid #ffd35a; border-radius: 50%; } #h-lead i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px; background: #ffd35a; border-radius: 50%; }
 #h-lead span { position: absolute; top: .9em; left: -6em; width: 12em; text-align: center; font-size: .7em; color: #ffd35a; text-shadow: 0 1px 2px #000; white-space: nowrap; }
 .fall span { position: absolute; top: -2.6em; left: -6em; width: 12em; text-align: center; font-size: .8em; font-weight: 700; letter-spacing: .1em; color: #fff; text-shadow: 0 1px 3px #000; white-space: nowrap; } .fall.hit span { color: #ff6b5e; }
+/* flight-path marker: where the plane is actually going */
+#h-fpm i { left: -.45em; top: -.45em; width: .9em; height: .9em; box-sizing: border-box; border: 1.5px solid #7dffa0; border-radius: 50%; box-shadow: 0 0 2px #000; }
+#h-fpm i::before, #h-fpm i::after { content: ""; position: absolute; top: 50%; width: .7em; height: 1.5px; margin-top: -1px; background: #7dffa0; } #h-fpm i::before { right: 100%; } #h-fpm i::after { left: 100%; }

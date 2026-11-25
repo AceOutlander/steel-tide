@@ -33,11 +33,11 @@ export const hud = {
       <div id="h-weap" class="hud-box"></div>
       <div id="h-cross"></div><div id="h-hitx" hidden></div><div id="h-dmg" hidden></div><div id="h-dirs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div id="h-lead" class="mark" hidden><i></i><span></span></div><div id="h-fall0" class="mark fall" hidden><span></span></div><div id="h-fall1" class="mark fall" hidden><span></span></div><div id="h-fall2" class="mark fall" hidden><span></span></div>
-      <div id="h-nose" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
+      <div id="h-nose" class="mark" hidden><i></i></div><div id="h-fpm" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
       <div id="h-stick" hidden><i></i></div>
       <div id="h-warn"></div><div id="h-prompt" hidden></div><div id="h-msg" hidden></div><div id="h-hint"></div>
       <div id="h-map" hidden><div class="mapwrap"><canvas width="640" height="640"></canvas><div class="scoreboard" id="h-sb"></div></div></div>`;
-    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
+    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
@@ -60,7 +60,10 @@ export const hud = {
     if (E.cross._c !== rc) { E.cross.className = rc; E.cross._c = rc; }
     this.feedback(u, veh, dt);
     E.cross.hidden = !u.alive || (u.kind === 'soldier' && !!u.aboard);
-    if (jet && u.state === 'fly') { u.fwd(_v).multiplyScalar(900).add(u.pos); place(E.nose, _v.clone()); } else E.nose.hidden = true;
+    if (jet && u.state === 'fly' && u.alive) {
+      u.fwd(_v).multiplyScalar(900).add(u.pos); place(E.nose, _v);                       // where the nose (and the guns) point
+      const sp = u.vel.length(); if (sp > 30) { _v.copy(u.vel).multiplyScalar(900 / sp).add(u.pos); place(E.fpm, _v); } else E.fpm.hidden = true; // where the plane is going
+    } else { E.nose.hidden = true; E.fpm.hidden = true; }
     if ((jet || heli) && u.lockTarget && u.lockTarget.alive) { if (place(E.lock, u.lockTarget.pos)) { E.lock.classList.toggle('locked', u.locked); E.lock.lastChild.textContent = u.locked ? 'LOCKED: FIRE' : 'LOCKING'; } } else E.lock.hidden = true;
     // the unit under the reticle: name, type, range and health for an enemy; a hold-fire note for one of ours
     const tg = at || fr;

@@ -16,10 +16,13 @@ import { battle } from '../world/battle.js';
 import { segSolid, inBounds, clearT, crowded, aboveWater, bridgeEye, buildCockpit, cut, fadeVeil } from './camrig.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3(), _f = new V3(), _g = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
+// how each plane answers the stick: resp = how fast inputs build (1/s), bank = the bank angle A/D hold (rad)
+const FEEL = { fighter: { resp: 6, bank: 1.31 }, recon: { resp: 3.6, bank: 1.08 }, bomber: { resp: 2.4, bank: 0.87 } };
 const MODES = { ship: ['chase', 'first', 'gunner'], sub: ['chase', 'first'], jet: ['chase', 'first'], heli: ['chase', 'first'], soldier: ['first', 'chase'] };
 
 export const player = {
   unit: null, yaw: 0, pitch: 0, mode: 'chase', zoom: 0, aimPoint: new V3(), aimDir: new V3(0, 0, -1), aimTarget: null, stick: { x: 0, y: 0 },
+  lookYaw: 0, lookPitch: 0, lookIdle: 0, jp: 0, jt: 0,
   aimFriend: null, lmb: false, lmbHit: false, leadPoint: new V3(), leadT: 0, showLead: false,
   prompt: '', hint: '', scope: false, camShake: 0, _off: new V3(), _pullT: 1, _camTag: '', _camUnit: null, _cockUnit: null, bombPoint: new V3(), showBomb: false, lockDef: null, soldier: null,
 
@@ -39,7 +42,10 @@ export const player = {
     if (input.tap('camera')) { const l = MODES[u.kind]; this.mode = l[(l.indexOf(this.mode) + 1) % l.length]; if (this.mode === 'gunner' && !u.mounts.some((m) => m.key === u.selKey)) this.mode = 'chase'; this.scope = false; }
     this.zoom = damp(this.zoom, input.rmb ? 1 : 0, 10, dt);
     const heli = u.kind === 'heli' && u.state === 'fly';
-    if (!heli) { this.yaw = wrapPi(this.yaw - input.mx * sens); this.pitch = clamp(this.pitch - input.my * sens * (s.invertY ? -1 : 1), -1.45, 1.45); }
+    if (u.kind === 'jet' && u.state === 'fly') {
+      if (input.mx || input.my) { this.lookIdle = 2.5; this.lookYaw = clamp(this.lookYaw - input.mx * sens, -2.7, 2.7); this.lookPitch = clamp(this.lookPitch - input.my * sens * (s.invertY ? -1 : 1), -1.2, 1.2); }
+      else if ((this.lookIdle -= dt) <= 0) { this.lookYaw = damp(this.lookYaw, 0, 3.5, dt); this.lookPitch = damp(this.lookPitch, 0, 3.5, dt); }
+    } else if (!heli) { this.yaw = wrapPi(this.yaw - input.mx * sens); this.pitch = clamp(this.pitch - input.my * sens * (s.invertY ? -1 : 1), -1.45, 1.45); }
     // weapon selection: number keys and the wheel
     const keys = u.kind === 'jet' || u.kind === 'heli' ? u.def.weapons : u.kind === 'sub' ? (u.tubes ? ['torpedo'] : []) : u.kind === 'soldier' ? ['rifle'] : u.weaponKeys();
     for (let i = 0; i < 4; i++) if (input.tap('weapon' + (i + 1)) && keys[i]) { u.selKey = keys[i]; audio.play('click'); }
@@ -83,34 +89,46 @@ export const player = {
   },
 
   // ---- jets ------------------------------------------------------------------------------------------------------------------
+  // Planes fly on the keys: W nose down, S nose up, A/D a coordinated banked turn, Q/E rudder, Shift/Ctrl throttle.
+  // The mouse only looks around. Guns and missiles follow the nose.
   jet(u, dt) {
-    const c = u.ctl;
-    c.throttle = clamp(c.throttle + input.axis('throttleDown', 'throttleUp') * dt * 0.7, 0, 1); c.ab = input.on('afterburner');
+    const c = u.ctl, s = save.settings, F = FEEL[u.type] || FEEL.fighter;
+    c.throttle = clamp(c.throttle + input.axis('jetThrottleDown', 'jetThrottleUp') * dt * 0.7, 0, 1);
+    c.ab = u.type === 'fighter' && input.on('jetThrottleUp') && c.throttle >= 0.995; // keep holding past 100%
     if (input.tap('gear') && u.state === 'fly') { u.gearDown = !u.gearDown; world.say(u.gearDown ? 'Gear down' : 'Gear up', 'info'); }
     if (input.tap('flares')) weapons.dropFlares(u);
     if (input.tap('cloak') && u.def.cloak) { u.toggleCloak(); world.say(u.cloaked ? 'Cloak on' : u.cloakCd > 0 ? 'Cloak recharging' : 'Cloak off', 'info'); }
-    const cp = Math.cos(this.pitch); this.aimDir.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp);
+    this.hint = 'W/S nose down/up  A/D turn  Q/E rudder  Shift/Ctrl throttle' + (u.type === 'fighter' ? ' (hold Shift for afterburner)' : '') + '  Mouse look  G gear  X flares' + (u.def.cloak ? '  C cloak' : '') + '  LMB fire';
     if (u.state === 'deck') {
-      const cv = u.carrier; this.yaw = wrapPi(cv.yaw + u.deckYaw); this.pitch = 0.02;
+      const cv = u.carrier; this.yaw = wrapPi(cv.yaw + u.deckYaw); this.pitch = 0.02; this.lookYaw = this.lookPitch = 0; this.jp = this.jt = 0;
       const onCat = cv.model.catapults.find((k) => k.pos.distanceTo(u.deckLocal) < 3);
-      if (onCat) { this.prompt = 'Hold <kbd>W</kbd> to full throttle: the catapult fires at 100%'; if (c.throttle >= 0.99) { u.launch(onCat); this.pitch = 0.1; } }
+      if (onCat) { this.prompt = 'Hold <kbd>Shift</kbd> to full throttle: the catapult fires at 100%'; if (c.throttle >= 0.99) { u.launch(onCat); } }
       else { this.prompt = '<kbd>E</kbd> Taxi to the catapult'; c.throttle = 0; if (input.tap('use')) { const k = cv.model.catapults[0]; u.park(cv, k.pos, k.yaw); u.gearDown = true; } }
       return;
     }
-    if (u.state !== 'fly') { c.pitch = 0.1; c.roll = 0; c.yaw = 0; this.yaw = u.yaw; this.pitch = 0.12; return; }
-    if (u.gSmooth > 6.5) gfx.shake((u.gSmooth - 6.5) * 0.9 * dt); // buffet in a very hard turn
-    if (world.t - (u.launchT || -9) < 1.2) { this.yaw = u.yaw; this.pitch = 0.14; }
-    const kp = input.axis('pitchDown', 'pitchUp'), kr = input.axis('rollLeft', 'rollRight');
-    if (kp || kr) { c.pitch = kp; c.roll = kr; c.yaw = 0; u.fwd(_f); this.yaw = Math.atan2(-_f.x, -_f.z); this.pitch = Math.asin(clamp(_f.y, -1, 1)); }
-    else flyToward(u, this.aimDir, c);
-    c.yaw = clamp(c.yaw + input.axis('right', 'left') * 1, -1, 1);
-    // weapons
-    const w = u.fw[u.selKey]; u.fwd(_f);
+    u.fwd(_f); const hy = Math.atan2(-_f.x, -_f.z), hp = Math.asin(clamp(_f.y, -1, 1));
+    if (u.state !== 'fly') { c.pitch = 0.1; c.roll = 0; c.yaw = 0; this.yaw = hy; this.pitch = 0.12; this.lookYaw = this.lookPitch = 0; return; }
+    this.yaw = wrapPi(hy + this.lookYaw); this.pitch = clamp(hp + this.lookPitch, -1.45, 1.45); // where the camera looks
+    // stick: inputs build up smoothly, faster in the fighter than in the bomber
+    let kp = input.axis('jetPitchDown', 'jetPitchUp'); if (s.invertPlane) kp = -kp;
+    const kt = input.axis('jetLeft', 'jetRight');
+    this.jp = damp(this.jp, kp, F.resp, dt); this.jt = damp(this.jt, kt, F.resp, dt);
+    _a.set(1, 0, 0).applyQuaternion(u.quat); _b.set(0, 1, 0).applyQuaternion(u.quat);
+    const bank = Math.atan2(-_a.y, _b.y), steep = Math.abs(_f.y) > 0.9; // bank > 0: right wing down
+    // A/D hold a bank angle; letting go levels the wings. Near the vertical the keys roll the aircraft directly.
+    c.roll = steep ? this.jt : clamp((this.jt * F.bank - bank) * 2.6, -1, 1);
+    // the pull a banked turn needs to keep the nose on the horizon and bring it round (a level turn at this bank and speed)
+    let pull = 0;
+    if (!steep && _b.y > 0.1) { const sp = Math.max(u.speed, 30), b2 = clamp(Math.abs(bank), 0, 1.4), maxQ = Math.max(0.05, Math.min(u.def.pitchRate, (u.def.gLimit * 9.81) / sp) * clamp((sp - u.def.stall * 0.45) / (u.def.stall * 0.9), 0.08, 1)); pull = clamp((9.81 * Math.tan(b2) * Math.sin(b2)) / sp / maxQ * 1.3, 0, 0.95); } // a little over the textbook figure: the flight path lags the nose
+    if (world.t - (u.launchT || -9) < 1.4 && !kp) this.jp = Math.max(this.jp, 0.35); // off the catapult: a little back-stick so it climbs away
+    c.pitch = clamp(this.jp + pull, -1, 1);
+    c.yaw = clamp(input.axis('jetRudderRight', 'jetRudderLeft') * 0.3 - this.jt * 0.3, -1, 1); // gentle rudder for small corrections, plus a touch into the turn
+    // weapons point where the nose points
+    const w = u.fw[u.selKey];
     if (w && w.def.type === 'missile') { this.lockDef = w.def; const had = u.locked; seekLock(u, w.def, _f, dt, true); if (u.locked && !had) audio.play('lockTone'); else if (u.lockTarget && !u.locked && (this._bt = (this._bt || 0) - dt) < 0) { this._bt = 0.3; audio.play('lock'); } }
     else { u.lockTarget = null; u.locked = false; }
     if (w && w.def.type === 'bomb') { this.showBomb = true; u.bombImpact(this.bombPoint); }
     if (w && (w.def.type === 'missile' ? this.lmbHit : this.lmb)) { if (!u.fire() && this.lmbHit) audio.play('click'); }
-    this.hint = 'Mouse steer  W/S throttle  Shift afterburner  A/D rudder  G gear  X flares' + (u.def.cloak ? '  C cloak' : '') + '  LMB fire';
   },
 
   // ---- helicopters -----------------------------------------------------------------------------------------------------------
@@ -206,10 +224,10 @@ export const player = {
       }
       cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     } else if (u.kind === 'jet') {
-      if (this.mode === 'first') { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); near = 0.1; cockpit = true; }
+      if (this.mode === 'first') { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); if (u.state === 'fly') { _e.set(this.lookPitch, this.lookYaw, 0, 'YXZ'); cam.quaternion.multiply(_q.setFromEuler(_e)); } near = 0.1; cockpit = true; }
       else {
         const dist = view.chase || 30, h = view.chaseH || 6, fly = u.state === 'fly';
-        u.fwd(_f); _b.copy(_f).lerp(_d, fly ? 0.55 : 0).normalize();
+        u.fwd(_f); _b.copy(fly ? _d : _f);
         // the camera keeps a smoothed offset from the aircraft, so its distance does not change with speed
         _a.copy(_b).multiplyScalar(-dist); _a.y += h;
         if (snap) this._off.copy(_a); else this._off.lerp(_a, 1 - Math.exp(-7 * dt));

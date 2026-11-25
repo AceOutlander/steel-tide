@@ -75,7 +75,7 @@ export const dev = {
   tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
   spawn(type, nation = 'aethia', opts = {}) { const s = S(); s.app.play(nation, type, opts); s.app.advance(0.5); return s.player.unit; },
   // put a freshly spawned jet in the air: taxi, launch, climb away for `secs`
-  fly(secs = 8) { const s = S(), u = s.player.unit; if (u.kind === 'jet') { if (u.state === 'deck') { this.tapKey('KeyE'); s.input._press(S().flyKey || 'KeyW'); s.app.advance(4); } s.app.advance(secs); } else if (u.kind === 'heli') { s.input._press('KeyW'); s.app.advance(secs + 6); s.input._release('KeyW'); } return u.state; },
+  fly(secs = 8) { const s = S(), u = s.player.unit; if (u.kind === 'jet') { if (u.state === 'deck') { this.tapKey('KeyE'); s.input._press('ShiftLeft'); s.app.advance(4); } s.app.advance(secs); s.input._release('ShiftLeft'); } else if (u.kind === 'heli') { s.input._press('KeyW'); s.app.advance(secs + 6); s.input._release('KeyW'); } return u.state; },
   // Run camera scenarios and tile the results. Each scenario: { t: label, run(dev, S): set the game up; may return false to skip }
   shots(list, cols = 3) {
     const s = S(), src = gfx.renderer.domElement, { ctx, w, h } = canvas(cols, Math.ceil(list.length / cols)), out = [];

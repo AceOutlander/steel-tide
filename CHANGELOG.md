@@ -1,5 +1,25 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.1.6 (plane controls)
+
+- Planes fly on the keys: W nose down, S nose up, A / D a coordinated banked turn (the wings hold a bank angle, the
+  nose is pulled round automatically, a touch of rudder goes in, and letting go levels the wings), Q / E gentle rudder,
+  Shift throttle up, Ctrl throttle down. On the fighter, holding Shift past 100% lights the afterburner. Arrow keys
+  also work for pitch and turn. The mouse only looks around and eases back to straight ahead after 2.5 seconds.
+- New setting: "Invert aircraft pitch (W = nose up)", off by default.
+- Each plane answers differently. From level flight at cruise speed, holding D for 8 seconds: fighter 81 degrees of
+  turn at 75 degrees of bank and 4 g; recon plane 52 degrees at 62; bomber 32 degrees at 50. Holding D and S together
+  the fighter comes round 150 degrees in 5 seconds at 9 g. Hands off, a plane holds its heading and height. The recon
+  plane was retuned to sit between the other two (5.5 g, was 3.5).
+- Stall, g limits and speed-dependent response are the flight model's own and are unchanged.
+- HUD: the cross marker is where the nose and guns point; a new green winged circle is where the plane is actually
+  going. Hints, How to Play and the key list in Settings show the new keys; the catapult prompt says Shift.
+- Carrier work: the catapult fires at full throttle (hold Shift) and gives a little back-stick for the first second.
+  A scripted approach flown only with these keys trapped the recon plane and the bomber; the same crude script
+  overflew the deck in the fighter, so the fighter's landing is not proven by test.
+- Ctrl+W closes a browser tab and a page cannot stop that, so the game now asks before leaving during a battle.
+- Computer-flown planes are unchanged. There is no "F to exit" for planes in this game, so nothing was kept for it.
+
 ## Beta 0.1.5 (targeting feedback, aiming help, survivability)
 
 - Reticle: red over an enemy, green over one of your own, white over nothing. The catch area is generous (about 2.4

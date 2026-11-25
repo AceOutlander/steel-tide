@@ -1,7 +1,7 @@
 // Game data: nations, unit classes, weapons. Both nations share identical stats; only looks and names differ.
 import { KTS } from './util.js';
 
-export const VERSION = 'Beta 0.1.5';
+export const VERSION = 'Beta 0.1.6';
 export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {
@@ -48,7 +48,7 @@ export const UNITS = {
     blurb: 'A cannon, short-range heat-seekers and medium-range radar missiles in a low-observable airframe.' },
   bomber: { key: 'bomber', label: 'Heavy Bomber', cat: 'Air', kind: 'jet', role: 'Strike: free-fall bombs, radar cloak', crew: 4, speed: 330, cruise: 230, stall: 74, hp: 260, armor: 0, radar: 8000, sig: 1.3, gLimit: 4, rollRate: 1.3, pitchRate: 0.6, thrust: 11, abThrust: 20, drag: 0.00019, weapons: ['bomb'], flares: 16, cloak: { time: 22, cooldown: 40 }, score: 6,
     blurb: 'Swing-wing heavy bomber. Bombs only, plus a time-limited radar cloak. Fly low and turn hard to shake SAM locks.' },
-  recon: { key: 'recon', label: 'Recon Plane', cat: 'Air', kind: 'jet', role: 'Airborne radar picket', crew: 6, speed: 240, cruise: 180, stall: 55, hp: 150, armor: 0, radar: 26000, sig: 1.5, gLimit: 3.5, rollRate: 1.2, pitchRate: 0.55, thrust: 9, abThrust: 12, drag: 0.00024, weapons: [], flares: 14, score: 4,
+  recon: { key: 'recon', label: 'Recon Plane', cat: 'Air', kind: 'jet', role: 'Airborne radar picket', crew: 6, speed: 240, cruise: 180, stall: 55, hp: 150, armor: 0, radar: 26000, sig: 1.5, gLimit: 5.5, rollRate: 2.0, pitchRate: 0.85, thrust: 9, abThrust: 12, drag: 0.00024, weapons: [], flares: 14, score: 4,
     blurb: 'Very long radar range. Everything it sees appears on the radar of its whole side. No weapons.' },
   transport: { key: 'transport', label: 'Transport Helicopter', cat: 'Air', kind: 'heli', role: 'Marine assault lift', crew: 3, speed: 78, hp: 240, armor: 0, radar: 5000, sig: 1.1, seats: 8, weapons: [], flares: 10, score: 3,
     blurb: 'Twin-rotor heavy lift. Carries marines to helipads, decks and islands.' },
@@ -94,18 +94,20 @@ export const DIFFICULTY = {
 export const DEFAULT_KEYS = {
   throttleUp: ['KeyW'], throttleDown: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
   rise: ['KeyR', 'Space'], dive: ['KeyF', 'ControlLeft'], periscope: ['KeyP'], ping: ['KeyQ'],
-  afterburner: ['ShiftLeft', 'ShiftRight'], gear: ['KeyG'], flares: ['KeyX'], cloak: ['KeyC'],
+  gear: ['KeyG'], flares: ['KeyX'], cloak: ['KeyC'],
   run: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', 'ControlLeft'], jump: ['Space'],
   use: ['KeyE'], camera: ['KeyV'], map: ['Tab'], pause: ['Escape'], takeControls: ['KeyT'], launchSub: ['KeyU'], reload: ['KeyR'],
-  pitchDown: ['ArrowUp'], pitchUp: ['ArrowDown'], rollLeft: ['ArrowLeft'], rollRight: ['ArrowRight'],
+  // fixed-wing aircraft: W/S pitch, A/D a banked turn, Q/E rudder, Shift/Ctrl throttle (the mouse only looks around)
+  jetPitchDown: ['KeyW', 'ArrowUp'], jetPitchUp: ['KeyS', 'ArrowDown'], jetLeft: ['KeyA', 'ArrowLeft'], jetRight: ['KeyD', 'ArrowRight'],
+  jetRudderLeft: ['KeyQ'], jetRudderRight: ['KeyE'], jetThrottleUp: ['ShiftLeft', 'ShiftRight'], jetThrottleDown: ['ControlLeft', 'ControlRight'],
   weapon1: ['Digit1'], weapon2: ['Digit2'], weapon3: ['Digit3'], weapon4: ['Digit4'],
 };
 export const KEY_LABELS = {
   throttleUp: 'Throttle up / forward / collective up', throttleDown: 'Throttle down / back / collective down', left: 'Steer or rudder left / strafe left', right: 'Steer or rudder right / strafe right',
   rise: 'Submarine: rise', dive: 'Submarine: dive', periscope: 'Submarine: periscope', ping: 'Submarine: active sonar ping',
-  afterburner: 'Jet: afterburner', gear: 'Jet: landing gear', flares: 'Aircraft: flares and chaff', cloak: 'Bomber: cloak',
+  jetPitchDown: 'Plane: nose down', jetPitchUp: 'Plane: nose up', jetLeft: 'Plane: turn left', jetRight: 'Plane: turn right', jetRudderLeft: 'Plane: rudder left', jetRudderRight: 'Plane: rudder right',
+  jetThrottleUp: 'Plane: throttle up (hold past 100% for afterburner)', jetThrottleDown: 'Plane: throttle down', gear: 'Plane: landing gear', flares: 'Aircraft: flares and chaff', cloak: 'Bomber: cloak',
   run: 'Marine: run', crouch: 'Marine: crouch', jump: 'Marine: jump', use: 'Get in or out / take a gun', camera: 'Change camera', map: 'Score and map', pause: 'Pause',
   takeControls: 'Helicopter passenger: take the controls', launchSub: 'Battlecruiser: board and launch the docked sub', reload: 'Marine: reload',
-  pitchDown: 'Aircraft: nose down', pitchUp: 'Aircraft: nose up', rollLeft: 'Aircraft: roll left', rollRight: 'Aircraft: roll right',
   weapon1: 'Weapon 1', weapon2: 'Weapon 2', weapon3: 'Weapon 3', weapon4: 'Weapon 4',
 };
