@@ -19,7 +19,7 @@ const insignia = (n) => n === 'aethia'
   ? '<svg class="insig" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#1d4f8f"/><circle cx="50" cy="50" r="31" fill="#f4f7fa"/><circle cx="50" cy="50" r="14" fill="#1d4f8f"/></svg>'
   : '<svg class="insig" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#1b2420"/><path d="M18 58 50 26l32 32-9 9-23-23-23 23z" fill="#d8321e"/><path d="M27 76 50 53l23 23-8 8-15-15-15 15z" fill="#f08a1c"/></svg>';
 const fastRow = () => `<div class="fastrow"><button class="switch" role="switch" data-fast aria-checked="${save.settings.fast}" aria-label="Fast Graphics"></button><div><b>Fast Graphics</b><span>For older laptops and PCs without a graphics card. Takes effect at once.</span></div></div>`;
-const keyName = (c) => (c || '').replace(/^Key/, '').replace(/^Digit/, '').replace('ShiftLeft', 'Shift').replace('ControlLeft', 'Ctrl').replace('ControlRight', 'Ctrl').replace('ShiftRight', 'Shift').replace('ArrowUp', '↑').replace('ArrowDown', '↓').replace('ArrowLeft', '←').replace('ArrowRight', '→').replace('Escape', 'Esc');
+const keyName = (c) => (c || '').replace(/^Key/, '').replace(/^Digit/, '').replace('ShiftLeft', 'Shift').replace('ControlLeft', 'Ctrl').replace('ControlRight', 'Ctrl').replace('ShiftRight', 'Shift').replace('ArrowUp', '↑').replace('ArrowDown', '↓').replace('ArrowLeft', '←').replace('ArrowRight', '→').replace('Escape', 'Esc').replace('Equal', '+').replace('Minus', '-').replace('NumpadAdd', 'Num +').replace('NumpadSubtract', 'Num -');
 
 const SCREENS = {
   title: () => `<div class="screen dim"><div class="title-col">
@@ -52,6 +52,8 @@ const SCREENS = {
       <h3>Gameplay</h3>
       <div class="row"><label>Aim assistance<br><small style="color:var(--dim)">Full: guns set range and lead on the target under the reticle, and a marker shows the aim-off. Partial: range only. Off: aim by eye</small></label><div class="seg">${['full', 'partial', 'off'].map((k) => `<button data-opt="aimAssist" data-val="${k}" class="${(s.aimAssist || 'full') === k ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div></div>
       <div class="row"><label>Difficulty<br><small style="color:var(--dim)">How accurately and how quickly the other side shoots</small></label><div class="seg">${['easy', 'normal', 'hard'].map((k) => `<button data-opt="difficulty" data-val="${k}" class="${(s.difficulty || 'normal') === k ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div></div>
+      <div class="row"><label>Colour-blind colours<br><small style="color:var(--dim)">Blue for your side and orange for the enemy, instead of green and red</small></label><button class="switch" role="switch" data-toggle="colorblind" aria-checked="${!!s.colorblind}" aria-label="Colour-blind colours"></button></div>
+      <div class="row"><label>Radar legend<br><small style="color:var(--dim)">Always show what the radar shapes mean (it shows by itself for your first three battles)</small></label><button class="switch" role="switch" data-toggle="radarLegend" aria-checked="${!!s.radarLegend}" aria-label="Radar legend"></button></div>
       <h3>Controls</h3>
       ${slider('sens', 'Mouse sensitivity', 0.3, 3, 0.05, s.sens, (v) => Number(v).toFixed(2))}
       <div class="row"><label>Invert Y</label><button class="switch" role="switch" data-toggle="invertY" aria-checked="${s.invertY}" aria-label="Invert Y"></button></div>

@@ -119,8 +119,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---- targeting feedback (reticle colours, hit markers, aim-off marker, shell-fall calls, damage direction) ---- */
 #h-cross.enemy::before, #h-cross.enemy::after { background: #ff4a3d; } #h-cross.enemy.circle { border-color: #ff4a3d; }
 #h-cross.friend::before, #h-cross.friend::after { background: #5fe07a; } #h-cross.friend.circle { border-color: #5fe07a; }
-#h-aimtg.enemy i { border-color: #ff4a3d; } #h-aimtg.friend i { border-color: #5fe07a; } #h-aimtg.friend span { color: #9df0ae; } #h-aimtg.friend b { display: none; }
-#h-aimtg b { position: absolute; top: -2em; left: -1.6em; width: 3.2em; height: .3em; background: rgba(0, 0, 0, .6); outline: 1px solid rgba(255, 255, 255, .45); } #h-aimtg b u { display: block; height: 100%; background: #ff4a3d; }
+#h-aimtg.enemy i { border-color: var(--foe); } #h-aimtg.friend i { border-color: var(--ally); } #h-aimtg.friend span { color: var(--ally); } #h-aimtg.friend b { display: none; }
+#h-aimtg b { position: absolute; top: -2em; left: -1.6em; width: 3.2em; height: .3em; background: rgba(0, 0, 0, .6); outline: 1px solid rgba(255, 255, 255, .45); } #h-aimtg b u { display: block; height: 100%; background: var(--foe); }
 #h-hitx { position: absolute; left: 50%; top: 50%; width: 1.6em; height: 1.6em; margin: -.8em 0 0 -.8em; }
 #h-hitx::before, #h-hitx::after { content: ""; position: absolute; left: 50%; top: -10%; width: 2px; height: 120%; margin-left: -1px; background: #fff; box-shadow: 0 0 2px #000; transform: rotate(45deg); -webkit-mask: linear-gradient(#000 30%, transparent 30% 70%, #000 70%); mask: linear-gradient(#000 30%, transparent 30% 70%, #000 70%); }
 #h-hitx::after { transform: rotate(-45deg); }
@@ -139,7 +139,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---- one reticle per kind of control: r-foot, r-ship, r-gun, r-sub, r-scope, r-jet, r-heli ---- */
 #h-cross.r::before, #h-cross.r::after { content: none; }
 #h-cross.r { --c: rgba(255, 255, 255, .92); --gap: .35em; border: 0; border-radius: 0; }
-#h-cross.r.enemy { --c: #ff4a3d; } #h-cross.r.friend { --c: #5fe07a; }
+#h-cross.r.enemy { --c: var(--foe); } #h-cross.r.friend { --c: var(--ally); }
 #h-cross.r i { position: absolute; display: block; background: var(--c); box-shadow: 0 0 2px #000; }
 #h-cross.r .l.t, #h-cross.r .l.b { left: 50%; width: 2px; height: .55em; margin-left: -1px; } #h-cross.r .l.lf, #h-cross.r .l.rt { top: 50%; height: 2px; width: .55em; margin-top: -1px; }
 #h-cross.r .l.t { bottom: calc(50% + var(--gap)); } #h-cross.r .l.b { top: calc(50% + var(--gap)); } #h-cross.r .l.lf { right: calc(50% + var(--gap)); } #h-cross.r .l.rt { left: calc(50% + var(--gap)); }
@@ -174,3 +174,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #h-score .cvl.mid { color: #ffd98a; } #h-score .cvl.low { color: #ff9c92; }
 #h-score .cvl.flash { animation: cvflash .25s steps(2) 3; } @keyframes cvflash { 50% { color: #fff; filter: brightness(2.2); } }
 #h-score .goal { padding: .25em .9em; border: 1px solid var(--line); border-radius: .3em; font-weight: 700; letter-spacing: .16em; color: #ffe9a8; white-space: nowrap; }
+
+/* ---- friend / foe colours (the colour-blind setting swaps the two variables) ---- */
+#hud { --ally: #5fe07a; --foe: #ff4a3d; }
+#h-feed .win, #h-feed .good { border-color: var(--ally); } #h-feed .mine { border-color: var(--ally); color: #fff; font-weight: 600; } #h-feed .loss { border-color: var(--foe); } #h-feed .bad { border-color: var(--foe); color: #ffd9d4; }
+#h-radar .legend { display: grid; grid-template-columns: 1fr 1fr; gap: .1em .6em; margin-top: .35em; font-size: .62em; letter-spacing: .04em; color: var(--dim); } #h-radar .legend b { font-weight: 700; }

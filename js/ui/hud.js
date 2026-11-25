@@ -9,6 +9,7 @@ import { V3, clamp, el, KTS } from '../core/util.js';
 import { audio } from '../audio/audio.js';
 
 const _v = new V3();
+const PAL = { ally: '#5fe07a', foe: '#ff4a3d' }, PAL_CB = { ally: '#4da3ff', foe: '#ff9a2e' }, RANGES = [1000, 3000, 7000, 15000];
 const ICON = {
   kill: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 0v5M8 11v5M0 8h5M11 8h5" stroke="currentColor" stroke-width="1.6"/></svg>',
   carrier: '<svg viewBox="0 0 24 16"><path d="M1 8h22l-2.5 5H4z M14 8V4h4v4 M15.5 4V2" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>',
@@ -31,7 +32,7 @@ export const hud = {
       <div id="h-vig"></div><div id="h-black"></div><div id="h-scope" hidden><span id="h-scopetxt"></span></div>
       <div id="h-feed"></div>
       <div id="h-score"></div>
-      <div id="h-radar" class="hud-box"><canvas width="256" height="256"></canvas><div class="lbl" id="h-rlbl"></div></div>
+      <div id="h-radar" class="hud-box"><canvas width="256" height="256"></canvas><div class="lbl" id="h-rlbl"></div><div class="legend" id="h-rleg" hidden></div></div>
       <div id="h-status" class="hud-box"><div class="cl" id="h-cl"></div><div class="nm" id="h-nm"></div><div class="bar"><i id="h-hp"></i></div><div class="grid2" id="h-grid"></div></div>
       <div class="thr" id="h-thr"><i></i><b></b></div>
       <div id="h-weap" class="hud-box"></div>
@@ -41,7 +42,7 @@ export const hud = {
       <div id="h-stick" hidden><i></i></div>
       <div id="h-warn"></div><div id="h-prompt" hidden></div><div id="h-msg" hidden></div><div id="h-hint"></div>
       <div id="h-map" hidden><div class="mapwrap"><canvas width="640" height="640"></canvas><div class="scoreboard" id="h-sb"></div></div></div>`;
-    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
+    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'rleg', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
@@ -94,6 +95,8 @@ export const hud = {
     u.hitFlash = Math.max(0, (u.hitFlash || 0) - dt * 1.5); E.vig.style.opacity = Math.min(0.8, u.hitFlash + (u.hp < u.maxHp * 0.25 ? 0.25 : 0));
     E.black.style.opacity = jet && u.alive ? clamp((u.gSmooth - 6.5) / 3, 0, 0.92) : 0;
     E.prompt.hidden = !player.prompt; if (player.prompt && E.prompt._t !== player.prompt) { E.prompt.innerHTML = player.prompt; E.prompt._t = player.prompt; }
+    if (input.tap('radarIn')) this.radarZoom(veh, -1); else if (input.tap('radarOut')) this.radarZoom(veh, 1);
+    this.pal();
     { const open = input.on('map'); if (E.map.hidden === open) { E.map.hidden = !open; racc = 1; } }
     // ---- slower text ----
     acc += dt; if (acc < 0.09) return; const step = acc; acc = 0;
@@ -214,42 +217,69 @@ export const hud = {
       if (f && a >= 0 && a < 2.4 && place(node, _v.set(f.x, f.y, f.z))) { if (node._t !== f.text) { node.firstChild.textContent = f.text; node._t = f.text; node.className = f.hit ? 'mark fall hit' : 'mark fall'; } } else node.hidden = true;
     }
   },
-  blip(ctx, u, x, y, s, mine) {
-    ctx.fillStyle = u.nation === mine ? '#5fe07a' : '#ff4a3d'; // green = ours, red = theirs, white = you if (u.isPlayer) ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    if (u.kind === 'ship') ctx.rect(x - s, y - s, s * 2, s * 2); else if (u.kind === 'sub') { ctx.moveTo(x, y - s * 1.3); ctx.lineTo(x + s * 1.3, y); ctx.lineTo(x, y + s * 1.3); ctx.lineTo(x - s * 1.3, y); }
-    else if (u.kind === 'jet' || u.kind === 'heli') { ctx.moveTo(x, y - s * 1.4); ctx.lineTo(x + s * 1.2, y + s); ctx.lineTo(x - s * 1.2, y + s); } else ctx.arc(x, y, s * 0.7, 0, 7);
-    ctx.fill();
-    if (u.type === 'carrier' || u.type === 'battlecruiser') { ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 1.5; ctx.strokeRect(x - s * 2, y - s * 2, s * 4, s * 4); }
+  // ---- radar and map ----
+  // Colours: green = your side, red = the enemy (blue and orange with the colour-blind setting), white = you.
+  // Shapes are the same for both colours: a hull for ships (longer for bigger ships, a boxed flat-top for carriers), a
+  // diamond for submarines, a plane for aircraft, an X for helicopters, a dot for people.
+  pal() { const cb = !!save.settings.colorblind; if (this._cb !== cb) { this._cb = cb; root.style.setProperty('--ally', cb ? '#4da3ff' : '#5fe07a'); root.style.setProperty('--foe', cb ? '#ff9a2e' : '#ff4a3d'); } return cb ? PAL_CB : PAL; },
+  heading(e) { if (e.kind === 'soldier') return e.look; if (e.isAir && e.vel.lengthSq() > 25) return Math.atan2(-e.vel.x, -e.vel.z); return e.yaw; },
+  blip(ctx, e, x, y, k, col, rot) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.beginPath();
+    if (e.isPlayer) { ctx.moveTo(0, -6 * k); ctx.lineTo(4.2 * k, 5 * k); ctx.lineTo(0, 2.6 * k); ctx.lineTo(-4.2 * k, 5 * k); ctx.closePath(); ctx.fill(); }
+    else if (e.kind === 'ship') {
+      const L = (e.type === 'carrier' ? 8.5 : e.type === 'battlecruiser' ? 7 : e.type === 'corvette' ? 4.8 : 3.4) * k, B = (e.type === 'carrier' ? 3 : e.type === 'battlecruiser' ? 2.2 : 1.7) * k;
+      if (e.type === 'carrier') { ctx.rect(-B, -L, B * 2, L * 2); ctx.fill(); ctx.strokeRect(-B - 2.2, -L - 2.2, B * 2 + 4.4, L * 2 + 4.4); }
+      else { ctx.moveTo(0, -L); ctx.lineTo(B, -L * 0.45); ctx.lineTo(B, L); ctx.lineTo(-B, L); ctx.lineTo(-B, -L * 0.45); ctx.closePath(); ctx.fill(); }
+    } else if (e.kind === 'sub') { const d = 3.6 * k; ctx.moveTo(0, -d * 1.3); ctx.lineTo(d, 0); ctx.lineTo(0, d * 1.3); ctx.lineTo(-d, 0); ctx.closePath(); ctx.fill(); }
+    else if (e.kind === 'heli') { const d = 3 * k; ctx.lineWidth = 1.9; ctx.moveTo(-d, -d); ctx.lineTo(d, d); ctx.moveTo(d, -d); ctx.lineTo(-d, d); ctx.stroke(); }
+    else if (e.kind === 'jet') { const d = k; ctx.moveTo(0, -5 * d); ctx.lineTo(1.1 * d, -1 * d); ctx.lineTo(4.6 * d, 1.8 * d); ctx.lineTo(1.1 * d, 1.5 * d); ctx.lineTo(0.9 * d, 3.6 * d); ctx.lineTo(2.3 * d, 4.9 * d); ctx.lineTo(-2.3 * d, 4.9 * d); ctx.lineTo(-0.9 * d, 3.6 * d); ctx.lineTo(-1.1 * d, 1.5 * d); ctx.lineTo(-4.6 * d, 1.8 * d); ctx.lineTo(-1.1 * d, -1 * d); ctx.closePath(); ctx.fill(); }
+    else { ctx.arc(0, 0, 1.6 * k, 0, 7); ctx.fill(); }
+    ctx.restore();
   },
   radar(u) {
-    const c = rctx, S = 256, R = S / 2, range = u.kind === 'soldier' ? 900 : u.kind === 'jet' ? 12000 : u.kind === 'heli' ? 7000 : u.type === 'patrol' ? 4000 : 7000, k = (R - 6) / range;
-    const yaw = u.kind === 'soldier' ? u.look : u.yaw, cs = Math.cos(yaw), sn = Math.sin(yaw);
+    const c = rctx, S = 256, R = S / 2, P = this.pal();
+    const zk = u.kind === 'ship' && u.type === 'patrol' ? 'patrol' : u.kind, zi = clamp(save.settings.radarZoom[zk] ?? (u.kind === 'soldier' ? 0 : u.kind === 'jet' ? 3 : zk === 'patrol' ? 1 : 2), 0, 3), range = RANGES[zi], k = (R - 6) / range;
+    const yaw = this.heading(u), cs = Math.cos(yaw), sn = Math.sin(yaw);
     c.clearRect(0, 0, S, S); c.save(); c.beginPath(); c.arc(R, R, R - 2, 0, 7); c.clip();
-    c.fillStyle = 'rgba(6,22,34,.82)'; c.fillRect(0, 0, S, S);
+    c.fillStyle = 'rgba(6,22,34,.85)'; c.fillRect(0, 0, S, S);
     const tx = (wx, wz) => { const dx = wx - u.pos.x, dz = wz - u.pos.z; return [R + (dx * cs - dz * sn) * k, R + (dx * sn + dz * cs) * k]; };
-    c.fillStyle = 'rgba(92,120,84,.75)'; for (const is of world.islands) { const [x, y] = tx(is.x, is.z); c.beginPath(); c.arc(x, y, is.r * k, 0, 7); c.fill(); }
-    c.strokeStyle = 'rgba(140,190,220,.25)'; c.lineWidth = 1; for (const f of [0.33, 0.66, 1]) { c.beginPath(); c.arc(R, R, (R - 6) * f, 0, 7); c.stroke(); }
+    c.fillStyle = 'rgba(150,160,168,.28)'; for (const is of world.islands) { const [x, y] = tx(is.x, is.z); c.beginPath(); c.arc(x, y, is.r * k, 0, 7); c.fill(); }
+    c.strokeStyle = 'rgba(140,190,220,.22)'; c.lineWidth = 1; for (const f of [0.33, 0.66, 1]) { c.beginPath(); c.arc(R, R, (R - 6) * f, 0, 7); c.stroke(); }
     c.beginPath(); c.moveTo(R, 6); c.lineTo(R, S - 6); c.moveTo(6, R); c.lineTo(S - 6, R); c.stroke();
-    for (const e of world.units) { if (!e.alive || (e.nation !== u.nation && !e.seen) || (e.kind === 'soldier' && e.aboard)) continue; const [x, y] = tx(e.pos.x, e.pos.z); if (Math.hypot(x - R, y - R) > R) continue; this.blip(c, e, x, y, e === u ? 4 : 3.2, u.nation); }
-    this.lostMarks(c, u, (l) => tx(l.x, l.z));
-    c.fillStyle = '#ffb347'; for (const m of world.missiles || []) { if (m.nation === u.nation) continue; const [x, y] = tx(m.pos.x, m.pos.z); c.fillRect(x - 1.5, y - 1.5, 3, 3); }
+    const mark = player.aimTarget || u.lockTarget;
+    for (const e of world.units) {
+      if (!e.alive || e === u || (e.nation !== u.nation && !e.seen) || (e.kind === 'soldier' && (e.aboard || range > 1000))) continue;
+      const [x, y] = tx(e.pos.x, e.pos.z); if (Math.hypot(x - R, y - R) > R) continue;
+      this.blip(c, e, x, y, 0.95, e.nation === u.nation ? P.ally : P.foe, yaw - this.heading(e));
+      if (e === mark) { c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 11, 0, 7); c.stroke(); } // what you are aiming at
+    }
+    this.lostMarks(c, u, (l) => tx(l.x, l.z), P);
+    if (Math.floor(performance.now() / 180) % 2) { c.fillStyle = P.foe; for (const m of world.missiles || []) { if (m.nation === u.nation) continue; const [x, y] = tx(m.pos.x, m.pos.z); c.beginPath(); c.arc(x, y, m.target === u ? 3.4 : 2.2, 0, 7); c.fill(); } } // incoming missiles flash
+    this.blip(c, { isPlayer: true }, R, R, 1, '#fff', 0);
     c.restore(); c.strokeStyle = 'rgba(160,200,230,.5)'; c.lineWidth = 2; c.beginPath(); c.arc(R, R, R - 2, 0, 7); c.stroke();
-    E.rlbl.textContent = `RADAR ${(range / 1000).toFixed(range < 1000 ? 1 : 0)} KM`;
+    const lbl = `RADAR ${range / 1000} KM   - / + ZOOM`; if (E.rlbl._t !== lbl) { E.rlbl.textContent = lbl; E.rlbl._t = lbl; }
+    const st = save.stats, showLeg = !!save.settings.radarLegend || (st.battlesWon + st.battlesLost) < 3;
+    if (E.rleg.hidden === showLeg) { E.rleg.hidden = !showLeg; if (showLeg) E.rleg.innerHTML = '<span><b style="color:#fff">▲</b> you</span><span><b style="color:var(--ally)">■</b> your side</span><span><b style="color:var(--foe)">■</b> enemy</span><span>▮ ship</span><span>◆ submarine</span><span>✈ plane</span><span>✕ helicopter</span><span>? lost contact</span>'; }
+  },
+  radarZoom(u, step) {
+    const zk = u.kind === 'ship' && u.type === 'patrol' ? 'patrol' : u.kind, cur = save.settings.radarZoom[zk] ?? (u.kind === 'soldier' ? 0 : u.kind === 'jet' ? 3 : zk === 'patrol' ? 1 : 2);
+    save.settings.radarZoom[zk] = clamp(cur + step, 0, 3); save.write(); racc = 1; audio.play('click', { vol: 0.4 });
   },
   // a fading "?" where an enemy contact was last held (13 seconds)
-  lostMarks(c, u, at) {
-    c.font = 'bold 12px sans-serif'; c.textAlign = 'center';
-    for (const l of world.lost) { if (l.nation === u.nation) continue; const [x, y] = at(l); c.fillStyle = `rgba(255,120,100,${Math.max(0, 1 - (world.t - l.t) / 13).toFixed(2)})`; c.fillText('?', x, y + 4); }
+  lostMarks(c, u, at, P) {
+    c.font = 'bold 12px sans-serif'; c.textAlign = 'center'; c.fillStyle = P.foe;
+    for (const l of world.lost) { if (l.nation === u.nation) continue; const [x, y] = at(l); c.globalAlpha = Math.max(0, 1 - (world.t - l.t) / 13); c.fillText('?', x, y + 4); }
+    c.globalAlpha = 1;
     c.textAlign = 'left';
   },
   bigMap(u) {
     const c = mctx, S = 640, k = S / (MAP.half * 2 + 2000), tx = (x) => S / 2 + x * k;
     c.fillStyle = '#0d2a3f'; c.fillRect(0, 0, S, S);
     c.strokeStyle = 'rgba(140,190,220,.12)'; for (let i = 0; i <= 10; i++) { c.beginPath(); c.moveTo(i * 64, 0); c.lineTo(i * 64, S); c.moveTo(0, i * 64); c.lineTo(S, i * 64); c.stroke(); }
-    c.fillStyle = '#5c7854'; for (const is of world.islands) { c.beginPath(); c.arc(tx(is.x), tx(is.z), is.r * k, 0, 7); c.fill(); }
-    for (const e of world.units) { if (!e.alive || (e.nation !== u.nation && !e.seen) || (e.kind === 'soldier' && e.aboard)) continue; this.blip(c, e, tx(e.pos.x), tx(e.pos.z), e === u ? 5 : e.kind === 'soldier' ? 2 : 3.5, u.nation); }
-    this.lostMarks(c, u, (l) => [tx(l.x), tx(l.z)]);
+    const P = this.pal();
+    c.fillStyle = 'rgba(150,160,168,.32)'; for (const is of world.islands) { c.beginPath(); c.arc(tx(is.x), tx(is.z), is.r * k, 0, 7); c.fill(); }
+    for (const e of world.units) { if (!e.alive || (e.nation !== u.nation && !e.seen) || (e.kind === 'soldier' && !e.isPlayer)) continue; this.blip(c, e, tx(e.pos.x), tx(e.pos.z), e === u ? 1.5 : 1.1, e === u ? '#fff' : e.nation === u.nation ? P.ally : P.foe, -this.heading(e)); }
+    this.lostMarks(c, u, (l) => [tx(l.x), tx(l.z)], P);
     c.fillStyle = '#fff'; c.font = '11px sans-serif'; for (const n of ['aethia', 'extro']) { const cv = world.carriers[n]; if (cv && cv.alive && (n === u.nation || cv.seen)) c.fillText(cv.name, tx(cv.pos.x) + 10, tx(cv.pos.z) + 4); }
     const st = save.stats, me = u.nation, en = otherNation(me), count = (n, f) => world.units.filter((x) => x.alive && x.nation === n && f(x)).length;
     const L = world.losses, lossRow = (label, key) => `<div class="stat"><span>${label}</span><span>${L[me][key]} / ${L[en][key]}</span></div>`;
@@ -264,7 +294,7 @@ export const hud = {
       <h3 style="margin-top:1.2em">Service record</h3>
       <div class="stat"><span>Ships sunk</span><span>${st.sinkings}</span></div><div class="stat"><span>Aircraft shot down</span><span>${st.aircraft}</span></div>
       <div class="stat"><span>Battles won / lost</span><span>${st.battlesWon} / ${st.battlesLost}</span></div>
-      <p style="color:var(--dim);font-size:.8em;margin-top:1.4em">Hold Tab to keep this open. White marker: you. Squares: ships. Diamonds: submarines. Triangles: aircraft.</p>`;
+      <p style="color:var(--dim);font-size:.8em;margin-top:1.4em">Hold Tab to keep this open. White marker: you. Hull shapes: ships (carriers boxed). Diamonds: submarines. Planes: aircraft. X: helicopters.</p>`;
   },
 };
 function hdgOf(yaw) { return String(Math.round(((((-yaw * 180) / Math.PI) % 360) + 360) % 360)).padStart(3, '0'); }

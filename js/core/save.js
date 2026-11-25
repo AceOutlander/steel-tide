@@ -4,7 +4,7 @@ import { DEFAULT_KEYS, DIFFICULTY } from './config.js';
 const KEY = 'steelTide.save.v1';
 const defaults = () => ({
   v: 1,
-  settings: { fast: false, fastAsked: false, quality: 'auto', resScale: 1, fov: 70, sens: 1, invertY: false, invertPlane: false, shake: 0.5, motionBlur: false, aimAssist: 'full', difficulty: 'normal', sfx: 0.8, music: 0.35, keys: {} },
+  settings: { fast: false, fastAsked: false, quality: 'auto', resScale: 1, fov: 70, sens: 1, invertY: false, invertPlane: false, shake: 0.5, motionBlur: false, colorblind: false, radarLegend: false, radarZoom: {}, aimAssist: 'full', difficulty: 'normal', sfx: 0.8, music: 0.35, keys: {} },
   last: { nation: 'aethia', unit: 'patrol' },
   stats: { kills: {}, sinkings: 0, aircraft: 0, battlesWon: 0, battlesLost: 0, deaths: 0 },
 });

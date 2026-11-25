@@ -100,6 +100,7 @@ export const DEFAULT_KEYS = {
   // fixed-wing aircraft: W/S pitch, A/D a banked turn, Q/E rudder, Shift/Ctrl throttle (the mouse only looks around)
   jetPitchDown: ['KeyW', 'ArrowUp'], jetPitchUp: ['KeyS', 'ArrowDown'], jetLeft: ['KeyA', 'ArrowLeft'], jetRight: ['KeyD', 'ArrowRight'],
   jetRudderLeft: ['KeyQ'], jetRudderRight: ['KeyE'], jetThrottleUp: ['ShiftLeft', 'ShiftRight'], jetThrottleDown: ['ControlLeft', 'ControlRight'],
+  radarIn: ['Equal', 'NumpadAdd'], radarOut: ['Minus', 'NumpadSubtract'],
   weapon1: ['Digit1'], weapon2: ['Digit2'], weapon3: ['Digit3'], weapon4: ['Digit4'],
 };
 export const KEY_LABELS = {
@@ -109,5 +110,6 @@ export const KEY_LABELS = {
   jetThrottleUp: 'Plane: throttle up (hold past 100% for afterburner)', jetThrottleDown: 'Plane: throttle down', gear: 'Plane: landing gear', flares: 'Aircraft: flares and chaff', cloak: 'Bomber: cloak',
   run: 'Marine: run', crouch: 'Marine: crouch', jump: 'Marine: jump', use: 'Get in or out / take a gun', camera: 'Change camera', map: 'Score and map', pause: 'Pause',
   takeControls: 'Helicopter passenger: take the controls', launchSub: 'Battlecruiser: board and launch the docked sub', reload: 'Marine: reload',
+  radarIn: 'Radar: zoom in', radarOut: 'Radar: zoom out',
   weapon1: 'Weapon 1', weapon2: 'Weapon 2', weapon3: 'Weapon 3', weapon4: 'Weapon 4',
 };
