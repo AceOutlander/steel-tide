@@ -240,6 +240,23 @@ export const dev = {
     c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0);
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9)); await fetch(`/__save?dir=${dir}&name=${name}.jpg`, { method: 'POST', body: blob }); return name;
   },
+  // Pictures of a ship's walk-in compartments (js/units/v2/cabins.js): the door from the deck, then views inside. Saved as
+  // one JPEG of six tiles by the local test server.
+  async cabins(type = 'corvette', nation = 'aethia', name = null, dir = 'interiors') {
+    const s = S(), cam = gfx.camera, src = gfx.renderer.domElement, V = THREE.Vector3, u = this.spawn(type, nation), inn = u.model.interior; if (!inn || !inn.door) return { type, interior: !!inn };
+    let clk = performance.now(); for (let i = 0; i < 20; i++) { clk += 1000 / 60; s.app.frame(clk); }
+    const h = inn.hole, d = inn.door, y = d.y + 1.62, xc = (h.x0 + h.x1) / 2, zc = (h.z0 + h.z1) / 2, L = h.z1 - h.z0, W = h.x1 - h.x0, wide = W >= 7.4;
+    const views = [[[d.x + d.side * 4.5, y + 0.6, d.z + 3.5], [d.x - d.side * 0.9, y - 0.4, d.z], 50], [[d.x - d.side * 2.6, y, d.z + 0.05], [d.x + d.side * 3, y - 0.3, d.z], 70],
+      [[xc, y, h.z0 + 0.6], [xc, y - 0.25, h.z1], 75], [[xc, y, h.z1 - 0.6], [xc, y - 0.25, h.z0], 75],
+      wide ? [[xc + 1.2, y, zc - L * 0.3], [h.x1 - 0.3, y - 0.5, zc - L * 0.34], 80] : [[xc, y, zc - L * 0.2], [h.x1, y - 0.6, zc - L * 0.3], 85],
+      wide ? [[xc - 1.2, y, zc + L * 0.3], [h.x0 + 0.3, y - 0.5, zc + L * 0.26], 80] : [[xc, y, zc + L * 0.25], [h.x0, y - 0.6, zc + L * 0.1], 85]];
+    const tw = 534, th = 400, out = document.createElement('canvas'); out.width = tw * 3; out.height = th * 2; const ctx = out.getContext('2d'), keep = { p: cam.position.clone(), q: cam.quaternion.clone(), fov: cam.fov, near: cam.near };
+    cam.near = 0.08; inn.group.visible = true;
+    views.forEach((v, i) => { cam.position.copy(u.toWorld(new V(...v[0]), new V())); cam.lookAt(u.toWorld(new V(...v[1]), new V())); cam.fov = v[2]; cam.updateProjectionMatrix(); cam.updateMatrixWorld(); if (i > 0) { gfx.setUnderwater(0); } s.app.present(0, false, true); ctx.drawImage(src, (i % 3) * tw, Math.floor(i / 3) * th, tw, th); });
+    cam.position.copy(keep.p); cam.quaternion.copy(keep.q); cam.fov = keep.fov; cam.near = keep.near; cam.updateProjectionMatrix();
+    const blob = await new Promise((r) => out.toBlob(r, 'image/jpeg', 0.9)); await fetch(`/__save?dir=${dir}&name=${name || type + '-' + nation}.jpg`, { method: 'POST', body: blob });
+    return { type, rooms: inn.rooms, door: d, size: [+(W).toFixed(1), +(L).toFixed(1)], on: u.interiorOn, visible: inn.group.visible };
+  },
   tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
   spawn(type, nation = 'aethia', opts = {}) { const s = S(); s.app.play(nation, type, opts); s.app.advance(0.5); return s.player.unit; },
   // put a freshly spawned jet in the air: taxi, launch, climb away for `secs`

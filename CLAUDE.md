@@ -64,3 +64,13 @@ body surface; human.js pushes it out and creases it per uniform (`clothShape`, `
 accessories are still built in code; gear written for the old head goes through `headFix`. To look at a figure:
 `dev.person({ role, nation, skin, helmet, uniform, acc, state })` and `dev.lineup([...])` save pictures through the
 local test server. Only CC0 sources (see CREDITS.md).
+
+## Interiors (since Beta 0.6.0)
+
+Every ship model may carry `model.interior = { group, mats, zones, hole }`: the group is drawn only while the camera
+is at the ship (`Ship.updateLod`), `zones` say when a person or camera is inside, `hole` is where the sea is not drawn.
+The Super Destroyer builds its own (`js/units/v2/sdinterior.js`, which also holds the shared interior materials and
+their steel and deck textures). Every other ship gets compartments from `js/units/v2/cabins.js`, called by
+`finishShip()`: it finds the biggest deckhouse block on the main deck, puts a door on the side with more deck, lays
+out a passage and rooms from the block's size, and carves the walk-in space out of that block. A builder can opt out
+with `S.cabins = false`. To look: `dev.cabins(type, nation)` saves six views to `C:\dev\steel-tide-covers\interiors\`.

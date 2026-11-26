@@ -1,5 +1,28 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.0 (every ship can be walked into)
+
+- **Every ship has an interior now.** The patrol boat, corvette, battlecruiser and carrier each have walk-in
+  compartments inside the main deckhouse (the carrier's are in the island), at main-deck level. An open watertight
+  door in the deckhouse wall (dark opening, raised yellow-edged sill, rain hood, the door folded back) leads through a
+  short vestibule to a narrow passage with compartments off it. `js/units/v2/cabins.js` builds them from the size of
+  each ship's deckhouse: patrol boat one cabin (mess and galley), corvette 8 compartments, battlecruiser 12, carrier
+  9 to 11. The Super Destroyer keeps its own two decks, stair tower and dock bay.
+- What is inside: a passage 1.4 m wide with pipes and a cable tray overhead, fluorescent fittings, deck lines, a fire
+  point; watertight doorways with 15 cm sills (you step over them), heavy frames, doors with hand wheels and dogs
+  folded back against the wall; steel walls with stiffeners and a darker lower band. Compartments: mess (bolted
+  tables and benches), berthing (three-high racks with curtains, lockers), operations room (consoles with screens,
+  pedestal chairs, status board), galley, workshop, stores, office. Deep rooms get a second row down the middle. Crew
+  stand and work inside, and the lighting turns red at battle stations like the Super Destroyer's.
+- **Shading and textures for all interiors**, the Super Destroyer's included: every surface is now painted steel
+  plating (weld seams, rivet rows, runs of dirt and rust, scuffs) or tread deck coating, laid on by the direction the
+  surface faces, with the even light of ceiling tubes (decks brightest, undersides dimmer) and, in the new
+  compartments, light that falls off toward the deck and the ceiling corners. Before, interiors were flat colours.
+- Nothing is cut out of the outside models: the rooms are drawn only while the camera is at the ship, and the walk-in
+  space is carved out of the deckhouse's collision block. Frame times are unchanged.
+- Not done: submarines have no walk-in interior; the Super Destroyer's rooms are still the same size (large); the new
+  compartments are on one level only.
+
 ## Beta 0.5.1 (looser combat uniform)
 
 - Compared with a photograph of marines on patrol ("Marines on patrol in Afghanistan (4948760749).jpg", Wikimedia

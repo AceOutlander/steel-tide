@@ -8,12 +8,52 @@
 // vertex-coloured material for everything, one for the lamps. setAlert() turns both red for battle stations.
 import * as THREE from 'three';
 import { Kit, tone } from './airkit.js';
+import { registerTexture } from '../../gfx/materials.js';
+
+// ---- painted steel and deck coating, drawn once: every interior surface is one of these two, tinted by its vertex colour
+function rnd(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function speckle(ctx, w, h, r, n, a) { for (let i = 0; i < n; i++) { const v = r() < 0.5 ? 0 : 255; ctx.fillStyle = `rgba(${v},${v},${v},${a * r()})`; const s = 1 + r() * 2; ctx.fillRect(r() * w, r() * h, s, s); } }
+function drawSteel(ctx, w, h) { // a 2.4 m square of painted plating: weld seams, rivet rows, runs of dirt and rust, scuffs
+  const r = rnd(4711), u = w / 2.4; ctx.fillStyle = '#e3e4e2'; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 26; i++) { const x = r() * w, y = r() * h, rad = (0.12 + r() * 0.3) * w, c = r() < 0.5 ? '255,255,255' : '70,70,66', g = ctx.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, `rgba(${c},0.07)`); g.addColorStop(1, `rgba(${c},0)`); ctx.fillStyle = g; for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) { ctx.save(); ctx.translate(dx, dy); ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2); ctx.restore(); } }
+  speckle(ctx, w, h, r, 9000, 0.05);
+  // runs: thin streaks of grime and rust trailing down from seams and fittings
+  for (let i = 0; i < 46; i++) { const x = r() * w, y = r() * h, len = (0.08 + r() * 0.35) * h, wd = 1 + r() * 3, rust = r() < 0.4, g = ctx.createLinearGradient(0, y, 0, y + len); g.addColorStop(0, rust ? 'rgba(120,70,40,0.16)' : 'rgba(40,42,44,0.13)'); g.addColorStop(1, 'rgba(60,50,40,0)'); ctx.fillStyle = g; ctx.fillRect(x, y, wd, len); ctx.fillRect(x, y - h, wd, len); }
+  // plates 1.2 m wide and 1.2 m high: a welded seam is a dark line with a bright bead beside it; rivets along it
+  const seam = (x0, y0, x1, y1) => { ctx.strokeStyle = 'rgba(40,44,46,0.5)'; ctx.lineWidth = Math.max(1.5, u * 0.006); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = Math.max(1, u * 0.004); const o = Math.max(1.5, u * 0.006); ctx.beginPath(); ctx.moveTo(x0 + (y0 === y1 ? 0 : o), y0 + (y0 === y1 ? o : 0)); ctx.lineTo(x1 + (y0 === y1 ? 0 : o), y1 + (y0 === y1 ? o : 0)); ctx.stroke(); };
+  const rivet = (x, y) => { const q = Math.max(1.6, u * 0.009); ctx.fillStyle = 'rgba(30,32,34,0.45)'; ctx.beginPath(); ctx.arc(x + q * 0.35, y + q * 0.35, q, 0, 6.3); ctx.fill(); ctx.fillStyle = 'rgba(236,238,236,0.95)'; ctx.beginPath(); ctx.arc(x, y, q * 0.82, 0, 6.3); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(x - q * 0.25, y - q * 0.25, q * 0.35, 0, 6.3); ctx.fill(); };
+  for (const f of [0, 0.5]) { seam(f * w + 1, 0, f * w + 1, h); seam(0, f * h + 1, w, f * h + 1); for (let t = 0.03; t < 1; t += 1 / 20) { rivet(f * w + u * 0.045, t * h); rivet(f * w - u * 0.045 + (f ? 0 : w), t * h); rivet(t * w, f * h + u * 0.045); rivet(t * w, f * h - u * 0.045 + (f ? 0 : h)); } }
+  // scuffs and chips
+  for (let i = 0; i < 70; i++) { ctx.strokeStyle = r() < 0.5 ? 'rgba(50,52,54,0.12)' : 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1 + r(); const x = r() * w, y = r() * h, a = r() * 6.3, l = 4 + r() * 22; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.3); ctx.stroke(); }
+}
+function drawDeck(ctx, w, h) { // a 1.25 m square of deck: non-skid coating with a raised tread pattern, worn where feet go
+  const r = rnd(1337); ctx.fillStyle = '#d9d9d6'; ctx.fillRect(0, 0, w, h); speckle(ctx, w, h, r, 26000, 0.16);
+  const n = 16, c = w / n;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const x = (i + 0.5) * c, y = (j + 0.5) * c, a = (i + j) & 1 ? 0.6 : -0.6; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = 'rgba(20,22,24,0.3)'; ctx.beginPath(); ctx.ellipse(c * 0.03, c * 0.05, c * 0.34, c * 0.1, 0, 0, 6.3); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.ellipse(0, 0, c * 0.32, c * 0.085, 0, 0, 6.3); ctx.fill(); ctx.restore(); }
+  for (let i = 0; i < 14; i++) { const x = r() * w, y = r() * h, rad = (0.15 + r() * 0.3) * w, cc = r() < 0.6 ? '255,255,255' : '30,30,30', g = ctx.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, `rgba(${cc},0.1)`); g.addColorStop(1, `rgba(${cc},0)`); ctx.fillStyle = g; for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) { ctx.save(); ctx.translate(dx, dy); ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2); ctx.restore(); } }
+}
 
 const HP = Math.PI / 2;
 const MATS = {};
 export function interiorMats(nation) {
   if (MATS[nation]) return MATS[nation];
   const int = new THREE.MeshBasicMaterial({ vertexColors: true }); int.name = 'sdInterior.insignia';
+  // No sun in here, so the look is built in the shader: the two textures laid on by the direction a surface faces (walls
+  // and ceilings are plating, decks are tread), and the even light of ceiling tubes (decks brightest, walls a little
+  // different by which way they face, undersides dimmer).
+  const steel = registerTexture('int_steel', { draw: drawSteel }), deckT = registerTexture('int_deck', { draw: drawDeck });
+  int.onBeforeCompile = (sh) => {
+    sh.uniforms.uSteel = { value: steel }; sh.uniforms.uDeckT = { value: deckT };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIP; varying vec3 vIN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvIP = position; vIN = normal;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uSteel; uniform sampler2D uDeckT; varying vec3 vIP; varying vec3 vIN;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      { vec3 an = abs( vIN ); vec3 tx; float lit;
+        if ( an.y > 0.6 ) { if ( vIN.y > 0.0 ) { tx = texture2D( uDeckT, vIP.xz * 0.8 ).rgb; lit = 1.0; } else { tx = texture2D( uSteel, vIP.xz / 2.4 ).rgb; lit = 0.86; } }
+        else if ( an.x > an.z ) { tx = texture2D( uSteel, vIP.zy / 2.4 ).rgb; lit = 0.9; }
+        else { tx = texture2D( uSteel, vIP.xy / 2.4 ).rgb; lit = 0.98; }
+        diffuseColor.rgb *= tx * lit * 1.22; }`);
+  };
+  int.customProgramCacheKey = () => 'sdInteriorTex';
   const lamp = new THREE.MeshBasicMaterial({ color: 0xfff3d8 }); lamp.name = 'sdLamp.insignia';
   const water = new THREE.MeshBasicMaterial({ color: 0x0b2c36, transparent: true, opacity: 0.82, depthWrite: false }); water.name = 'sdPool.insignia';
   const dark = new THREE.MeshBasicMaterial({ color: 0x020405 }); dark.name = 'sdDark.insignia';
