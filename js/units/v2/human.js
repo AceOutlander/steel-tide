@@ -287,6 +287,10 @@ function boot(A, s, U, L, keep) {
   for (let k = 0; k < 3; k++) for (const q of [-1, 1]) rbox(A, G, 0.008, 0.012, 0.013, TM(lx + q * 0.0425, 0.007, 0.025 + k * 0.021), { b: FT, c: sc, seg: 4, n: 4 });
 }
 
+function neckTuck(x, y, z, nx, ny, nz, b, o) {
+  const d = (y - 1.526) * 0.9317 + z * -0.3634; // height above the collar line (it is lower in front)
+  if (d < 0.006) { const k = 1 - 0.3 * sm((0.006 - d) / 0.02); o.x = x * k; o.z = -0.008 + (z + 0.008) * k; o.y = y - 0.012 * (1 - k) / 0.3; } else { o.x = x; o.y = y; o.z = z; }
+}
 // a flat strap along a line of points (model space); its face looks away from o.from
 function ribbon(A, slot, pts, w, th, o = {}) {
   const n = pts.length, cen = o.from || [0, 1.69, -0.01], CS = [[-1, 0], [1, 0], [1, 1], [-1, 1]];
@@ -425,7 +429,7 @@ function buildFigure(S) {
     const sk = PL === 0 ? 0.74 : PL === 1 ? 0.85 : 0; // seam shading
     if (body) addPart(A, 'cloth', 'trousers', PL, { c: bot, tint: tintBot, shape: clothShape('trousers', U, PL), seams: sk });
     addPart(A, 'cloth', 'shirt', PL, { c: top, tint: tintTop, shape: clothShape('shirt', U, PL), keep: body ? null : isArm, seams: sk });
-    if (body) addPart(A, 'skin', 'head' + S.skin, PL, { flag: true });
+    if (body) addPart(A, 'skin', 'head' + S.skin, PL, { flag: true, shape: neckTuck });
   }
   if (body) {
     // pelvis and shirt (the shirt hangs just outside the trousers)
@@ -435,7 +439,7 @@ function buildFigure(S) {
     const strip = (slot, x, ys, w, th, col, tint = 0, back = false) => tube(A, slot, ys.map((y) => ({ y, x, z: (back ? 1 : -1) * (surfZ(y, x, back) + 0.004 + th * 0.5), rx: w, rz: th, b: torsoBone(y) })), { seg: 6, n: 4, c: col, tint, a0: PI / 4 });
     if (NEW && L <= 1 && !U.noCollar) { // a stand collar following the neckline (lower in front)
       const cc = U.cloth === 'plain' ? (tintTop ? C(0xffffff, 0.82) : C(U.top, 0.82)) : C(0xffffff, 0.9), nb = [CHEST, NECK, 0.55];
-      tube(A, 'cloth', [{ y: -0.012, rx: 0.081, rf: 0.07, rb: 0.07, b: nb }, { y: 0.012, rx: 0.074, rf: 0.064, rb: 0.064, b: nb }, { y: 0.032, rx: 0.0705, rf: 0.0605, rb: 0.061, b: nb }, { y: 0.034, rx: 0.067, rf: 0.057, rb: 0.058, b: nb }],
+      tube(A, 'cloth', [{ y: -0.034, rx: 0.132, rf: 0.078, rb: 0.082, b: CHEST }, { y: -0.01, rx: 0.126, rf: 0.074, rb: 0.077, b: CHEST }, { y: 0.004, rx: 0.112, rf: 0.07, rb: 0.072, b: nb }, { y: 0.016, rx: 0.086, rf: 0.065, rb: 0.066, b: nb }, { y: 0.034, rx: 0.0725, rf: 0.0605, rb: 0.061, b: nb }, { y: 0.036, rx: 0.069, rf: 0.057, rb: 0.058, b: nb }],
         { seg: tseg, n: 2.1, c: cc, tint: tintTop, cap0: false, cap1: false, m: TM(0, 1.528, -0.009, -0.37, 0, 0), us: 0.55 });
     }
     if (U.cloth === 'plain' && L <= 1) {
@@ -547,12 +551,14 @@ function buildFigure(S) {
   } else if (V === 'harness') {
     const wc = C(U.vestCol);
     if (L <= 1) {
-      for (const y of [1.325, 1.075]) wrap(A, 'gear', [y, y + 0.03], () => [0.009, 0.009, 0.009], { seg: tseg, n: 2.3, c: wc, cap0: false, cap1: false });
+      const hg = NEW ? 0.011 : 0;
+      for (const y of [1.325, 1.075]) wrap(A, 'gear', [y, y + 0.03], () => [0.009 + hg, 0.009 + hg, 0.009 + hg], { seg: tseg, n: 2.3, c: wc, cap0: false, cap1: false });
       for (const s of [-1, 1]) {
-        tube(A, 'gear', [1.08, 1.2, 1.3, 1.4, 1.455].map((y) => ({ y, x: s * (0.085 - (y > 1.4 ? 0.01 : 0)), z: -(torsoAt(y)[1] * Math.sqrt(1 - Math.pow((s * 0.085) / torsoAt(y)[0], 2)) + 0.006), rx: 0.021, rz: 0.007, b: torsoBone(y) })), { seg: 6, n: 4, c: wc });
-        tube(A, 'gear', [1.08, 1.2, 1.3, 1.4, 1.455].map((y) => ({ y, x: s * 0.08, z: torsoAt(y)[2] * Math.sqrt(1 - Math.pow(0.08 / torsoAt(y)[0], 2)) + 0.006, rx: 0.021, rz: 0.007, b: torsoBone(y) })), { seg: 6, n: 4, c: wc });
-        shell(A, 'gear', [s * 0.088, 1.488, 0.002], [0.024, 0.02, 0.09], { rows: 5, seg: 8, b: CHEST, c: wc });
-        tube(A, 'gear', [R(0.84, 0.091, 0, legBase(s), { x: s * 0.094, rf: 0.095, rb: 0.1 }), R(0.812, 0.09, 0, legBase(s), { x: s * 0.094, rf: 0.094, rb: 0.098 })], { seg: lseg, c: wc, cap0: false, cap1: false }); // leg strap
+        tube(A, 'gear', [1.08, 1.2, 1.3, 1.4, 1.455].map((y) => ({ y, x: s * (0.085 - (y > 1.4 ? 0.01 : 0)), z: -(torsoAt(y)[1] * Math.sqrt(1 - Math.pow((s * 0.085) / torsoAt(y)[0], 2)) + 0.006 + hg), rx: 0.021, rz: 0.007, b: torsoBone(y) })), { seg: 6, n: 4, c: wc });
+        tube(A, 'gear', [1.08, 1.2, 1.3, 1.4, 1.455].map((y) => ({ y, x: s * 0.08, z: torsoAt(y)[2] * Math.sqrt(1 - Math.pow(0.08 / torsoAt(y)[0], 2)) + 0.006 + hg, rx: 0.021, rz: 0.007, b: torsoBone(y) })), { seg: 6, n: 4, c: wc });
+        if (NEW) { const pts = [[s * 0.084, 1.455, -(torsoAt(1.455)[1] * 0.86 + 0.012)]]; for (const z of [-0.055, -0.02, 0.015, 0.05]) pts.push([s * 0.09, shoulderY(s * 0.09, z) + 0.016, z]); pts.push([s * 0.08, 1.455, torsoAt(1.455)[2] * 0.9 + 0.012]); ribbon(A, 'gear', pts, 0.042, 0.007, { b: CHEST, c: wc, from: [s * 0.09, 1.38, 0] }); }
+        else shell(A, 'gear', [s * 0.088, 1.488, 0.002], [0.024, 0.02, 0.09], { rows: 5, seg: 8, b: CHEST, c: wc });
+        tube(A, 'gear', [R(0.84, 0.091 + hg, 0, legBase(s), { x: s * 0.094, rf: 0.095 + hg * 1.6, rb: 0.1 + hg * 1.6 }), R(0.812, 0.09 + hg, 0, legBase(s), { x: s * 0.094, rf: 0.094 + hg * 1.6, rb: 0.098 + hg * 1.6 })], { seg: lseg, c: wc, cap0: false, cap1: false }); // leg strap
       }
       rbox(A, 'gear', 0.085, 0.1, 0.035, TM(-0.085, 1.2, -0.14, 0, 0.25, 0), { b: [SPINE, CHEST, 0.5], c: C(U.pouchCol), seg: 8, n: 5 }); // survival pouch
       rbox(A, 'gear', 0.06, 0.03, 0.02, TM(0, 1.335, -0.14), { b: CHEST, c: C(0x9a9d9f), seg: 6, n: 4 }); // chest buckle

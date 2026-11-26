@@ -242,6 +242,8 @@ export const kit = {
     const T = textures(), i = ((tone % SKIN.length) + SKIN.length) % SKIN.length; if (M.skin[i]) return M.skin[i];
     // with the MakeHuman base: the skin atlas (head, hands, eyes) made by tools/people/build.py
     const map = people.ready ? registerTexture('hk_skinp_' + i, { aspect: people.meta.atlas[0] / people.meta.atlas[1], scale: 2, wrap: false, draw(ctx, w, h) { ctx.drawImage(people.skin(i), 0, 0, w, h); } }) : T.face[i];
+    // skin: a soft sheen at grazing angles (the light that scatters in skin and its fine hair) and a gentle highlight
+    if (people.ready) return (M.skin[i] = new THREE.MeshPhysicalMaterial({ name: 'hk_skin_' + i, map, roughness: 0.52, metalness: 0, vertexColors: true, sheen: 0.55, sheenRoughness: 0.45, sheenColor: new THREE.Color(i === 3 ? 0x5a3626 : 0xd98a6a), specularIntensity: 0.55 }));
     return (M.skin[i] = new THREE.MeshStandardMaterial({ name: 'hk_skin_' + i, map, roughness: 0.58, metalness: 0, vertexColors: true }));
   },
   glass(kind = 'visor') {

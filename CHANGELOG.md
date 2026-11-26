@@ -1,5 +1,16 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.4 (skin, collars, harness, signs)
+
+- Skin has a soft sheen at grazing angles and a gentle highlight, instead of flat colour.
+- Shirts, jerseys and flight suits have a collar that lies on the shoulders and stands round the neck; the neck no
+  longer shows as a patch of skin beside it.
+- The pilot's harness is a real harness: straps over the shoulders, chest and waist bands, leg straps, standing clear
+  of the suit.
+- The new compartments have stencilled plates (the room's name over each door, EXIT, FIRE POINT, FIRST AID,
+  WATERTIGHT DOOR, frame numbers) and fittings along the passage: first-aid box, telephone, junction boxes feeding the
+  cable tray, valve wheels on the fire main.
+
 ## Beta 0.6.3 (real pilots in the cockpits)
 
 - The pilots sitting in the fighters and helicopters were still the old dummy (two blobs and a ball). They are now the

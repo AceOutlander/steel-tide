@@ -9,7 +9,7 @@
 // model.interior = { group, mats, zones, hole } like js/units/v2/sdinterior.js.
 import * as THREE from 'three';
 import { Kit, tone, C } from './airkit.js';
-import { interiorMats, minus, minusAll } from './sdinterior.js';
+import { interiorMats, minus, minusAll, signGeo } from './sdinterior.js';
 
 const HP = Math.PI / 2, area = (r) => (r.x1 - r.x0) * (r.z1 - r.z0);
 const ROOMS = ['mess', 'ops', 'berth', 'galley', 'berth', 'workshop', 'store', 'office'];
@@ -77,7 +77,10 @@ export function addCabins(S) {
     k.torus(BLK, 0.11, 0.014, cx, yb(1.05), cz, axis === 'x' ? null : [0, HP, 0], 12); // hand wheel
     if (fine) for (const v of [0.4, 1.05, 1.7]) for (const q of [0.08, 0.92]) { const px = axis === 'x' ? x + dir * w * q : x + off * 1.6, pz = axis === 'x' ? z + off * 1.6 : z + dir * w * q; box(FRAME, px - 0.03, px + 0.03, yb(v - 0.02), yb(v + 0.02), pz - 0.03, pz + 0.03); } // dogs
   };
-  const sign = (x, z, face, col = GREEN) => { if (!fine) return; if (face === 'x') box(col, x - 0.008, x + 0.008, yb(2.02), yb(2.16), z - 0.22, z + 0.22); else box(col, x - 0.22, x + 0.22, yb(2.02), yb(2.16), z - 0.008, z + 0.008); };
+  // a stencilled plate on a wall: face 'x+' / 'x-' / 'z+' / 'z-' is the way it looks
+  const plate = (key, x, v, z, face, w = 0.46, h = 0.2) => k.add(M.signs, signGeo(key, w, h), x, yb(v), z, [0, face === 'x+' ? HP : face === 'x-' ? -HP : face === 'z-' ? Math.PI : 0, 0]);
+  const sign = () => {};
+  const KEY = { mess: 'mess', berth: 'berth', ops: 'ops', galley: 'galley', workshop: 'workshop', store: 'store', office: 'office', chart: 'ops' };
 
   /* ------------------------------------------------------------------ shell: floor, ceiling, outer walls, entry */
   const s = door.s, xw = door.xw, zd = door.z, Xd = s > 0 ? X1 : X0; // Xd: the interior's wall on the door side
@@ -123,7 +126,15 @@ export function addCabins(S) {
     box(DARKS, X1 - 0.34, X1 - 0.1, yb(H - 0.2), yb(H - 0.17), Z0 + 0.1, Z1 - 0.1);
   }
   leaf('z', Xd, zd + 0.44, 1, -s * 0.07);
-  sign(Xd - s * 0.06, zd, 'x', BLUE);
+  plate('exit', Xd - s * 0.05, 2.1, zd, s > 0 ? 'x-' : 'x+'); plate('wtd', Xd - s * 0.1, 1.45, zd + 0.83, s > 0 ? 'x-' : 'x+', 0.4, 0.18);
+  if (wide) { // along the passage: frame plates, a first-aid box, a telephone, junction boxes feeding the cable tray, valve wheels on the fire main
+    const cw_ = 0.68, px = xc - cw_ + 0.045, sx = xc + cw_ - 0.045;
+    plate('fire', px, 1.35, Z0 + 1.1, 'x+', 0.4, 0.18); plate('deck', sx, 1.6, Z0 + 0.9, 'x-', 0.5, 0.2);
+    for (let z = Z0 + 3.5; z < Z1 - 2; z += 6.4) plate('frame', sx, 1.75, z, 'x-', 0.26, 0.13);
+    box(WHITE, px, px + 0.1, yb(1.25), yb(1.6), Z1 - 2.4, Z1 - 2.05); plate('aid', px + 0.105, 1.425, Z1 - 2.225, 'x+', 0.32, 0.3);
+    box(BLK, sx - 0.09, sx, yb(1.25), yb(1.6), Z1 - 3.4, Z1 - 3.2); box(BLK, sx - 0.13, sx - 0.09, yb(1.3), yb(1.55), Z1 - 3.34, Z1 - 3.26); plate('dc', px, 1.7, Z1 - 4.2, 'x+', 0.44, 0.2);
+    if (fine) { for (let z = Z0 + 2.2; z < Z1 - 1; z += 4.8) { box(STEEL, sx - 0.09, sx, yb(1.5), yb(1.82), z - 0.14, z + 0.14); k.tube(BLK, [sx - 0.05, yb(1.82), z], [sx - 0.05, yb(H - 0.2), z], 0.016, 4); } for (let z = Z0 + 4; z < Z1 - 1; z += 7.3) k.torus(RED, 0.075, 0.012, xc - cw_ + 0.14, yb(H - 0.25), z, [HP, 0, 0], 10); }
+  } else { plate('fire', X0 + 0.05, 1.35, Z0 + 0.6, 'x+', 0.4, 0.18); box(RED, X0 + 0.05, X0 + 0.2, yb(0.5), yb(1.05), Z0 + 0.5, Z0 + 0.7); plate('aid', X1 - 0.05, 1.5, Z1 - 0.6, 'x-', 0.3, 0.28); }
 
   /* ------------------------------------------------------------------ fitting out each compartment */
   // strips of a room that furniture may use: for a side room everything but the aisle; for a centre-line room both sides
@@ -132,6 +143,8 @@ export function addCabins(S) {
     const kind = kinds[i], zm = (r.z0 + r.z1) / 2, strips = r.wallSide ? [{ x0: r.wallSide > 0 ? r.aisle[1] : r.x0 + 0.1, x1: r.wallSide > 0 ? r.x1 - 0.1 : r.aisle[0], side: r.wallSide }] : [{ x0: r.x0 + 0.1, x1: r.aisle[0], side: -1 }, { x0: r.aisle[1], x1: r.x1 - 0.1, side: 1 }];
     // keep the entry clear in the room the outside door opens into
     const z0 = r.z0 + 0.25, z1 = r.z1 - 0.25, entry = !wide && zd > r.z0 && zd < r.z1;
+    if (wide && r.wallSide) plate(KEY[kind], xc + r.wallSide * (0.68 - 0.05), 2.1, r.doorZ, r.wallSide > 0 ? 'x-' : 'x+');
+    else if (!wide && i > 0) plate(KEY[kind], xc, 2.1, r.z0 - 0.05, 'z-');
     lamp((r.x0 + r.x1) / 2, zm, r.x1 - r.x0 > r.z1 - r.z0 ? 'x' : 'z'); if (r.z1 - r.z0 > 6) lamp((r.x0 + r.x1) / 2, zm + (r.z1 - r.z0) * 0.3, 'x');
     if (r.wallSide) box(kind === 'mess' || kind === 'galley' ? FLOOR2 : FLOOR, r.x0, r.x1, y + 0.03, y + 0.034, r.z0, r.z1);
     const all = []; for (const st of strips) { all.push(st); const w = st.x1 - st.x0; if (w > 3.3) { const cut = st.side > 0 ? st.x1 - w * 0.5 : st.x0 + w * 0.5; all.push(st.side > 0 ? { x0: st.x0, x1: cut, side: st.side, row: 1 } : { x0: cut, x1: st.x1, side: st.side, row: 1 }); if (st.side > 0) st.x0 = cut + 0.95; else st.x1 = cut - 0.95; } }

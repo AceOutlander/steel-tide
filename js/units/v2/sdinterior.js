@@ -33,6 +33,24 @@ function drawDeck(ctx, w, h) { // a 1.25 m square of deck: non-skid coating with
   for (let i = 0; i < 14; i++) { const x = r() * w, y = r() * h, rad = (0.15 + r() * 0.3) * w, cc = r() < 0.6 ? '255,255,255' : '30,30,30', g = ctx.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, `rgba(${cc},0.1)`); g.addColorStop(1, `rgba(${cc},0)`); ctx.fillStyle = g; for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) { ctx.save(); ctx.translate(dx, dy); ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2); ctx.restore(); } }
 }
 
+// stencilled plates: one texture of 4 x 4 labels; SIGN gives each label's cell
+export const SIGN = { mess: 0, berth: 1, ops: 2, galley: 3, workshop: 4, store: 5, office: 6, exit: 7, fire: 8, danger: 9, wtd: 10, aid: 11, smoke: 12, frame: 13, deck: 14, dc: 15 };
+const SIGNS = [['MESS DECK', '#2f6b47'], ['BERTHING', '#2f6b47'], ['OPERATIONS', '#2f6b47'], ['GALLEY', '#2f6b47'], ['WORKSHOP', '#2f6b47'], ['STORES', '#2f6b47'], ["SHIP'S OFFICE", '#2f6b47'], ['EXIT  >', '#1f7a3a'],
+  ['FIRE POINT', '#a8261c'], ['DANGER|HIGH VOLTAGE', '#d2aa18', '#141414'], ['WATERTIGHT DOOR|KEEP CLOSED AT SEA', '#1f4f86'], ['+|FIRST AID', '#e6e8e4', '#1f7a3a'], ['NO SMOKING', '#a8261c'], ['FR 64', '#d8dad6', '#141414'], ['MAIN DECK', '#1f4f86'], ['DAMAGE CONTROL|LOCKER', '#a8261c']];
+function drawSigns(ctx, w, h) {
+  const cw = w / 4, ch = h / 4; ctx.fillStyle = '#888'; ctx.fillRect(0, 0, w, h); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  SIGNS.forEach(([text, bg, fg = '#f2f3ef'], i) => {
+    const x = (i % 4) * cw, y = Math.floor(i / 4) * ch, lines = text.split('|'); ctx.fillStyle = bg; ctx.fillRect(x, y, cw, ch);
+    ctx.strokeStyle = fg; ctx.lineWidth = Math.max(2, ch * 0.035); ctx.strokeRect(x + ch * 0.07, y + ch * 0.07, cw - ch * 0.14, ch - ch * 0.14); ctx.fillStyle = fg;
+    lines.forEach((ln, j) => { let size = ch * (lines.length > 1 ? (j === 0 && ln.length < 3 ? 0.5 : 0.24) : 0.34); ctx.font = `bold ${size}px Arial, Helvetica, sans-serif`; const tw = ctx.measureText(ln).width, max = cw - ch * 0.32; if (tw > max) { size *= max / tw; ctx.font = `bold ${size}px Arial, Helvetica, sans-serif`; } ctx.fillText(ln, x + cw / 2, y + ch * (lines.length > 1 ? (j === 0 ? 0.36 : 0.7) : 0.52)); });
+  });
+}
+/** a flat plate showing label `key`, w x h metres, for Kit.add(mats.signs, ...) */
+export function signGeo(key, w = 0.5, h = 0.25) {
+  const g = new THREE.PlaneGeometry(w, h), uv = g.attributes.uv, i = SIGN[key] ?? 0, col = i % 4, row = Math.floor(i / 4);
+  for (let k = 0; k < uv.count; k++) uv.setXY(k, (col + uv.getX(k) * 0.96 + 0.02) / 4, (3 - row + uv.getY(k) * 0.94 + 0.03) / 4);
+  return g;
+}
 const HP = Math.PI / 2;
 const MATS = {};
 export function interiorMats(nation) {
@@ -57,7 +75,8 @@ export function interiorMats(nation) {
   const lamp = new THREE.MeshBasicMaterial({ color: 0xfff3d8 }); lamp.name = 'sdLamp.insignia';
   const water = new THREE.MeshBasicMaterial({ color: 0x0b2c36, transparent: true, opacity: 0.82, depthWrite: false }); water.name = 'sdPool.insignia';
   const dark = new THREE.MeshBasicMaterial({ color: 0x020405 }); dark.name = 'sdDark.insignia';
-  return (MATS[nation] = { int, lamp, water, dark, alert: 0 });
+  const signs = new THREE.MeshBasicMaterial({ map: registerTexture('int_signs', { aspect: 2, wrap: false, draw: drawSigns }) }); signs.name = 'sdSigns.insignia';
+  return (MATS[nation] = { int, lamp, water, dark, signs, alert: 0 });
 }
 // 0 = normal white lighting, 1 = red battle-stations lighting
 export function setAlert(mats, k) {
