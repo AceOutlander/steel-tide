@@ -318,7 +318,7 @@ def body_parts(H, lods):
         smooth(bm, 5)
     tr = dup(body, 'trousers'); edit(tr, trouser_cut)
     for ob, kind in ((sh, 'shirt'), (tr, 'trousers')):
-        for lod, ss, ratio in ((0, 1, None), (1, 0, None), (2, 0, 0.22)):
+        for lod, ss, ratio in ((0, 1, None), (1, 0, 0.6), (2, 0, 0.22)):
             P = extract(ob, subsurf=ss, ratio=ratio); pack(kind, lod, P, cloth_uv(P, kind))
             if lod == 0 and kind == 'shirt': measure_torso(P)
     # ---- measurements the game's own gear code needs
@@ -350,14 +350,14 @@ def measure_torso(P):
     META['torso'] = rows
 
 def main():
-    lods_skin = ((0, None), (1, 0.2), (2, 0.045))
+    lods_skin = ((0, None), (1, 0.13), (2, 0.045))
     for ti, tone in enumerate(TONES):
         H = fit.make_human({**BODY_MACRO, 'age': tone['age']}, tone['race']); fit.fit(H, log=log if ti == 0 else (lambda *a: None))
         head_part(H, tone, ti, lods_skin)
         if ti == 0:
             META.update(head_dz=H['head_dz'], head_scale=H['head_scale'], eyes={k: [v[0].tolist(), v[1]] for k, v in H['eyes_fit'].items()},
                         joints={k: {n: p.tolist() for n, p in v.items()} for k, v in H['joints'].items()})
-            body_parts(H, ((0, None), (1, 0.3), (2, 0.07)))
+            body_parts(H, ((0, None), (1, 0.15), (2, 0.07)))
             # the head and neck as numbers, for the collars, helmets and face gear the game builds itself
             f = H['fit']; W = H['W']; ears = set(H['groups'].get('ears', [])); notear = np.array([i not in ears for i in range(len(f))])
             nk = f[(W[:, BI['neck']] + W[:, BI['chest']] > 0.6) & (np.abs(f[:, 0]) < 0.09)]; rows = []

@@ -1,5 +1,13 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.1 (lighter crowds, people of different sizes)
+
+- The middle detail level of a person (16 to 60 m away, and the crowds on deck) has about 10,000 triangles instead of
+  15,000, so a busy flight deck costs less on weaker graphics cards. Close up nothing changes.
+- Crew members are not all one size any more: each is a little taller or shorter, slimmer or broader.
+- The Super Destroyer's walls are shaded from the deck up like the new compartments (darker toward the deck and in the
+  ceiling corner), with a kick strip and a rail line.
+
 ## Beta 0.6.0 (every ship can be walked into)
 
 - **Every ship has an interior now.** The patrol boat, corvette, battlecruiser and carrier each have walk-in

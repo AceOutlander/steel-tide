@@ -99,7 +99,11 @@ export function buildInterior(nation, model, fine, fb) {
   const block = (xa, xb, za, zb, y0, y1) => blocks.push({ x0: Math.min(xa, xb), x1: Math.max(xa, xb), z0: Math.min(za, zb), z1: Math.max(za, zb), y0, y1, in: 1 });
   const post = (x, y, z, yaw, kind = 'in') => posts.push({ x, y, z, yaw, kind, in: 1 });
   // boxes are given by their two corners, in either order
-  const box = (c, xa, xb, ya, yb, za, zb) => k.box(c, Math.abs(xb - xa), Math.abs(yb - ya), Math.abs(zb - za), (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2);
+  const box = (c, xa, xb, ya, yb, za, zb, gr = null) => {
+    const geo = new THREE.BoxGeometry(Math.abs(xb - xa), Math.abs(yb - ya), Math.abs(zb - za));
+    if (gr) { const p = geo.attributes.position, col = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const v = p.getY(i) > 0 ? gr[1] : gr[0]; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = v; } geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); }
+    k.add(c, geo, (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2);
+  };
   const lampBox = (xa, xb, ya, yb, za, zb) => kl.box(M.lamp, Math.abs(xb - xa), Math.abs(yb - ya), Math.abs(zb - za), (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2);
   // floor slab (top at y) and ceiling (underside at y + h) of a room, with ceiling lamps; holes are left open
   const slab = (x0, x1, z0, z1, y, h, holes = [], col = FLOOR, ceilHoles = holes) => {
@@ -116,11 +120,12 @@ export function buildInterior(nation, model, fine, fb) {
   };
   // a wall along X at z (axis 'x') or along Z at x (axis 'z'), from a0 to a1, with doorways [[g0, g1], ...] 2.1 m high
   const wall = (axis, c, a0, a1, y, h, gaps = [], th = 0.22) => {
-    const seg = (b0, b1, y0, y1, col) => { if (b1 - b0 < 0.02) return; if (axis === 'x') box(col, b0, b1, y0, y1, c - th / 2, c + th / 2); else box(col, c - th / 2, c + th / 2, y0, y1, b0, b1); };
+    const seg = (b0, b1, y0, y1, col, gr = null) => { if (b1 - b0 < 0.02) return; if (axis === 'x') box(col, b0, b1, y0, y1, c - th / 2, c + th / 2, gr); else box(col, c - th / 2, c + th / 2, y0, y1, b0, b1, gr); };
     const gs = gaps.slice().sort((p, q) => p[0] - q[0]); let at = a0;
     const run = (b0, b1) => {
       if (b1 - b0 < 0.02) return;
-      seg(b0, b1, y, y + 1.0, DADO); seg(b0, b1, y + 1.0, y + h, WALL);
+      seg(b0, b1, y, y + 1.0, DADO, [0.62, 0.98]); if (h > 2.2) { seg(b0, b1, y + 1.0, y + h - 0.7, WALL, [0.9, 1.05]); seg(b0, b1, y + h - 0.7, y + h, WALL, [1.05, 0.76]); } else seg(b0, b1, y + 1.0, y + h, WALL, [0.9, 1.0]);
+      if (fine) { seg(b0, b1, y, y + 0.1, FRAME); seg(b0, b1, y + 0.98, y + 1.03, FRAME); }
       if (axis === 'x') block(b0, b1, c - 0.16, c + 0.16, y, y + h); else block(c - 0.16, c + 0.16, b0, b1, y, y + h);
       if (fine) for (let q = Math.ceil(b0 / 2.5) * 2.5; q < b1 - 0.1; q += 2.5) { if (q - b0 < 0.2) continue; if (axis === 'x') box(FRAME, q - 0.05, q + 0.05, y, y + h, c - th / 2 - 0.05, c + th / 2 + 0.05); else box(FRAME, c - th / 2 - 0.05, c + th / 2 + 0.05, y, y + h, q - 0.05, q + 0.05); }
     };

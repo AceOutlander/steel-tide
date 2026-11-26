@@ -44,6 +44,7 @@ function meshFor(nation, variant, pose, far) {
 function put(mesh, mat, col) { if (!mesh || mesh.count >= mesh.instanceMatrix.count) return false; const i = mesh.count++; mesh.setMatrixAt(i, mat); _c.setHex(col); mesh.instanceColor.setXYZ(i, _c.r, _c.g, _c.b); return true; }
 function blob(mat) { if (nBlob >= MAX) return; _l.makeScale(0.95, 1, 0.95); _l.elements[13] = 0.02; _l.premultiply(mat); blobs.setMatrixAt(nBlob++, _l); }
 
+const _sz = new THREE.Vector3(1, 1, 1);
 export const crew = {
   init() {
     blobs = new THREE.InstancedMesh(blobGeometry(), kit.blob(), MAX); blobs.instanceMatrix.setUsage(THREE.DynamicDrawUsage); blobs.frustumCulled = false; blobs.count = 0; blobs.renderOrder = 2; gfx.scene.add(blobs);
@@ -53,7 +54,7 @@ export const crew = {
   // give a ship its people (called lazily the first time the ship comes near the camera)
   muster(ship) {
     const list = ship.crewList = [], m = ship.model, carrier = ship.type === 'carrier', N = NATION_KIT[ship.nation];
-    const person = (o) => { const c = { x: 0, y: 0, z: 0, yaw: 0, t: rand(0, 20), ph: rand(0, 6), wait: 1e9, tx: 0, tz: 0, variant: 'sailor', jersey: '', col: N.work, idle: 'stand', pose: 'stand', m: new THREE.Matrix4(), d: 0, ...o }; c.tx = c.x; c.tz = c.z; if (c.wait < 1e8) this.settle(c); list.push(c); return c; };
+    const person = (o) => { const hgt = rand(0.955, 1.045), c = { x: 0, y: 0, z: 0, yaw: 0, hgt, wid: hgt * rand(0.965, 1.045), t: rand(0, 20), ph: rand(0, 6), wait: 1e9, tx: 0, tz: 0, variant: 'sailor', jersey: '', col: N.work, idle: 'stand', pose: 'stand', m: new THREE.Matrix4(), d: 0, ...o }; c.tx = c.x; c.tz = c.z; if (c.wait < 1e8) this.settle(c); list.push(c); return c; };
     const deckHand = (o) => { const j = JOBS[Math.floor(rand(0, JOBS.length))]; return person({ variant: 'deck', jersey: j, col: JERSEY[j], ...o }); };
     for (const mt of ship.mounts) if (mt.key === 'mg') person({ gun: mt, variant: 'gunner' });
     const posts = m.posts || []; let nb = 0;
@@ -132,7 +133,7 @@ export const crew = {
         }
         if (i >= show && !c.gun) continue; if (n >= MAX) break; n++;
         // body matrix = ship * translate(local) * rotY(yaw): the feet sit on the deck plane whatever the ship is doing
-        _p.set(c.x, c.y, c.z); _q.setFromAxisAngle(YA, c.yaw); _l.compose(_p, _q, _s); c.m.multiplyMatrices(_base, _l);
+        _p.set(c.x, c.y, c.z); _q.setFromAxisAngle(YA, c.yaw); _l.compose(_p, _q, _sz.set(c.wid, c.hgt, c.wid)); c.m.multiplyMatrices(_base, _l); // people are not all one size
         c.d = _w.setFromMatrixPosition(c.m).distanceTo(cam); c.ship = s;
         if (nReal > 0 && c.d < 24) cands.push(c); else this.draw(c, s);
       }
