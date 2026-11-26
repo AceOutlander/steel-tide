@@ -49,3 +49,18 @@ transport, attackheli, marine; add `&dock=1` to start a submarine in the battlec
    (Pages is set to deploy from GitHub Actions, not from a branch: the branch build skipped or mis-built pushes.)
    If no run appears for the commit, start one by hand: `gh workflow run pages.yml -R AceOutlander/steel-tide`.
 5. Load https://hunteracedev.com/steel-tide/ (add `?v=<something>` to skip caches) and check it starts.
+
+## People (since Beta 0.5.0)
+
+Every figure is built by `js/units/v2/human.js` on the MakeHuman base in `assets/people/` (`js/units/v2/people.js` loads
+it at start-up, before anything is built). The files are made by `tools/people/build.py`, run in Blender 5.1 with the
+MPFB extension installed:
+
+    blender -b --python tools/people/build.py -- assets/people <folder of MakeHuman skins> [folder for preview pictures]
+
+`tools/people/fit.py` holds the game's skeleton (keep it the same as `SK` in human.js) and moves the MakeHuman body
+onto it: arms and legs straight down, joints on the skeleton's joints. Cloth (shirt, trousers) is exported as the bare
+body surface; human.js pushes it out and creases it per uniform (`clothShape`, `U.fit`). Helmets, vests, boots and
+accessories are still built in code; gear written for the old head goes through `headFix`. To look at a figure:
+`dev.person({ role, nation, skin, helmet, uniform, acc, state })` and `dev.lineup([...])` save pictures through the
+local test server. Only CC0 sources (see CREDITS.md).

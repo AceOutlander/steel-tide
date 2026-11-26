@@ -1,5 +1,31 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.5.0 (real people)
+
+- Every person in the game is rebuilt on a real human: the MakeHuman body (CC0), fitted in Blender to the game's own
+  skeleton by `tools/people/build.py` and loaded from `assets/people/`. Marines, sailors, officers, pilots, gun crews,
+  lookouts and flight-deck crew of both nations, the crowds on deck, and the first-person arms all use it.
+- **Face:** a modelled face (eye sockets, eyelids, nose, lips, jaw, ears) with real eyeballs, four different faces and
+  skin tones from MakeHuman's CC0 skin textures; eyebrows, cropped hair and the lash line are painted on by the build.
+- **Proportions:** natural shoulder width, a visible neck, shaped arms and legs, real hands with separate fingers. The
+  skeleton's joints moved a little to match (hips, knees, shoulders, elbows, wrists).
+- **Helmet:** a new combat helmet that sits down over the forehead and round the top of the ears, deeper at the nape,
+  with a rubber edge, cover band, night-vision shroud, side rails and a four-point chin strap under the chin. Caps,
+  flight-deck helmets, flight helmets and every Hangar helmet were refitted to the new head.
+- **Camouflage:** small-scale digital camouflage in four layers per nation (a cell is about 3 mm) on real cloth
+  weave, replacing the big blobs. Cloth is the body's surface pushed out and creased: folds at the elbows, knees,
+  waist, armpits and crotch, trousers bloused over the boots, stitched seams along the sleeves, legs and front.
+- **Plate carrier:** front and back plate bags with real thickness and cut corners, cummerbund, webbing rows, shoulder
+  straps with pads and buckles, magazine pouches with pull tabs, admin pouch, radio, drag handle. The default marine
+  no longer wears knee pads or a holster (those are Hangar accessories).
+- **Pose:** the idle pose is a low ready: weight on one leg, the other knee soft, rifle angled down across the chest,
+  right hand on the grip, left hand on the handguard, elbows in. People without a rifle stand at ease the same way.
+- **Boots and gloves:** laced combat boots with a heeled, lugged sole, toe cap, heel counter and padded collar; gloves
+  are the real hand shape with knuckle pads and a wrist strap.
+- Three detail levels as before (the middle one is the same figure with a quarter of the triangles). If the people
+  files cannot be loaded the game falls back to the old simple figure.
+- All of it is CC0: see CREDITS.md.
+
 ## Beta 0.4.0 (rearming)
 
 - Ammunition is no longer gone for good, and no longer comes back by magic. `js/sim/rearm.js` holds the rules; the crews

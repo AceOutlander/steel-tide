@@ -3,6 +3,7 @@
 // Everything is created once and cached: figures share materials, colours that differ per person live in vertex colours.
 import * as THREE from 'three';
 import { registerTexture } from '../../gfx/materials.js';
+import { people } from './people.js';
 
 /* ---------------------------------------------------------------- helpers */
 function mulberry(seed) {
@@ -53,6 +54,26 @@ function blobs(ctx, w, h, r, n, size, color) {
   for (let i = 0; i < n; i++) { const d = blob(ctx, r() * w, r() * h, size * w * (0.6 + r() * 0.9), r); for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) d(ox, oy); }
 }
 
+// Digital camouflage: small square cells in clusters, several layers, the way printed uniform cloth looks. The tile is
+// 0.55 m of cloth, so a cell is about 3 mm. P: [base, mid dark, mid light, darkest, lightest].
+function pnoise(seed, period) { // repeating value noise on a lattice of `period` cells
+  const r = mulberry(seed), g = new Float32Array(period * period); for (let i = 0; i < g.length; i++) g[i] = r();
+  return (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), a = (i, j) => g[(((j % period) + period) % period) * period + (((i % period) + period) % period)];
+    return (a(xi, yi) * (1 - sx) + a(xi + 1, yi) * sx) * (1 - sy) + (a(xi, yi + 1) * (1 - sx) + a(xi + 1, yi + 1) * sx) * sy; };
+}
+function digitalCamo(ctx, w, h, P, seed) {
+  const G = 176, c = document.createElement('canvas'); c.width = c.height = G; const x = c.getContext('2d'), im = x.createImageData(G, G), d = im.data;
+  const rgb = P.map((s) => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)]);
+  // each layer: big drifting shapes broken up by two finer scales, wider than tall like real patterns
+  const L = [[1, 0.56], [2, 0.6], [3, 0.655], [4, 0.7]].map(([k, th], i) => ({ k, th, a: pnoise(seed + i * 17 + 1, 5), b: pnoise(seed + i * 17 + 2, 11), c: pnoise(seed + i * 17 + 3, 44) }));
+  for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+    let col = rgb[0];
+    for (const l of L) { const u = i / G, v = j / G, n = l.a(u * 5, v * 5) * 0.5 + l.b(u * 11, v * 11) * 0.32 + l.c(u * 44, v * 44) * 0.18; if (n > l.th) col = rgb[l.k]; }
+    const o = (j * G + i) * 4; d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, 0, 0, w, h); ctx.restore();
+}
+
 /* ------------------------------------------------------------ nation kits */
 export const JERSEY = { yellow: 0xd9ad18, green: 0x2c7a36, red: 0xb32d24, blue: 0x2552a6, white: 0xe2e2de, brown: 0x6b4526, purple: 0x6d3a94 };
 export const JERSEY_KEYS = Object.keys(JERSEY);
@@ -66,17 +87,17 @@ const BOOT = 0x1d1b19, SOLE = 0x0d0d0d, BELT = 0x1c1c1b;
 // A uniform is data, so later cosmetics only add entries here. opts.jersey picks the flight-deck colour.
 // cloth: which fabric the body uses ('camo' = the nation's pattern, 'plain' = dyed cloth tinted by the colours below).
 export const UNIFORMS = {
-  fatigues: (n) => ({ cloth: 'camo', top: 0xffffff, bottom: 0xffffff, glove: NAT[n].glove, vest: 'carrier', vestCol: NAT[n].carrier, pouchCol: NAT[n].pouch, knee: true, pockets: true, belt: NAT[n].web, gearBelt: true }),
-  working: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: null, vest: null, belt: BELT, shirt: true }),
-  khaki: (n) => ({ cloth: 'plain', top: NAT[n].khaki, bottom: NAT[n].khaki, glove: null, vest: null, belt: BELT, shirt: true }),
-  battle: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: 0x8a8672, vest: 'flak', vestCol: NAT[n].flak, belt: BELT }),
-  flightsuit: (n) => ({ cloth: 'plain', top: NAT[n].flight, bottom: NAT[n].flight, glove: NAT[n].glove, vest: 'harness', vestCol: NAT[n].web, pouchCol: NAT[n].pouch, belt: NAT[n].web, zip: true }),
-  jersey: (n, o) => { const j = JERSEY[o.jersey] ?? JERSEY.yellow; return { cloth: 'plain', top: j, bottom: NAT[n].deck, glove: 0x86704c, vest: 'float', vestCol: j, vestShade: 0.78, belt: BELT, tintTop: true }; },
+  fatigues: (n) => ({ cloth: 'camo', top: 0xffffff, bottom: 0xffffff, glove: NAT[n].glove, vest: 'carrier', vestCol: NAT[n].carrier, pouchCol: NAT[n].pouch, pockets: true, belt: NAT[n].web, gearBelt: true }),
+  working: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: null, vest: null, belt: BELT, shirt: true, tuck: true, fit: { off: 0.01, fold: 0.8 } }),
+  khaki: (n) => ({ cloth: 'plain', top: NAT[n].khaki, bottom: NAT[n].khaki, glove: null, vest: null, belt: BELT, shirt: true, tuck: true, fit: { off: 0.009, fold: 0.6 } }),
+  battle: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: 0x8a8672, vest: 'flak', vestCol: NAT[n].flak, belt: BELT, tuck: true, fit: { off: 0.01, fold: 0.8 } }),
+  flightsuit: (n) => ({ cloth: 'plain', top: NAT[n].flight, bottom: NAT[n].flight, glove: NAT[n].glove, vest: 'harness', vestCol: NAT[n].web, pouchCol: NAT[n].pouch, belt: NAT[n].web, zip: true, tuck: true, fit: { off: 0.012, fold: 0.9 } }),
+  jersey: (n, o) => { const j = JERSEY[o.jersey] ?? JERSEY.yellow; return { cloth: 'plain', top: j, bottom: NAT[n].deck, glove: 0x86704c, vest: 'float', vestCol: j, vestShade: 0.78, belt: BELT, tintTop: true, tuck: true, fit: { off: 0.008, fold: 0.6 } }; },
   // looks sold in the Hangar
-  arctic: (n) => ({ cloth: 'plain', top: 0xdde1e4, bottom: 0xd0d5d9, glove: 0x2b2e31, vest: null, belt: NAT[n].web, fur: 0x8f7d66, pockets: true }),
+  arctic: (n) => ({ cloth: 'plain', top: 0xdde1e4, bottom: 0xd0d5d9, glove: 0x2b2e31, vest: null, belt: NAT[n].web, fur: 0x8f7d66, pockets: true, fit: { off: 0.021, fold: 1.1 } }),
   tacops: (n) => ({ ...UNIFORMS.fatigues(n), vestCol: 0x1b1d1f, pouchCol: 0x25282a, glove: 0x151617, belt: 0x151617, kneeboard: true }),
-  dress: (n) => ({ cloth: 'plain', top: n === 'aethia' ? 0xe2e2dd : 0x25342d, bottom: n === 'aethia' ? 0x1c2535 : 0x141917, glove: 0xe6e6e2, vest: null, belt: n === 'aethia' ? 0xe6e6e2 : 0x121212, shirt: true, ribbons: true, sword: true }),
-  drysuit: (n) => ({ cloth: 'plain', top: 0x17191b, bottom: 0x17191b, glove: 0x0e0f10, vest: null, belt: 0x25282b, weights: true, fins: true, stripe: n === 'aethia' ? 0x3a6ea8 : 0x1f7a66 }),
+  dress: (n) => ({ cloth: 'plain', top: n === 'aethia' ? 0xe2e2dd : 0x25342d, bottom: n === 'aethia' ? 0x1c2535 : 0x141917, glove: 0xe6e6e2, vest: null, belt: n === 'aethia' ? 0xe6e6e2 : 0x121212, shirt: true, ribbons: true, sword: true, tuck: true, fit: { off: 0.01, fold: 0.35 } }),
+  drysuit: (n) => ({ cloth: 'plain', top: 0x17191b, bottom: 0x17191b, glove: 0x0e0f10, vest: null, belt: 0x25282b, weights: true, fins: true, stripe: n === 'aethia' ? 0x3a6ea8 : 0x1f7a66, tuck: true, noCollar: true, fit: { off: 0.004, fold: 0.15 } }),
   heavy: (n) => ({ ...UNIFORMS.fatigues(n), vestCol: n === 'aethia' ? 0x3c444d : 0x1a1f1e, plates: true }),
 };
 // what each role wears unless opts.uniform / opts.helmet say otherwise
@@ -170,9 +191,8 @@ function textures() {
   for (const n of ['aethia', 'extro']) {
     T.camo[n] = registerTexture('hk_camo_' + n, { draw(ctx, w, h) {
       const P = NAT[n].camo, r = mulberry(n === 'aethia' ? 101 : 202);
-      ctx.fillStyle = P[0]; ctx.fillRect(0, 0, w, h);
-      blobs(ctx, w, h, r, 16, 0.085, P[1]); blobs(ctx, w, h, r, 13, 0.07, P[2]); blobs(ctx, w, h, r, 13, 0.055, P[3]); blobs(ctx, w, h, r, 22, 0.022, P[4]); blobs(ctx, w, h, r, 18, 0.02, P[1]);
-      fade(ctx, w, h, 77, 9, 0.07); weave(ctx, w, h, 3);
+      digitalCamo(ctx, w, h, P, n === 'aethia' ? 101 : 202);
+      fade(ctx, w, h, 77, 9, 0.06); weave(ctx, w, h, 3, 1.15);
     } });
   }
   T.cloth = registerTexture('hk_cloth', { draw(ctx, w, h) { ctx.fillStyle = '#dcdcdc'; ctx.fillRect(0, 0, w, h); fade(ctx, w, h, 41, 12, 0.07); weave(ctx, w, h, 5, 0.9); } });
@@ -218,7 +238,12 @@ export const kit = {
     return M.cloth[key] || (M.cloth[key] = new THREE.MeshStandardMaterial({ name: 'hk_cloth_' + key, map: kind === 'camo' ? T.camo[nation] : T.cloth, normalMap: T.clothN, normalScale: V2(1), roughness: 0.93, metalness: 0, vertexColors: true }));
   },
   gear() { const T = textures(); return M.gear || (M.gear = new THREE.MeshStandardMaterial({ name: 'hk_gear', map: T.gear, normalMap: T.gearN, normalScale: V2(0.6), roughness: 0.8, metalness: 0.02, vertexColors: true })); },
-  skin(tone = 0) { const T = textures(), i = ((tone % SKIN.length) + SKIN.length) % SKIN.length; return M.skin[i] || (M.skin[i] = new THREE.MeshStandardMaterial({ name: 'hk_skin_' + i, map: T.face[i], roughness: 0.62, metalness: 0, vertexColors: true })); },
+  skin(tone = 0) {
+    const T = textures(), i = ((tone % SKIN.length) + SKIN.length) % SKIN.length; if (M.skin[i]) return M.skin[i];
+    // with the MakeHuman base: the skin atlas (head, hands, eyes) made by tools/people/build.py
+    const map = people.ready ? registerTexture('hk_skinp_' + i, { aspect: people.meta.atlas[0] / people.meta.atlas[1], scale: 2, wrap: false, draw(ctx, w, h) { ctx.drawImage(people.skin(i), 0, 0, w, h); } }) : T.face[i];
+    return (M.skin[i] = new THREE.MeshStandardMaterial({ name: 'hk_skin_' + i, map, roughness: 0.58, metalness: 0, vertexColors: true }));
+  },
   glass(kind = 'visor') {
     return M.glass[kind] || (M.glass[kind] = new THREE.MeshStandardMaterial(kind === 'lens'
       ? { name: 'hk_lens', color: 0x2a3d4a, roughness: 0.05, metalness: 0.6, transparent: true, opacity: 0.22, depthWrite: false, envMapIntensity: 1.4 }

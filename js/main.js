@@ -21,6 +21,7 @@ import { cosmetics } from './core/cosmetics.js';
 import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
+import { loadPeople } from './units/v2/people.js';
 
 const STEP = 1 / 60, _a = new V3(), _b = new V3();
 let last = 0, acc = 0, fpsT = 0, fpsN = 0, fpsWatch = 0, orbit = 0, deadT = 0;
@@ -35,8 +36,9 @@ export const app = {
     const bar = el('boot-fill'), txt = el('boot-text'); const prog = (p, t) => { bar.style.width = p + '%'; txt.textContent = t; };
     save.load();
     const canvas = el('game');
-    prog(15, 'Painting hulls');
-    setTimeout(() => {
+    prog(15, 'Mustering the crew');
+    loadPeople().then(() => {
+      prog(25, 'Painting hulls');
       try {
         gfx.init(canvas); prog(45, 'Filling the sea');
         fx.init(); ocean.init(); weapons.init(); world.buildIslands(); crew.init(); wrecks.init(BUILDERS); world.missiles = weapons.missiles; world.torps = weapons.torps;
@@ -77,7 +79,7 @@ export const app = {
         if (q.has('auto')) this.play(q.get('nation') || save.data.last.nation, q.get('auto'), { dock: q.has('dock') });
         last = performance.now(); requestAnimationFrame((t) => this.frame(t));
       } catch (e) { console.error(e); txt.textContent = 'Could not start: ' + e.message; }
-    }, 30);
+    });
   },
 
   // ---- flow ------------------------------------------------------------------------------------------------------------------

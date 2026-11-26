@@ -195,6 +195,51 @@ export const dev = {
     save.settings.quality = keep.q; save.settings.fast = keep.f; gfx.applyQuality();
     return out;
   },
+  // One figure, eight views (whole body from four sides, face, face three-quarter, torso, boots), saved as one JPEG by the
+  // local test server. o: buildSoldier options plus { nation, state, t, pitch, moving, dist, turn, lookAt: 'hands' }.
+  async person(o = {}, name = 'person', dir = 'people') {
+    const s = S(), cam = gfx.camera, src = gfx.renderer.domElement, V = THREE.Vector3, H = await import('./units/v2/human.js');
+    if (this._fig) gfx.scene.remove(this._fig);
+    const fig = H.buildSoldier(o.nation || 'aethia', o); this._fig = fig;
+    const u = s.player.unit, sd = gfx.sunDir; fig.position.set(u ? u.pos.x : 0, 420, u ? u.pos.z : 0); fig.rotation.y = Math.atan2(-sd.x, -sd.z) + (o.turn ?? 0.5); gfx.scene.add(fig);
+    H.animateSoldier(fig, o.state || 'idle', o.t ?? 1.3, o.moving || 0, o.pitch || 0, { snap: true, dist: o.dist ?? 0, phase: o.phase }); fig.updateMatrixWorld(true);
+    const tw = 400, th = 450, out = document.createElement('canvas'); out.width = tw * 4; out.height = th * 2; const ctx = out.getContext('2d');
+    const keep = { p: cam.position.clone(), q: cam.quaternion.clone(), fov: cam.fov, near: cam.near }; cam.near = 0.05;
+    const views = o.views || [[[0, 0.93, -3.3], [0, 0.93, 0], 34], [[-2.0, 1.15, -2.65], [0, 0.93, 0], 34], [[3.3, 0.93, 0], [0, 0.93, 0], 34], [[0, 0.93, 3.3], [0, 0.93, 0], 34],
+      [[0, 1.69, -0.68], [0, 1.675, 0], 30], [[-0.42, 1.7, -0.52], [0, 1.675, -0.02], 30], [[0.45, 1.32, -1.05], [0, 1.24, 0], 40], o.lookAt === 'hands' ? [[-0.55, 0.95, -0.45], [-0.2, 0.84, -0.03], 30] : [[0.5, 0.3, -0.75], [0.03, 0.13, -0.06], 34]];
+    views.forEach((v, i) => {
+      cam.position.copy(fig.localToWorld(new V(...v[0]))); cam.lookAt(fig.localToWorld(new V(...v[1]))); cam.fov = v[2]; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+      s.app.present(0, false, true);
+      const sh = src.height, sw = Math.min(src.width, sh * tw / th); ctx.drawImage(src, (src.width - sw) / 2, 0, sw, sh, (i % 4) * tw, Math.floor(i / 4) * th, tw, th);
+    });
+    cam.position.copy(keep.p); cam.quaternion.copy(keep.q); cam.fov = keep.fov; cam.near = keep.near; cam.updateProjectionMatrix();
+    const blob = await new Promise((r) => out.toBlob(r, 'image/jpeg', 0.92)); await fetch(`/__save?dir=${dir}&name=${name}.jpg`, { method: 'POST', body: blob });
+    return { name, tris: fig.userData.tris };
+  },
+  // Several figures side by side: each gets a whole-body and a face view. list: buildSoldier options (+ nation, state, t).
+  async lineup(list, name = 'lineup', dir = 'people') {
+    const s = S(), cam = gfx.camera, src = gfx.renderer.domElement, V = THREE.Vector3, H = await import('./units/v2/human.js'), n = list.length;
+    const tw = Math.floor(1600 / n), th = 450, out = document.createElement('canvas'); out.width = tw * n; out.height = th * 2; const ctx = out.getContext('2d');
+    const keep = { p: cam.position.clone(), q: cam.quaternion.clone(), fov: cam.fov, near: cam.near }; cam.near = 0.05; const u = s.player.unit, sd = gfx.sunDir, tris = [];
+    list.forEach((o, i) => {
+      if (this._fig) gfx.scene.remove(this._fig);
+      const fig = H.buildSoldier(o.nation || 'aethia', o); this._fig = fig; fig.position.set(u ? u.pos.x : 0, 420, u ? u.pos.z : 0); fig.rotation.y = Math.atan2(-sd.x, -sd.z) + (o.turn ?? 0.45); gfx.scene.add(fig);
+      H.animateSoldier(fig, o.state || 'idle', o.t ?? 1.3, o.moving || 0, o.pitch || 0, { snap: true, dist: o.dist ?? 0, phase: o.phase }); fig.updateMatrixWorld(true); tris.push(fig.userData.tris[0]);
+      (o.views || [[[-0.9, 1.05, -3.2], [0, 0.93, 0], 34], [[-0.2, 1.7, -0.74], [0, 1.66, 0], 30]]).forEach((v, r) => {
+        cam.position.copy(fig.localToWorld(new V(...v[0]))); cam.lookAt(fig.localToWorld(new V(...v[1]))); cam.fov = v[2]; cam.updateProjectionMatrix(); cam.updateMatrixWorld(); s.app.present(0, false, true);
+        const sh = src.height, sw = Math.min(src.width, sh * tw / th); ctx.drawImage(src, (src.width - sw) / 2, 0, sw, sh, i * tw, r * th, tw, th);
+      });
+    });
+    cam.position.copy(keep.p); cam.quaternion.copy(keep.q); cam.fov = keep.fov; cam.near = keep.near; cam.updateProjectionMatrix();
+    const blob = await new Promise((r) => out.toBlob(r, 'image/jpeg', 0.92)); await fetch(`/__save?dir=${dir}&name=${name}.jpg`, { method: 'POST', body: blob });
+    return { name, tris };
+  },
+  // save what the game canvas shows now (after drawing one frame) as a JPEG through the local test server
+  async snap(name = 'snap', dir = 'people', draw = true) {
+    const src = gfx.renderer.domElement, c = document.createElement('canvas'); if (draw) S().app.present(0, false, true);
+    c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9)); await fetch(`/__save?dir=${dir}&name=${name}.jpg`, { method: 'POST', body: blob }); return name;
+  },
   tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
   spawn(type, nation = 'aethia', opts = {}) { const s = S(); s.app.play(nation, type, opts); s.app.advance(0.5); return s.player.unit; },
   // put a freshly spawned jet in the air: taxi, launch, climb away for `secs`
