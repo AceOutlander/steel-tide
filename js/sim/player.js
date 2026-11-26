@@ -100,7 +100,7 @@ export const player = {
     if (input.tap('cloak') && u.def.cloak) { u.toggleCloak(); world.say(u.cloaked ? 'Cloak on' : u.cloakCd > 0 ? 'Cloak recharging' : 'Cloak off', 'info'); }
     this.hint = 'W/S nose down/up  A/D turn  Q/E rudder  Shift/Ctrl throttle' + (u.type === 'fighter' ? ' (hold Shift for afterburner)' : '') + '  Mouse look  G gear  X flares' + (u.def.cloak ? '  C cloak' : '') + '  LMB fire';
     if (u.state === 'deck') {
-      const cv = u.carrier; this.yaw = wrapPi(cv.yaw + u.deckYaw); this.pitch = 0.02; this.lookYaw = this.lookPitch = 0; this.jp = this.jt = 0;
+      const cv = u.carrier; this.yaw = wrapPi(cv.yaw + u.deckYaw); this.pitch = 0.02; this.lookYaw = this.lookPitch = 0; this.jp = this.jt = 0; this.holdP = undefined;
       const onCat = cv.model.catapults.find((k) => k.pos.distanceTo(u.deckLocal) < 3);
       if (onCat) { this.prompt = 'Hold <kbd>Shift</kbd> to full throttle: the catapult fires at 100%'; if (c.throttle >= 0.99) { u.launch(onCat); } }
       else { this.prompt = '<kbd>E</kbd> Taxi to the catapult'; c.throttle = 0; if (input.tap('use')) { const k = cv.model.catapults[0]; u.park(cv, k.pos, k.yaw); u.gearDown = true; } }
@@ -118,11 +118,16 @@ export const player = {
     // A/D hold a bank angle; letting go levels the wings. Near the vertical the keys roll the aircraft directly.
     c.roll = steep ? this.jt : clamp((this.jt * F.bank - bank) * 2.6, -1, 1);
     // the pull a banked turn needs to keep the nose on the horizon and bring it round (a level turn at this bank and speed)
-    let pull = 0;
-    if (!steep && _b.y > 0.1) { const sp = Math.max(u.speed, 30), b2 = clamp(Math.abs(bank), 0, 1.4), maxQ = Math.max(0.05, Math.min(u.def.pitchRate, (u.def.gLimit * 9.81) / sp) * clamp((sp - u.def.stall * 0.45) / (u.def.stall * 0.9), 0.08, 1)); pull = clamp((9.81 * Math.tan(b2) * Math.sin(b2)) / sp / maxQ * 1.3, 0, 0.95); } // a little over the textbook figure: the flight path lags the nose
+    let pull = 0, fixP = 0, fixY = 0;
+    const sp = Math.max(u.speed, 30), auth = clamp((sp - u.def.stall * 0.45) / (u.def.stall * 0.9), 0.08, 1), maxQ = Math.max(0.05, Math.min(u.def.pitchRate, (u.def.gLimit * 9.81) / sp) * auth), upright = !steep && _b.y > 0.1;
+    if (upright) { const b2 = clamp(Math.abs(bank), 0, 1.4); pull = clamp((9.81 * Math.tan(b2) * Math.sin(b2)) / sp / maxQ * 1.3, 0, 0.95); } // a little over the textbook figure: the flight path lags the nose
+    // While a turn is held and W/S are left alone, the nose stays at the height it had when the turn began. The pull alone
+    // lifts it a little every second; the correction is shared between pitch and rudder by the bank angle.
+    if (!upright || u.stalled || this.holdP === undefined || Math.abs(kp) > 0.01 || Math.abs(this.jp) > 0.06 || (Math.abs(this.jt) < 0.05 && Math.abs(bank) < 0.1)) this.holdP = hp;
+    else { const w = clamp((hp - this.holdP) * 2.4, -0.2, 0.2); fixP = -w * Math.cos(bank) / maxQ; fixY = -w * Math.sin(bank) / (0.22 * auth); } // w > 0: the nose is high, rad/s to take off
     if (world.t - (u.launchT || -9) < 1.4 && !kp) this.jp = Math.max(this.jp, 0.35); // off the catapult: a little back-stick so it climbs away
-    c.pitch = clamp(this.jp + pull, -1, 1);
-    c.yaw = clamp(input.axis('jetRudderRight', 'jetRudderLeft') * 0.3 - this.jt * 0.3, -1, 1); // gentle rudder for small corrections, plus a touch into the turn
+    c.pitch = clamp(this.jp + pull + fixP, -1, 1);
+    c.yaw = clamp(input.axis('jetRudderRight', 'jetRudderLeft') * 0.3 - this.jt * 0.3 + fixY, -1, 1); // gentle rudder for small corrections, plus a touch into the turn
     // weapons point where the nose points
     const w = u.fw[u.selKey];
     if (w && w.def.type === 'missile') { this.lockDef = w.def; const had = u.locked; seekLock(u, w.def, _f, dt, true); if (u.locked && !had) audio.play('lockTone'); else if (u.lockTarget && !u.locked && (this._bt = (this._bt || 0) - dt) < 0) { this._bt = 0.3; audio.play('lock'); } }

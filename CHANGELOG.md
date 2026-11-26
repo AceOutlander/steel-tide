@@ -1,5 +1,14 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.2.1 (fixes found while checking 0.2.0 on the live site)
+
+- Planes: holding A or D no longer lifts the nose. Before, a held turn in the fighter raised the nose about one degree
+  a second, so a long turn became a climb. Now the nose stays at the height it had when the turn began (W/S still
+  change it during the turn); the correction is shared between pitch and rudder by the bank angle.
+- Shark-mouth paint: the jaws and eye are now laid onto the real skin of the nose on both sides, so they show on all
+  five new aircraft. The old version was a cone that ended up inside the new nose shapes and could not be seen.
+- Hangar: the Get Credits button in the top bar is hidden while the store is switched off.
+
 ## Beta 0.2.0 (new models, soldiers, HUD, Credits, Hangar)
 
 **Models**

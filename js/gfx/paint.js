@@ -76,22 +76,50 @@ function flag(nation) {
   }
   return new THREE.Mesh(flagGeo, flagMats[nation]);
 }
-// painted jaws and eyes round the nose (aircraft). Uses model.nose = { pos, radius } when the model gives one.
+// Painted jaws and an eye on each side of the nose (aircraft). The painted skin near the nose is copied as a thin second
+// skin and the picture is laid onto it from the side, so it follows whatever shape the nose has.
+let sharkMat = null; const sharkGeo = new WeakMap();
+function sharkMaterial() {
+  if (sharkMat) return sharkMat;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#b01d1d'; x.beginPath(); x.moveTo(8, 150); x.quadraticCurveTo(120, 96, 244, 132); x.quadraticCurveTo(140, 236, 8, 150); x.fill(); // open mouth
+  x.fillStyle = '#f4f4ee'; for (let i = 0; i < 9; i++) { const t0 = 24 + i * 24; x.beginPath(); x.moveTo(t0, 128 - i * 0.2); x.lineTo(t0 + 11, 158); x.lineTo(t0 + 22, 127); x.fill(); x.beginPath(); x.moveTo(t0 + 4, 204 - i * 5.6); x.lineTo(t0 + 14, 176 - i * 3); x.lineTo(t0 + 24, 200 - i * 6); x.fill(); } // teeth
+  x.strokeStyle = '#111'; x.lineWidth = 5; x.beginPath(); x.moveTo(8, 150); x.quadraticCurveTo(120, 96, 244, 132); x.quadraticCurveTo(140, 236, 8, 150); x.stroke();
+  x.fillStyle = '#f4f4ee'; x.beginPath(); x.ellipse(170, 62, 26, 15, -0.25, 0, 7); x.fill(); x.fillStyle = '#111'; x.beginPath(); x.arc(176, 62, 9, 0, 7); x.fill(); x.lineWidth = 4; x.beginPath(); x.ellipse(170, 62, 26, 15, -0.25, 0, 7); x.stroke(); // eye
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.name = 'sharkmouth.insignia';
+  return (sharkMat = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.45, roughness: 0.6, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, side: THREE.DoubleSide, name: 'sharkmouth.insignia' }));
+}
 function sharkMouth(group, model) {
-  const L = model.dims.length, nose = model.nose || { pos: new THREE.Vector3(0, 0, -L * 0.5), radius: Math.max(0.5, L * 0.04) };
-  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const x = c.getContext('2d');
-  for (const side of [0, 1]) { // the texture wraps round the nose: one jaw on each side, mirrored
-    x.save(); x.translate(side ? 512 : 0, 0); x.scale(side ? -1 : 1, 1);
-    x.fillStyle = '#b01d1d'; x.beginPath(); x.moveTo(8, 150); x.quadraticCurveTo(120, 96, 244, 132); x.quadraticCurveTo(140, 236, 8, 150); x.fill(); // open mouth
-    x.fillStyle = '#f4f4ee'; for (let i = 0; i < 9; i++) { const t0 = 24 + i * 24; x.beginPath(); x.moveTo(t0, 128 - i * 0.2); x.lineTo(t0 + 11, 158); x.lineTo(t0 + 22, 127); x.fill(); x.beginPath(); x.moveTo(t0 + 4, 204 - i * 5.6); x.lineTo(t0 + 14, 176 - i * 3); x.lineTo(t0 + 24, 200 - i * 6); x.fill(); } // teeth
-    x.strokeStyle = '#111'; x.lineWidth = 5; x.beginPath(); x.moveTo(8, 150); x.quadraticCurveTo(120, 96, 244, 132); x.quadraticCurveTo(140, 236, 8, 150); x.stroke();
-    x.fillStyle = '#f4f4ee'; x.beginPath(); x.ellipse(170, 62, 26, 15, -0.25, 0, 7); x.fill(); x.fillStyle = '#111'; x.beginPath(); x.arc(176, 62, 9, 0, 7); x.fill(); x.lineWidth = 4; x.beginPath(); x.ellipse(170, 62, 26, 15, -0.25, 0, 7); x.stroke(); // eye
-    x.restore();
+  group.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(group.matrixWorld).invert(), m4 = new THREE.Matrix4(), L = model.dims.length, skins = [];
+  const nose = model.nose || { pos: new THREE.Vector3(0, 0, -L * 0.5), radius: Math.max(0.5, L * 0.03) }, v = new THREE.Vector3();
+  let tip = 1e9; // the most forward painted point near the centre line
+  group.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh || o.name === 'paint-extra' || !o.geometry || !o.geometry.attributes.position) return;
+    const mat = Array.isArray(o.material) ? o.material[0] : o.material; if (!mat || mat.transparent || kindOf(mat) !== 'paint') return;
+    skins.push(o); const p = o.geometry.attributes.position; m4.multiplyMatrices(inv, o.matrixWorld);
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(m4); if (v.z < tip && Math.abs(v.x) < nose.radius * 3) tip = v.z; }
+  });
+  if (!skins.length || tip > 1e8) return;
+  let geo = sharkGeo.get(skins[0].geometry);
+  if (!geo) {
+    const H = nose.radius * 2.7, len = Math.min(H / 0.45, L * 0.3), top = nose.pos.y + H * 0.5, pos = [], uv = [];
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), e = new THREE.Vector3();
+    for (const o of skins) {
+      const p = o.geometry.attributes.position, ix = o.geometry.index, cnt = ix ? ix.count : p.count; m4.multiplyMatrices(inv, o.matrixWorld);
+      for (let i = 0; i + 2 < cnt; i += 3) {
+        a.fromBufferAttribute(p, ix ? ix.getX(i) : i).applyMatrix4(m4); b.fromBufferAttribute(p, ix ? ix.getX(i + 1) : i + 1).applyMatrix4(m4); c.fromBufferAttribute(p, ix ? ix.getX(i + 2) : i + 2).applyMatrix4(m4);
+        const cz = (a.z + b.z + c.z) / 3, cy = (a.y + b.y + c.y) / 3; if (cz < tip - 0.05 || cz > tip + len * 1.05 || cy > top + H * 0.05 || cy < top - H * 1.05) continue;
+        n.subVectors(b, a).cross(e.subVectors(c, a)); const nl = n.length(); if (nl < 1e-9) continue; n.multiplyScalar(1 / nl);
+        if (Math.abs(n.x) < 0.3) continue; // sides only: the picture would smear across the top and the belly
+        for (const q of [a, b, c]) { pos.push(q.x + n.x * 0.012, q.y + n.y * 0.012, q.z + n.z * 0.012); uv.push((q.z - tip) / len, 1 - (top - q.y) / H); }
+      }
+    }
+    geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.computeVertexNormals();
+    sharkGeo.set(skins[0].geometry, geo);
   }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  const mat = new THREE.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.35, roughness: 0.6, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, side: THREE.DoubleSide });
-  const len = Math.max(2.2, nose.radius * 3.4), geo = new THREE.CylinderGeometry(nose.radius * 0.5, nose.radius * 1.06, len, 28, 1, true, Math.PI * 0.5, Math.PI * 2); // narrow end toward the tip
-  const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.copy(nose.pos); m.position.z += len * 0.5 + nose.radius * 0.55; m.name = 'paint-extra'; group.add(m);
+  if (!geo.attributes.position.count) return;
+  const m = new THREE.Mesh(geo, sharkMaterial()); m.name = 'paint-extra'; group.add(m);
 }
 
 export const SCHEME_KEYS = ['battleworn', 'sharkmouth', 'ceremonial', 'stealthblack', 'goldtrim'];
