@@ -5,6 +5,8 @@ import { ocean, waveHeight } from './gfx/ocean.js';
 import { econ, fmtCredits } from './core/economy.js';
 import { store } from './core/store.js';
 import { save } from './core/save.js';
+import { fx } from './gfx/effects.js';
+import { world } from './world/world.js';
 import { menus } from './ui/menus.js';
 
 const S = () => window.__steelTide;
@@ -96,6 +98,101 @@ export const dev = {
     const band = async (lo, hi) => { const c = new OfflineAudioContext(1, n, sr), src = c.createBufferSource(), b = c.createBuffer(1, n, sr); b.copyToChannel(m, 0); src.buffer = b; let node = src; for (let k = 0; k < 2; k++) { if (lo) { const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = lo; node.connect(f); node = f; } if (hi) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = hi; node.connect(f); node = f; } } node.connect(c.destination); src.start(); const d = (await c.startRendering()).getChannelData(0); let pk = 0, e = 0; const i0 = Math.max(0, Math.floor((start < 0 ? 0 : start) * sr)), i1 = Math.min(n, i0 + sr); for (let i = i0; i < i1; i++) { e += d[i] * d[i]; if (Math.abs(d[i]) > pk) pk = Math.abs(d[i]); } return db(Math.sqrt(e / (i1 - i0))); };
     const out = { peak: +peak.toFixed(3), samplesAtFullScale: over, start: +start.toFixed(3), env: env.join(' '), firstSecond: { sub: await band(30, 80), low: await band(80, 250), mid: await band(250, 2000), high: await band(2000, 0) } };
     if (raw) out.buf = buf;
+    return out;
+  },
+  // ---- before / after pictures --------------------------------------------------------------------------------------------
+  // The same named views every time, each saved as a JPEG by the local test server (POST /__save), so a "before" set and
+  // an "after" set can be laid side by side. Local test server only. dir: folder name; only: name prefixes to take.
+  // Views: every ship, submarine and aircraft of both nations, the marine (face and full body), the open sea, an island,
+  // a wake, an explosion, a burning ship, and the Super Destroyer's rooms.
+  async gallery(dir = 'shots', only = null) {
+    if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return 'local test server only';
+    const s = S(), cam = gfx.camera, src = gfx.renderer.domElement, tmp = document.createElement('canvas'), done = [], skipped = [], V = THREE.Vector3;
+    let clk = performance.now();
+    const step = (n, fn) => { for (let i = 0; i < n; i++) { clk += 1000 / 60; if (fn) fn(); s.app.frame(clk); } };
+    const keepShot = async (name) => { tmp.width = src.width; tmp.height = src.height; tmp.getContext('2d').drawImage(src, 0, 0); const blob = await new Promise((r) => tmp.toBlob(r, 'image/jpeg', 0.9)); await fetch(`/__save?dir=${dir}&name=${name}.jpg`, { method: 'POST', body: blob }); done.push(name); };
+    const view = async (name, p, l, fov = 50) => { cam.position.copy(p); cam.lookAt(l); cam.fov = fov; cam.updateProjectionMatrix(); cam.updateMatrixWorld(); s.app.present(0, false, true); await keepShot(name); };
+    const want = (n) => !only || only.some((o) => n.startsWith(o));
+    const fwdOf = (u) => { const f = new V(); if (u.fwd) u.fwd(f); else f.set(-Math.sin(u.yaw || 0), 0, -Math.cos(u.yaw || 0)); f.y = 0; return f.normalize(); };
+    // a camera position round a unit: ang from the bow, on the sunlit side; distance and height as multiples of its size
+    const orbit = (u, ang, distK, hK) => {
+      const f = fwdOf(u), r = new V(-f.z, 0, f.x), size = Math.max(u.dims.length, u.dims.span || 0, u.dims.beam || 0), side = r.dot(gfx.sunDir) >= 0 ? 1 : -1;
+      const p = new V().copy(u.pos).addScaledVector(f, Math.cos(ang) * size * distK).addScaledVector(r, side * Math.sin(ang) * size * distK); p.y = Math.max(u.pos.y, 0) + size * hK + 1.5;
+      return [p, new V(u.pos.x, Math.max(u.pos.y, 0) + size * 0.03, u.pos.z)];
+    };
+    const AIRK = ['fighter', 'bomber', 'recon', 'transport', 'attackheli'];
+    for (const nation of ['aethia', 'extro']) {
+      for (const type of ['patrol', 'corvette', 'battlecruiser', 'carrier', 'superdestroyer', 'reconsub', 'attacksub', ...AIRK]) {
+        const name = `${type}-${nation}`; if (!want(name)) continue;
+        const u = this.spawn(type, nation), air = AIRK.includes(type); s.player.mode = 'chase'; step(40);
+        await view(name, ...orbit(u, 0.65, air ? 1.5 : 0.8, air ? 0.3 : 0.2), 45);
+        await view(name + '-close', ...orbit(u, 1.15, air ? 0.8 : 0.3, air ? 0.2 : 0.09), 55);
+      }
+      if (want('marine-' + nation)) {
+        const u = this.spawn('marine', nation); s.player.mode = 'chase'; step(40);
+        const e = u.eye(new V()), f = u.aimDir(new V()); f.y = 0; f.normalize();
+        await view(`marine-${nation}-face`, new V().copy(e).addScaledVector(f, 0.62), new V(e.x, e.y - 0.03, e.z), 30);
+        await view(`marine-${nation}-body`, new V().copy(e).addScaledVector(f, 3.3).add(new V(0, -0.45, 0)), new V(e.x, e.y - 0.78, e.z), 40);
+      }
+    }
+    if (want('ocean') || want('island')) {
+      const u = this.spawn('corvette', 'aethia'); s.player.mode = 'chase'; step(40);
+      const x = u.pos.x + 900, z = u.pos.z + 900, sd = gfx.sunDir, at = (px, py, pz) => new V(px, py, pz);
+      if (want('ocean')) {
+        await view('ocean-deck-sun-behind', at(x, 9, z), at(x - sd.x * 200, 0, z - sd.z * 200), 70);
+        await view('ocean-deck-into-sun', at(x, 9, z), at(x + sd.x * 200, 2, z + sd.z * 200), 70);
+        await view('ocean-low-flight', at(x, 120, z), at(x + 500, 0, z - 600), 70);
+        await view('ocean-straight-down', at(x, 400, z), at(x + 1, 0, z + 1), 60);
+        await view('ocean-distance', at(x, 400, z), at(x - 4000, 0, z + 3000), 50);
+        s.input._press('KeyW'); step(1500); s.input._release('KeyW');
+        await view('ocean-wake', ...orbit(u, Math.PI * 0.86, 1.5, 0.55), 50);
+        await view('ocean-bow-wave', ...orbit(u, 0.5, 0.75, 0.1), 50);
+      }
+      if (want('island')) {
+        const is = world.islands[0];
+        if (is) { await view('island-beach', at(is.x + is.r * 1.25, 12, is.z), at(is.x, 6, is.z), 60); await view('island-high', at(is.x + is.r * 1.3, 260, is.z + is.r * 1.3), at(is.x, 0, is.z), 50); } else skipped.push('island: none in the world');
+      }
+    }
+    if (want('explosion') || want('burning')) {
+      const u = this.spawn('corvette', 'extro'); s.player.mode = 'chase'; step(40);
+      if (want('explosion')) {
+        const q = new V(u.pos.x + 400, 12, u.pos.z + 400), c = new V(q.x - 85, 14, q.z - 20);
+        fx.explosion(q, 16, false); step(10); await view('explosion-early', c, q, 55); step(55); await view('explosion-late', c, q, 55);
+      }
+      if (want('burning')) {
+        const t = world.units.filter((o) => o.alive && o.kind === 'ship' && !o.isPlayer).sort((a, b) => b.maxHp - a.maxHp)[0];
+        if (t) { for (let k = 0; k < 3; k++) t.damage(t.maxHp * 0.26, null, new V(t.pos.x + (k - 1) * t.dims.length * 0.22, 8, t.pos.z)); step(420); await view('burning-ship', ...orbit(t, 0.75, 0.85, 0.22), 45); await view('burning-ship-close', ...orbit(t, 1.3, 0.3, 0.1), 55); }
+        else skipped.push('burning: no other ship');
+      }
+    }
+    if (want('interior')) {
+      const m = this.spawn('marine', 'aethia', { sd: true }); step(30);
+      let ship = m.on && m.on.def.key === 'superdestroyer' ? m.on : world.units.find((o) => o.alive && o.def.key === 'superdestroyer' && o.nation === 'aethia') || world.units.find((o) => o.alive && o.def.key === 'superdestroyer');
+      if (!ship && s.battle.spawnSD) { ship = s.battle.spawnSD('aethia'); step(30); }   // the battle did not bring one: add one
+      if (!ship) skipped.push('interior: no Super Destroyer in this battle');
+      else for (const [name, x, y, z, yaw] of [['corridor-upper', 0, 8, -20, Math.PI], ['mess', 8, 8, -30, Math.PI], ['bunks', -5, 8, -30.7, Math.PI / 2], ['armoury', 5, 8, -5, -Math.PI / 2], ['wardroom', -5, 8, 23, Math.PI / 2],
+        ['corridor-lower', 0, 4, -10, Math.PI], ['engine-room', 4.4, 4, -30, Math.PI], ['generators', -5, 4, -27, Math.PI / 2], ['dock-bay', -7.5, -7.6, 66, Math.PI], ['bridge', 0, 24, -55, 0], ['stair-tower', 0, 8, -53, Math.PI]]) {
+        m.placeOn(ship, new V(x, y, z)); s.player.mode = 'first'; step(25, () => { s.player.yaw = ship.yaw + yaw; s.player.pitch = -0.04; }); await keepShot('interior-' + name);
+      }
+    }
+    return { dir, saved: done.length, skipped };
+  },
+  // Frame time in a battle on every preset (and Fast Graphics): average and worst-in-twenty milliseconds per frame, with
+  // the draw calls and triangles of the last frame. Each frame is forced to finish on the graphics card before the clock
+  // is read. In a hidden browser pane these are for comparing presets and before / after, not real frames per second.
+  bench(frames = 240) {
+    const s = S(), gl = gfx.renderer.getContext(), px = new Uint8Array(4), out = {}, keep = { q: save.settings.quality, f: save.settings.fast };
+    let clk = performance.now();
+    for (const preset of ['fast', 'low', 'medium', 'high', 'ultra']) {
+      save.settings.fast = preset === 'fast'; if (preset !== 'fast') save.settings.quality = preset; gfx.applyQuality();
+      this.spawn('battlecruiser', 'aethia'); s.player.mode = 'chase';
+      for (let i = 0; i < 180; i++) { clk += 1000 / 60; s.app.frame(clk); }
+      const ts = [];
+      for (let i = 0; i < frames; i++) { clk += 1000 / 60; const t0 = performance.now(); s.app.frame(clk); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); ts.push(performance.now() - t0); }
+      ts.sort((a, b) => a - b); const info = gfx.renderer.info.render;   // with post-processing on, this counts only the last pass
+      out[preset] = { avgMs: +(ts.reduce((a, b) => a + b, 0) / ts.length).toFixed(2), p95Ms: +ts[Math.floor(ts.length * 0.95)].toFixed(2), calls: info.calls, triangles: info.triangles, units: world.units.length, size: gfx.w + 'x' + gfx.h };
+    }
+    save.settings.quality = keep.q; save.settings.fast = keep.f; gfx.applyQuality();
     return out;
   },
   tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
