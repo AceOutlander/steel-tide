@@ -1,5 +1,10 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.10 (watertight doors in the Super Destroyer)
+
+- Every doorway inside the Super Destroyer has a raised sill with a yellow edge (you step over it) and its watertight
+  door folded back against the wall, with hand wheel and dogs.
+
 ## Beta 0.6.9 (six faces)
 
 - Six different faces and skin tones instead of four (two more MakeHuman CC0 skins, listed in CREDITS.md), so crews

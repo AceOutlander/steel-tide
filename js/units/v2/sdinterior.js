@@ -156,7 +156,17 @@ export function buildInterior(nation, model, fine, fb) {
       run(at, g0);
       seg(g0, g1, y + 2.1, y + h, WALL);                                                      // lintel
       for (const e of [g0, g1]) { if (axis === 'x') box(FRAME, e - 0.07, e + 0.07, y, y + 2.16, c - th / 2 - 0.06, c + th / 2 + 0.06); else box(FRAME, c - th / 2 - 0.06, c + th / 2 + 0.06, y, y + 2.16, e - 0.07, e + 0.07); }
-      if (axis === 'x') { box(FRAME, g0, g1, y + 2.1, y + 2.18, c - th / 2 - 0.06, c + th / 2 + 0.06); box(YEL, g0, g1, y, y + 0.03, c - th / 2 - 0.02, c + th / 2 + 0.02); } else { box(FRAME, c - th / 2 - 0.06, c + th / 2 + 0.06, y + 2.1, y + 2.18, g0, g1); box(YEL, c - th / 2 - 0.02, c + th / 2 + 0.02, y, y + 0.03, g0, g1); }
+      const lw = Math.min(1.0, g1 - g0), DOORC = T(0x8d989c), BLK = T(0x16181a);
+      if (axis === 'x') {
+        box(FRAME, g0, g1, y + 2.1, y + 2.18, c - th / 2 - 0.06, c + th / 2 + 0.06); box(FRAME, g0, g1, y, y + 0.15, c - th / 2 - 0.05, c + th / 2 + 0.05); box(HAZ, g0, g1, y + 0.15, y + 0.165, c - th / 2 - 0.05, c + th / 2 + 0.05); deck(g0, g1, c - 0.17, c + 0.17, y + 0.15);
+        box(DOORC, g1 + 0.09, g1 + 0.09 + lw, y + 0.17, y + 2.06, c + th / 2 + 0.03, c + th / 2 + 0.08); k.torus(BLK, 0.13, 0.016, g1 + 0.09 + lw / 2, y + 1.1, c + th / 2 + 0.11, null, 12);
+        if (fine) for (const v of [0.45, 1.1, 1.75]) for (const q of [0.08, 0.92]) box(FRAME, g1 + 0.09 + lw * q - 0.035, g1 + 0.09 + lw * q + 0.035, y + v - 0.025, y + v + 0.025, c + th / 2 + 0.08, c + th / 2 + 0.11);
+      } else {
+        const sd = c > 0.5 ? -1 : c < -0.5 ? 1 : 1, xf = c + sd * (th / 2 + 0.055); // the door lies against the side of the wall that faces the centre line
+        box(FRAME, c - th / 2 - 0.06, c + th / 2 + 0.06, y + 2.1, y + 2.18, g0, g1); box(FRAME, c - th / 2 - 0.05, c + th / 2 + 0.05, y, y + 0.15, g0, g1); box(HAZ, c - th / 2 - 0.05, c + th / 2 + 0.05, y + 0.15, y + 0.165, g0, g1); deck(c - 0.17, c + 0.17, g0, g1, y + 0.15);
+        box(DOORC, xf - 0.025, xf + 0.025, y + 0.17, y + 2.06, g1 + 0.09, g1 + 0.09 + lw); k.torus(BLK, 0.13, 0.016, xf + sd * 0.04, y + 1.1, g1 + 0.09 + lw / 2, [0, HP, 0], 12);
+        if (fine) for (const v of [0.45, 1.1, 1.75]) for (const q of [0.08, 0.92]) box(FRAME, xf + sd * 0.025, xf + sd * 0.055, y + v - 0.025, y + v + 0.025, g1 + 0.09 + lw * q - 0.035, g1 + 0.09 + lw * q + 0.035);
+      }
       at = g1;
     }
     run(at, a1);
