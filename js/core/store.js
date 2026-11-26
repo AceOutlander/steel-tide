@@ -37,7 +37,7 @@ export const store = {
   requestCode(email) { return this.call('/auth/request', { email }); },
   async verify(email, code) {
     const e = save.data.econ, first = !e.account; // the local wallet travels with the first sign-in; the server takes it only once
-    const r = await this.call('/auth/verify', { email, code, guest: first ? { credits: e.credits, owned: e.owned, equip: e.equip } : undefined });
+    const r = await this.call('/auth/verify', { email, code, guest: first && !e.dev ? { credits: e.credits, owned: e.owned, equip: e.equip } : undefined }); // a save that used developer Credits (e.dev) brings nothing with it
     if (r.ok && r.token) { try { localStorage.setItem(SESSION_KEY, r.token); } catch { /* ignore */ } e.queue = (e.queue || []).map((b) => ({ ...b, synced: true })); this.adopt(r.me); }
     return r;
   },

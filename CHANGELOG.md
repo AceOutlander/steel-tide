@@ -1,5 +1,15 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.3.1 (developer Credits)
+
+- With `?debugtest` in the address a small DEBUG panel appears bottom left with **Grant 50,000** and **Grant 500,000**.
+  It adds Credits to the local save only. When signed in to an account the buttons are disabled: the server holds the
+  Credits there and nothing in the game can add to them.
+- A save that has used the grant is marked, and is not moved into an account at first sign-in (no Credits, no items).
+- The server (not in this repository) has an owner-only way to add Credits to an account, protected by a secret that
+  is never part of the game. The setup checklist says how to use it.
+- `?debugtest` still runs the game muted: grant the Credits, then reload without it to play with sound.
+
 ## Beta 0.3.0 (the Super Destroyer)
 
 **The ship**

@@ -2,6 +2,10 @@
 import * as THREE from 'three';
 import { gfx } from './gfx/renderer.js';
 import { ocean, waveHeight } from './gfx/ocean.js';
+import { econ, fmtCredits } from './core/economy.js';
+import { store } from './core/store.js';
+import { save } from './core/save.js';
+import { menus } from './ui/menus.js';
 
 const S = () => window.__steelTide;
 const _look = new THREE.Vector3(), _n = new THREE.Vector3(), _c = new THREE.Vector3(), _m3 = new THREE.Matrix3();
@@ -72,6 +76,14 @@ export const dev = {
     }
     return { back, near: near > 1e8 ? null : +near.toFixed(2), what, camNear: cam.near, fov: +cam.fov.toFixed(0), y: +o.y.toFixed(1), under };
   },
+  // Developer Credits. LOCAL SAVE ONLY: with an account the server holds the Credits and nothing in the game can add to
+  // them. A save that has used this is marked (econ.dev) and is not moved into an account at sign-in.
+  grant(n = 500000) {
+    n = Math.floor(Number(n)); if (store.signedIn || !(n > 0)) return false;
+    econ.add(n); save.data.econ.dev = true; save.write();
+    if (document.querySelector('.screen')) menus.refresh();
+    return true;
+  },
   tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
   spawn(type, nation = 'aethia', opts = {}) { const s = S(); s.app.play(nation, type, opts); s.app.advance(0.5); return s.player.unit; },
   // put a freshly spawned jet in the air: taxi, launch, climb away for `secs`
@@ -93,3 +105,20 @@ export const dev = {
     return out;
   },
 };
+
+// ---- the debug panel: only when the address has ?debugtest. Developer helpers that want a button. ---------------------------------
+function buildPanel() {
+  const box = document.createElement('div'); box.id = 'dev-panel';
+  box.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:100000;background:rgba(8,14,20,.94);border:1px solid #ffcf4a;border-radius:6px;padding:8px 10px;font:12px/1.4 system-ui,sans-serif;color:#e8eef2;max-width:270px';
+  box.innerHTML = '<b style="color:#ffcf4a;letter-spacing:.08em">DEBUG</b> <span id="dev-credits"></span><div style="margin-top:6px;display:flex;gap:6px"><button data-grant="50000">Grant 50,000</button><button data-grant="500000">Grant 500,000</button></div><div id="dev-note" style="margin-top:6px;color:#9fb0bb"></div>';
+  for (const b of box.querySelectorAll('button')) b.style.cssText = 'font:inherit;padding:4px 8px;background:#1d2a35;color:#fff;border:1px solid #47607a;border-radius:4px;cursor:pointer';
+  const sync = () => {
+    const local = !store.signedIn;
+    box.querySelector('#dev-credits').textContent = 'Credits: ' + fmtCredits(econ.credits);
+    box.querySelector('#dev-note').textContent = local ? 'Grant Credits: local save only. A save that used it is not moved into an account.' : 'Signed in: Credits are held by the server and cannot be granted here.';
+    for (const b of box.querySelectorAll('button')) { b.disabled = !local; b.style.opacity = local ? '1' : '.4'; b.style.cursor = local ? 'pointer' : 'not-allowed'; }
+  };
+  box.addEventListener('click', (e) => { const n = Number(e.target.dataset && e.target.dataset.grant); if (!n) return; e.stopPropagation(); dev.grant(n); sync(); });
+  document.body.appendChild(box); sync(); setInterval(sync, 1000);
+}
+if (/[?&]debugtest/.test(location.search)) buildPanel();
