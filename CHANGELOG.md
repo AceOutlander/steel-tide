@@ -1,5 +1,11 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.8 (the rifle up close)
+
+- The rifle has the small parts of a real one in its close-up model (the one in your hands in first person): receiver
+  pins, selector, forward assist, case deflector, magazine release, bolt catch, the seam between the receiver halves,
+  flash hider prongs, a weapon light, sling loop, butt pad ridges, grip texture, optic knobs, magazine ribs.
+
 ## Beta 0.6.7 (pools of light) and 0.6.6 (name plates in the Super Destroyer)
 
 - Every ceiling fitting in every interior now throws a pool of light on the deck and a glow on the ceiling round it,

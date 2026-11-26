@@ -742,6 +742,22 @@ function rifleGeo(lod) {
       for (const s of [-1, 1]) for (let k = 0; k < 4; k++) rbox(A, G, 0.004, 0.009, 0.034, TM(s * 0.0258, 0.038, -0.215 - k * 0.062), { c: dark, seg: 4, n: 4 }); // handguard slots
       rbox(A, G, 0.003, 0.02, 0.054, TM(0.0222, 0.042, -0.06), { c: dark, seg: 4, n: 4 }); // ejection port
       rbox(A, G, 0.05, 0.008, 0.02, TM(0, 0.066, 0.058), { c: metal, seg: 4, n: 4 }); // charging handle
+      // the small parts that make it read as a real rifle up close
+      const cylX = (r, len, x, y, z, col, seg = 8) => addGeo(A, G, new THREE.CylinderGeometry(r, r, len, seg), TM(x, y, z, 0, 0, PI / 2), 0, col), blk = C(0x0c0c0d);
+      for (const z of [0.045, -0.155]) cylX(0.0045, 0.047, 0, 0.005, z, dark); // takedown and pivot pins
+      cylX(0.006, 0.006, -0.0235, 0.012, 0.02, dark); rbox(A, G, 0.004, 0.006, 0.02, TM(-0.0245, 0.012, 0.012), { c: dark, seg: 4, n: 4 }); // selector
+      cylX(0.008, 0.012, 0.027, 0.048, 0.02, metal); // forward assist
+      rbox(A, G, 0.006, 0.016, 0.02, TM(0.0245, 0.03, -0.012), { c: metal, seg: 4, n: 3 }); // case deflector
+      rbox(A, G, 0.004, 0.012, 0.012, TM(0.0235, 0.0, -0.085), { c: dark, seg: 4, n: 4 }); rbox(A, G, 0.004, 0.022, 0.01, TM(-0.0235, 0.012, -0.075), { c: dark, seg: 4, n: 4 }); // magazine release, bolt catch
+      rbox(A, G, 0.0446, 0.002, 0.232, TM(0, 0.02, -0.055), { c: blk, seg: 4, n: 6 }); // the line where the two halves of the receiver meet
+      for (let a = 0; a < 3; a++) rbox(A, G, 0.0045, 0.0245, 0.032, TM(0, 0.038, -0.616, 0, 0, (a * PI) / 3), { c: blk, seg: 4, n: 4 }); // flash hider prongs
+      tube(A, G, [{ y: -0.42, rx: 0.011 }, { y: -0.36, rx: 0.011 }, { y: -0.355, rx: 0.0145 }, { y: -0.33, rx: 0.0145 }], { seg: 8, c: dark, m: TM(0.041, 0.038, 0, PI / 2, 0, 0) }); // weapon light
+      addGeo(A, 'glass', new THREE.CircleGeometry(0.0115, 12), TM(0.041, 0.038, -0.4212, 0, PI, 0), 0, WHITE);
+      rbox(A, G, 0.012, 0.02, 0.012, TM(0, -0.034, 0.25), { c: metal, seg: 4, n: 3 }); // sling loop
+      for (let k = 0; k < 5; k++) rbox(A, G, 0.0435, 0.004, 0.006, TM(0, -0.046 + k * 0.024, 0.307), { c: blk, seg: 4, n: 4 }); // butt pad ridges
+      for (let k = 0; k < 4; k++) rbox(A, G, 0.0335, 0.003, 0.03, TM(0, -0.03 - k * 0.022, 0.046 + k * 0.0075, -0.33), { c: dark, seg: 4, n: 4 }); // grip texture
+      for (const z of [-0.075, -0.04]) cylX(0.007, 0.012, 0.021, 0.088, z, dark); cylX(0.009, 0.012, 0.03, 0.112, -0.03, dark, 10); // optic mount knobs, brightness dial
+      for (let k = 0; k < 3; k++) rbox(M, G, 0.0285, 0.004, 0.058, TM(0, -0.045 - k * 0.045, 0.0 - k * 0.009), { c: dark, seg: 4, n: 4 }); // magazine ribs
       rbox(A, G, 0.016, 0.03, 0.012, TM(0, 0.088, -0.425), { c: metal, seg: 4, n: 4 }); rbox(A, G, 0.018, 0.022, 0.012, TM(0, 0.084, 0.03), { c: metal, seg: 4, n: 4 }); // folded sights
       cylZ(A, 0.013, -0.49, -0.462, 0, 0.038, metal, 8); // gas block
       const ring = new THREE.LatheGeometry([[0.0185, 0], [0.0235, 0], [0.0245, 0.012], [0.0235, 0.024], [0.0235, 0.07], [0.0185, 0.07], [0.0185, 0]].map((p) => new THREE.Vector2(p[0], p[1])), 28);
