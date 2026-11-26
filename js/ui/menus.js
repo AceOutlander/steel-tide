@@ -230,6 +230,7 @@ export const menus = {
     if (name === 'units') { opts = o; if (o.redeploy) nation = world.playerNation; }
     if (name === 'hangar' && !hg.sel) { hg.nation = world.playerNation || nation; hg.sel = ITEMS.find((i) => i.kind === hg.tab).id; }
     cur = name; root.innerHTML = SCREENS[name](); this.showroomActive = name === 'units' || name === 'hangar';
+    if (app) app.syncHud(); // a menu is open: the battle HUD goes
     if (name === 'hangar') { hangarPreview(); hangarInfo(); }
     if (name === 'store' && store.signedIn && !store.packs) store.loadPacks().then(() => { if (cur === 'store') this.refresh(); });
     if (name === 'account' && store.signedIn && !st.fresh) { st.fresh = true; store.refresh().then(() => { if (cur === 'account') this.refresh(); }); }
@@ -237,8 +238,10 @@ export const menus = {
     if (name === 'settings') this.syncFast();
   },
   refresh() { const st = stack; this.show(cur, opts); stack = st; },
-  hide() { cur = null; root.innerHTML = ''; this.showroomActive = false; stack = []; },
-  back() { if (cur === 'pause') { app.resume(); return; } const prev = stack.pop(); if (prev) { const s = stack; this.show(prev, opts); stack = s; } else if (cur === 'nation' || cur === 'units') this.show(cur === 'units' ? 'nation' : 'title'); else this.show(app.state === 'paused' ? 'pause' : 'title'); },
+  get open() { return cur !== null; },
+  hide() { cur = null; root.innerHTML = ''; this.showroomActive = false; stack = []; if (app) app.syncHud(); },
+  // (the list is copied before show(): show() adds the screen being left to it, which would make Back go forward again)
+  back() { if (cur === 'pause') { app.resume(); return; } const prev = stack.pop(); if (prev) { const s = stack.slice(); this.show(prev, opts); stack = s; } else if (cur === 'nation' || cur === 'units') this.show(cur === 'units' ? 'nation' : 'title'); else this.show(app.state === 'paused' ? 'pause' : 'title'); },
   syncFast() {
     root.querySelectorAll('[data-fast]').forEach((b) => b.setAttribute('aria-checked', String(save.settings.fast)));
     const seg = el('q-seg'), note = el('q-note'); if (seg) { seg.style.opacity = save.settings.fast ? 0.4 : 1; note.textContent = save.settings.fast ? '(Fast Graphics is on)' : save.settings.quality === 'auto' ? `(auto: ${QUALITY[gfx.qName].label})` : ''; }
@@ -275,7 +278,7 @@ export const menus = {
     if (d.store !== undefined) { if (store.enabled) this.show('store'); else { hg.msg = 'Store coming soon.'; if (cur === 'hangar') hangarInfo(); else this.notice('Store coming soon.'); } return; }
     if (d.continue !== undefined) { this.show('units', { redeploy: true, next: true }); return; }
     if (d.resume !== undefined) return app.resume();
-    if (d.change !== undefined) { app.state = 'select'; this.show('units', { redeploy: true, change: true }); return; }
+    if (d.change !== undefined) return app.changeUnit();
     if (d.menu !== undefined) return app.toMenu();
     if (d.q) { save.settings.quality = d.q; save.write(); gfx.applyQuality(); t.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === t)); this.syncFast(); return; }
     if (d.opt) { save.settings[d.opt] = d.val; save.write(); t.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === t)); return; }

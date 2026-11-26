@@ -1,5 +1,23 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.3.2 (the battle HUD no longer shows behind menus)
+
+- Bug: after Change Unit the whole battle HUD of the previous unit stayed on screen over the unit screen (score bar,
+  feed, radar, status panel, weapon list, Credits meter, the PROTECTED badge, reticle, prompt and hint bar). The pause
+  menu and the screens opened from it had the same HUD behind them. Cause: those two paths never hid it.
+- Now one rule decides it, checked every frame and whenever a menu opens or closes: the HUD shows only during a battle
+  with no menu open. Unit selection, redeploy, results, the main menu, settings, How to Play, Pay, the Hangar, the
+  store and account screens and the pause menu all show only their own interface, with one Credits balance in the
+  corner. On Deploy or Resume the HUD is rebuilt from nothing for the unit in hand.
+- Change Unit hands the unit back to its own crew at once (before, it sat without anyone at the controls, still firing
+  if the trigger was down, until another unit was deployed).
+- Spawn protection starts at the moment of Deploy (it already did; the badge on the unit screen was the stale HUD).
+- Found while testing: Back from How to Play, after looking at the Pay page, went to the Pay page again instead of the
+  screen before (the two swapped for ever). Back now steps out properly.
+- Checked: from every one of the 13 unit types, in both nations: pause, every screen reachable from pause, Change Unit,
+  the redeploy screen after the unit is destroyed, the main menu and the Hangar: no HUD element visible in any of them;
+  then Deploy: HUD back with the right reticle and a fresh 5-second protection timer.
+
 ## Beta 0.3.1 (developer Credits)
 
 - With `?debugtest` in the address a small DEBUG panel appears bottom left with **Grant 50,000** and **Grant 500,000**.

@@ -47,7 +47,8 @@ export const hud = {
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
-  show(on) { root.hidden = !on; if (root && E.cross) { this._unit = null; clearTimeout(this._mt); if (!on) E.msg.hidden = true; } },
+  on: false, // is the HUD on screen? Only js/main.js syncHud() decides
+  show(on) { this.on = on; root.hidden = !on; if (root && E.cross) { this._unit = null; clearTimeout(this._mt); if (!on) E.msg.hidden = true; } },
   feed(text, cls) {
     const d = document.createElement('div'); d.className = cls || ''; d.textContent = text; E.feed.appendChild(d);
     while (E.feed.children.length > 7) E.feed.removeChild(E.feed.firstChild);

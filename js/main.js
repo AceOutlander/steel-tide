@@ -92,6 +92,17 @@ export const app = {
     this.state = 'battle'; menus.hide(); hud.show(true); input.lock(); fpsWatch = 7; fpsT = 0; fpsN = 0; acc = 0;
     hud.message(u.def.label.toUpperCase(), `${NATIONS[nation].classes[type]}${u.name ? ' · ' + u.name : ''}`, 3.5);
   },
+  // The battle HUD and the menus are never on screen together: the HUD shows only during a battle (or while the player's
+  // unit goes down) with no menu open. Checked every frame and whenever a menu opens or closes, so no path can leave the
+  // HUD behind a menu. Showing it again starts it clean (hud.show forgets the previous unit).
+  // ('over': the last seconds after a carrier goes down, before the results screen. The HUD stays up, frozen, as before.)
+  syncHud() { const live = this.state === 'battle' || this.state === 'dead', on = (live || this.state === 'over') && !menus.open; if (hud.on !== on) hud.show(on); return on && live; },
+  // Change unit (from the pause menu): the unit goes back to its own crew at once and fights on while the player chooses
+  changeUnit() {
+    if (this.state !== 'paused') return;
+    const u = player.unit; if (u && u.alive && u.isPlayer) { u.firing = false; battle.releasePlayer(u); }
+    this.state = 'select'; input.unlock(); audio.resume(); menus.show('units', { redeploy: true, change: true });
+  },
   pause() { if (this.state !== 'battle') return; this.state = 'paused'; input.unlock(); menus.show('pause'); audio.suspend(); },
   resume() { if (this.state !== 'paused') return; this.state = 'battle'; menus.hide(); audio.resume(); input.lock(); last = performance.now(); acc = 0; },
   toMenu() { if (player.unit && player.unit.alive) battle.releasePlayer(player.unit); player.unit = null; world.player = null; this.state = 'menu'; hud.show(false); input.unlock(); audio.resume(); audio.music('menu'); menus.show('title'); },
@@ -128,6 +139,7 @@ export const app = {
       if (this.state === 'dead') { deadT -= dt; if (deadT <= 0) { if (battle.active) this.redeploy(); else this.state = 'over'; } }
     }
     audio.setScene(this.state === 'battle' || this.state === 'dead' ? 'battle' : 'menu');
+    this.syncHud();
     const showroom = menus.showroomActive && (this.state === 'select' || this.state === 'menu'); audio.ambience(showroom);
     if (showroom) { menus.renderShowroom(dt); input.endFrame(); return; } // the battle above still ran; it is just not drawn or heard
     this.present(dt, sim);
@@ -167,7 +179,7 @@ export const app = {
     const focus = pu && this.state !== 'menu' && this.state !== 'select' ? (pu.kind === 'soldier' && pu.on ? pu.on : pu) : world.carriers[world.playerNation];
     if (focus) gfx.focusShadow(pu && pu.kind === 'soldier' ? pu.pos : focus.pos, focus.dims ? Math.max(focus.dims.length * 0.62, 40) : 60);
     this.audioScene(dt, cam);
-    if (this.state === 'battle' || this.state === 'dead') hud.update(dt);
+    if (this.syncHud()) hud.update(dt);
     if (fpview) fpview.update(sim ? dt : 0, player, gfx);
     gfx.render();
     if (fpview && !keepCam) fpview.render(gfx); // not over a developer view
