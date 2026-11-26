@@ -326,9 +326,9 @@ function combatHelmet(A, slot, col, L, tint = 0) {
   shell(A, slot, c, r, { rows, seg, rim, lip: 0.88, b: HEAD, c: col, ur: 1.4, vr: 0.62, f: shape, tint });
   const at = (th, y, k = 1) => { const dy = clamp((y - c[1]) / r[1], -1, 1), sp = Math.sqrt(1 - dy * dy) * flare(y) * k; return [c[0] + Math.sin(th) * r[0] * sp, y, c[2] - Math.cos(th) * r[2] * sp]; };
   if (L <= 1) {
-    const dk = C(0x1a1b1c), bandSeg = hi ? 28 : 14;
+    const dk = C(0x1a1b1c), trimC = C(0x2b2d2e), bandSeg = hi ? 36 : 14;
     // rubber edge trim and the cover's elastic band
-    grid(A, 'gear', 2, bandSeg, (i, j, f, out) => { const th = -PI + 2 * PI * f, p = at(th, rim(th) + (i ? 0.007 : -0.003), 1.01); out.x = p[0]; out.y = p[1]; out.z = p[2]; }, { b: HEAD, c: dk, center: c });
+    grid(A, 'gear', 2, bandSeg, (i, j, f, out) => { const th = -PI + 2 * PI * f, p = at(th, rim(th) + (i ? 0.0055 : -0.0025), 1.008); out.x = p[0]; out.y = p[1]; out.z = p[2]; }, { b: HEAD, c: trimC, center: c });
     grid(A, slot, 2, bandSeg, (i, j, f, out) => { const th = -PI + 2 * PI * f, p = at(th, 1.752 + (i ? 0.02 : 0) - 0.004 * Math.cos(th), 1.01); out.x = p[0]; out.y = p[1]; out.z = p[2]; out.u = f * 1.4; out.v = i * 0.05; }, { b: HEAD, c: slot === 'cloth' ? C(0xffffff, 0.72) : col.map((v) => v * 0.72), center: c, tint });
     const sh = at(0, 1.776), sl = -0.5; rbox(A, 'gear', 0.052, 0.046, 0.012, TM(0, sh[1], sh[2] - 0.004, sl), { b: HEAD, c: dk, seg: 8, n: 5 }); // shroud
     for (const s of [-1, 1]) { const p = at(s * PI / 2, 1.708); rbox(A, 'gear', 0.007, 0.022, 0.1, TM(p[0] + s * 0.002, p[1], p[2] + 0.004, 0, 0, 0), { b: HEAD, c: dk, seg: 6, n: 5 }); }
@@ -337,11 +337,11 @@ function combatHelmet(A, slot, col, L, tint = 0) {
       for (const s of [-1, 1]) { const p = at(PI + s * 0.35, 1.762, 1.012); rbox(A, 'gear', 0.03, 0.016, 0.003, TM(p[0], p[1], p[2], 0.2, -s * 0.35, 0), { b: HEAD, c: C(0xb9bdb4), seg: 4, n: 5 }); } // reflective tabs on the band
     }
     // chin strap: from the rim in front of and behind each ear to a junction on the jaw, then under the chin
-    const st = C(0x26251f);
+    const st = C(0x3b3a33);
     for (const s of [-1, 1]) {
       const fa = at(s * 0.95, rim(s * 0.95) + 0.006, 0.93), ba = at(s * 2.05, rim(s * 2.05) + 0.006, 0.93), J = [s * 0.0705, 1.618, -0.034];
-      ribbon(A, 'gear', [fa, [s * 0.082, 1.65, -0.052], J, [s * 0.058, 1.588, -0.058], [s * 0.036, 1.571, -0.082], [s * 0.012, 1.5655, -0.094], [0, 1.565, -0.096]], 0.017, 0.003, { b: HEAD, c: st, from: [0, 1.66, -0.03] });
-      ribbon(A, 'gear', [ba, [s * 0.084, 1.636, 0.004], J], 0.017, 0.003, { b: HEAD, c: st, from: [0, 1.66, -0.02] });
+      ribbon(A, 'gear', [fa, [s * 0.082, 1.65, -0.052], J, [s * 0.058, 1.588, -0.058], [s * 0.036, 1.571, -0.082], [s * 0.012, 1.5655, -0.094], [0, 1.565, -0.096]], 0.0135, 0.0022, { b: HEAD, c: st, from: [0, 1.66, -0.03] });
+      ribbon(A, 'gear', [ba, [s * 0.084, 1.636, 0.004], J], 0.0135, 0.0022, { b: HEAD, c: st, from: [0, 1.66, -0.02] });
       if (hi) rbox(A, 'gear', 0.006, 0.02, 0.022, TM(J[0] + s * 0.004, J[1], J[2], 0.5, 0, 0), { b: HEAD, c: C(0x101010), seg: 4, n: 5 }); // buckle
     }
     if (hi) shell(A, 'gear', [0, 1.5655, -0.092], [0.03, 0.006, 0.02], { rows: 4, seg: 8, b: HEAD, c: C(0x1c1b18) }); // chin pad

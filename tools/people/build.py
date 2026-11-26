@@ -233,7 +233,7 @@ def build_atlas(src_img, P, cuv_new, tone, eyes):
             k = np.clip((1.0 - d) * 1.6, 0, 1) * np.clip(f * 7 + 0.5, 0, 1) * np.clip((1.02 - f) * 6, 0, 1) * (0.45 + 0.8 * st) * (nn[:, 2] < 0.1)
             k = np.clip(k, 0, 0.9)[:, None]; c = c * (1 - k) + brow * (0.7 + 0.5 * st[:, None]) * k
             # lash line and the shadow inside the lids: skin that faces away from the front, right at the eyeball
-            de = np.linalg.norm(p - ec, axis=1); k = np.clip((er * 1.22 - de) / (er * 0.2), 0, 1) * np.clip((nn[:, 2] + 0.55) / 0.5, 0, 1) * 0.8
+            de = np.linalg.norm(p - ec, axis=1); k = np.clip((er * 1.27 - de) / (er * 0.2), 0, 1) * np.clip((nn[:, 2] + 0.62) / 0.45, 0, 1) * 0.95
             c = c * (1 - k[:, None]) + np.array([0.09, 0.05, 0.04]) * k[:, None]
         A[iy, ix] = c
     return A

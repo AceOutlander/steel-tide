@@ -1,5 +1,11 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.2 (narrower passages in the Super Destroyer, finer helmet straps)
+
+- The Super Destroyer's passages on both decks are 2.7 m wide instead of 5.2 m; the rooms beside them took the space.
+  The plan, the stair tower, the hatchway and the dock bay are unchanged.
+- Helmet: thinner chin strap and edge trim in webbing colours instead of thick black bands. Faces: a clearer lash line.
+
 ## Beta 0.6.1 (lighter crowds, people of different sizes)
 
 - The middle detail level of a person (16 to 60 m away, and the crowds on deck) has about 10,000 triangles instead of

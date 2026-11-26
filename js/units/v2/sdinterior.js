@@ -188,12 +188,12 @@ export function buildInterior(nation, model, fine, fb) {
 
   // ============================================================== upper deck (8 m): lobby, corridor, mess, barracks, armoury
   {
-    const y = yA, cx = 2.6, ox = 15.5, zL0 = -55, zL1 = -37, zEnd = 133, zRooms = 50;
+    const y = yA, cx = 1.35, ox = 15.5, zL0 = -55, zL1 = -37, zEnd = 133, zRooms = 50;
     const shaftHole = { x0: SH.x0, x1: SH.x1, z0: SH.z0, z1: SH.z1 };
     // floors, ceilings and what can be walked on
     slab(-5, 5, zL0, zL1, y, H, [shaftHole]); for (const r of minus({ x0: -5, x1: 5, z0: zL0, z1: zL1 }, shaftHole)) deck(r.x0, r.x1, r.z0, r.z1, y);
     slab(-cx, cx, zL1, zEnd, y, H, [], FLOOR, [HT]); deck(-cx, cx, zL1 - 0.2, zEnd, y);
-    if (fine) for (const s of [-1, 1]) box(YEL, s * (cx - 0.5) - 0.04, s * (cx - 0.5) + 0.04, y, y + 0.006, zL1, zEnd);
+    if (fine) for (const s of [-1, 1]) box(YEL, s * (cx - 0.3) - 0.04, s * (cx - 0.3) + 0.04, y, y + 0.006, zL1, zEnd);
     // outer walls and ends
     wall('x', zL0, -5, 5, y, H); wall('z', -5, zL0, zL1, y, H); wall('z', 5, zL0, zL1, y, H);
     wall('x', zL1, -ox, -cx, y, H); wall('x', zL1, cx, ox, y, H); wall('z', -ox, zL1, zRooms, y, H); wall('z', ox, zL1, zRooms, y, H);
@@ -255,7 +255,7 @@ export function buildInterior(nation, model, fine, fb) {
       }
     }
     // people in the corridor
-    post(1.2, y, -20, 0); post(-1.3, y, 14, Math.PI); post(1.4, y, 70, 0); post(-1.2, y, 104, Math.PI); post(3.4, y, -46, 0.5);
+    post(0.6, y, -20, 0); post(-0.6, y, 14, Math.PI); post(0.6, y, 70, 0); post(-0.6, y, 104, Math.PI); post(3.4, y, -46, 0.5);
     // ---- the hatchway up to the main deck by the helipad: 20 steps rising aft
     flight(HT.x0 + 0.1, HT.x1 - 0.1, HT.z0 + 0.25, y, 1, 20, 0.2, (HT.z1 - HT.z0 - 0.25) / 20);
     block(HT.x0 - 0.12, HT.x0 + 0.12, HT.z0 + 0.3, HT.z1 + 0.3, y, fb); block(HT.x1 - 0.12, HT.x1 + 0.12, HT.z0 + 0.3, HT.z1 + 0.3, y, fb); block(HT.x0, HT.x1, HT.z1, HT.z1 + 0.3, y, fb - 0.3);
@@ -265,7 +265,7 @@ export function buildInterior(nation, model, fine, fb) {
 
   // ============================================================== lower deck (4 m): corridor, engine rooms, the stair to the dock
   {
-    const y = yB, cx = 2.6, ox = 16, z0 = SH.z1, z1 = 40, zE0 = -34, zE1 = 22;
+    const y = yB, cx = 1.35, ox = 16, z0 = SH.z1, z1 = 40, zE0 = -34, zE1 = 22;
     slab(-cx, cx, z0, z1, y, H); deck(-cx, cx, z0 - 0.1, z1 + 0.2, y);
     for (const s of [-1, 1]) {
       wall('z', s * cx, z0, z1, y, H, s > 0 ? [[-7.2, -5.8]] : [[-18.7, -17.3], [9.3, 10.7]]); services(s * cx, z0 + 0.3, z1 - 0.3, y + H);
@@ -291,7 +291,7 @@ export function buildInterior(nation, model, fine, fb) {
     block(-15.9, -15.0, 0.3, 20.3, y, y + 2.2);
     for (const zc of [5, 13]) { k.cyl(BLUE, 0.9, 0.9, 1.6, -9.5, y + 0.8, zc, 'y', 12); k.cyl(STEEL, 0.5, 0.5, 2.6, -9.5, y + 1.3, zc, 'x', 10); block(-11, -8, zc - 1.2, zc + 1.2, y, y + 1.8); }
     post(-5.2, y, -19, HP, 'work'); post(-5, y, -27, HP); post(-13.8, y, 8, HP, 'work'); post(-6, y, 15, Math.PI);
-    post(1.2, y, -30, 0); post(-1.2, y, 22, Math.PI);
+    post(0.6, y, -30, 0); post(-0.6, y, 22, Math.PI);
     // ---- the stair down to the dock bay: 58 steps under the waterline, in its own trunk
     const n = 58, rise = 0.2, zs0 = z1, run = (P.bay.z0 - 0.5 - zs0) / n, sx = 1.25;
     for (let i = 1; i <= n; i++) { const yy = y - i * rise, za = zs0 + (i - 1) * run, zb = zs0 + i * run; deck(-sx + 0.15, sx - 0.15, za, zb, yy); box(i % 2 ? FLOOR2 : FLOOR, -sx, sx, yy - rise - 0.04, yy, za, zb); }
