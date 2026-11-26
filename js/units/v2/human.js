@@ -511,7 +511,7 @@ function buildFigure(S) {
       shell(A, 'gear', [lx, 0.505, -0.052], [0.062, 0.078, 0.04], { rows: 5, seg: hi ? 10 : 6, th0: -1.75, th1: 1.75, p0: 0.25, p1: PI - 0.25, b: LL, c: gearC(U.pouchCol, 0.8), center: [lx, 0.505, 0] });
       if (hi) tube(A, 'gear', [R(0.478, 0.07, 0.072, LL, { x: lx }), R(0.46, 0.07, 0.072, LL, { x: lx })], { seg: 10, c: gearC(U.belt), cap0: false, cap1: false });
     }
-    if (U.pockets && L <= 1) rbox(A, 'cloth', 0.03, 0.15, 0.115, TM(lx + s * 0.074, 0.7, 0.004), { b: UL, c: bot, n: 4, seg: 8 });
+    if (U.pockets && L <= 1) { const px = NEW ? 0.089 + (((U.fit && U.fit.off) || 0.012) - 0.012) : 0.074; rbox(A, 'cloth', 0.03, 0.16, 0.12, TM(lx + s * px, 0.72, 0.006, 0, 0, s * 0.03), { b: UL, c: bot, n: 4, seg: 8 }); if (NEW) rbox(A, 'cloth', 0.033, 0.045, 0.124, TM(lx + s * px, 0.785, 0.006, 0, 0, s * 0.03), { b: UL, c: C(0xffffff, 0.82), n: 4, seg: 8 }); }
   }
   if (!body) return A;
 
@@ -560,11 +560,12 @@ function buildFigure(S) {
   }
   // belt
   if (L <= 1) {
-    wrap(A, 'gear', [1.0, 1.045], U.gearBelt ? [0.012, 0.014, 0.014] : NEW ? [0.0125, 0.0125, 0.0125] : [0.006, 0.007, 0.007], { seg: tseg, n: 2.3, c: C(U.belt), cap0: false, cap1: false });
+    const bx = NEW ? Math.max(0, ((U.fit && U.fit.off) || 0.012) - 0.012) + (U.tuck ? 0 : 0.009) : 0; // room for a loose blouse under the belt
+    wrap(A, 'gear', [1.0, 1.045], U.gearBelt ? [0.012 + bx, 0.014 + bx, 0.014 + bx] : NEW ? [0.0125 + bx, 0.0125 + bx, 0.0125 + bx] : [0.006, 0.007, 0.007], { seg: tseg, n: 2.3, c: C(U.belt), cap0: false, cap1: false });
     if (U.gearBelt) {
       if (!NEW) { rbox(A, 'gear', 0.05, 0.15, 0.1, TM(-0.19, 0.95, 0.03), { b: HIPS, c: C(U.pouchCol), seg: 8, n: 4 }); // dump pouch
       rbox(A, 'gear', 0.04, 0.17, 0.085, TM(0.19, 0.93, -0.005, -0.15), { b: HIPS, c: C(0x17181a), seg: 8, n: 4 }); } // holster
-      if (NEW) { const t = torsoAt(1.022); rbox(A, 'gear', 0.05, 0.036, 0.012, TM(0, 1.022, -(t[1] + 0.018), 0, 0, 0), { b: HIPS, c: C(0x101112), seg: 6, n: 5 }); } // belt buckle
+      if (NEW) { const t = torsoAt(1.022); rbox(A, 'gear', 0.042, 0.034, 0.012, TM(0, 1.022, -(t[1] + 0.018 + bx), 0, 0, 0), { b: HIPS, c: C(0x101112), seg: 6, n: 5 }); } // belt buckle
       if (hi) { if (!NEW) rbox(A, 'gear', 0.03, 0.06, 0.04, TM(0.19, 1.03, 0.028, -0.3), { b: HIPS, c: C(0x101112), seg: 6, n: 4 }); for (const x of NEW ? [] : [-0.07, 0.075]) rbox(A, 'gear', 0.075, 0.08, 0.04, TM(x, 1.01, 0.135), { b: HIPS, c: C(U.pouchCol), seg: 8, n: 4 }); }
     } else rbox(A, 'gear', 0.04, 0.034, 0.012, TM(0, 1.022, NEW ? -(torsoAt(1.022)[1] + 0.014) : -0.122), { b: HIPS, c: C(0x8f8a78), seg: 6, n: 5 });
   }

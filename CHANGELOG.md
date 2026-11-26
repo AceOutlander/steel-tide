@@ -1,5 +1,12 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.5.1 (looser combat uniform)
+
+- Compared with a photograph of marines on patrol ("Marines on patrol in Afghanistan (4948760749).jpg", Wikimedia
+  Commons, public domain): the real blouse and trousers hang much looser and crease more deeply. The combat uniform
+  now stands further off the body with deeper folds, the belt and vest make room for it, and the thigh pocket has a
+  flap.
+
 ## Beta 0.5.0 (real people)
 
 - Every person in the game is rebuilt on a real human: the MakeHuman body (CC0), fitted in Blender to the game's own

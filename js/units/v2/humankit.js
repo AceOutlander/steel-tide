@@ -87,7 +87,7 @@ const BOOT = 0x1d1b19, SOLE = 0x0d0d0d, BELT = 0x1c1c1b;
 // A uniform is data, so later cosmetics only add entries here. opts.jersey picks the flight-deck colour.
 // cloth: which fabric the body uses ('camo' = the nation's pattern, 'plain' = dyed cloth tinted by the colours below).
 export const UNIFORMS = {
-  fatigues: (n) => ({ cloth: 'camo', top: 0xffffff, bottom: 0xffffff, glove: NAT[n].glove, vest: 'carrier', vestCol: NAT[n].carrier, pouchCol: NAT[n].pouch, pockets: true, belt: NAT[n].web, gearBelt: true }),
+  fatigues: (n) => ({ cloth: 'camo', top: 0xffffff, bottom: 0xffffff, glove: NAT[n].glove, vest: 'carrier', vestCol: NAT[n].carrier, pouchCol: NAT[n].pouch, pockets: true, fit: { off: 0.0155, fold: 1.4 }, belt: NAT[n].web, gearBelt: true }),
   working: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: null, vest: null, belt: BELT, shirt: true, tuck: true, fit: { off: 0.01, fold: 0.8 } }),
   khaki: (n) => ({ cloth: 'plain', top: NAT[n].khaki, bottom: NAT[n].khaki, glove: null, vest: null, belt: BELT, shirt: true, tuck: true, fit: { off: 0.009, fold: 0.6 } }),
   battle: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: 0x8a8672, vest: 'flak', vestCol: NAT[n].flak, belt: BELT, tuck: true, fit: { off: 0.01, fold: 0.8 } }),
