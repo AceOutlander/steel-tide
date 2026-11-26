@@ -1,5 +1,17 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.3.3 (ready for the site-wide account; still switched off)
+
+- Steel Tide now uses the HunterAceDev site account instead of a sign-in of its own: one sign-in on hunteracedev.com
+  works in every game there. The page loads the site's account script (only on hunteracedev.com); that script holds the
+  switch, the sign-in and the backend address. While it is switched off nothing changes: "Store coming soon", no
+  prompt, no network request.
+- When it is switched on: a signed-out player is asked to sign in or skip before the game starts (once per visit); the
+  in-game Sign in button goes to the site's sign-in page and comes straight back.
+- An account starts fresh. Nothing from a guest's local save is moved into an account any more (this closes the route
+  by which Credits added to a local save could reach an account). A new account gets a one-time gift of 5,000 Credits
+  from the server. A guest's own progress stays in the browser and comes back when playing signed out.
+
 ## Beta 0.3.2 (the battle HUD no longer shows behind menus)
 
 - Bug: after Change Unit the whole battle HUD of the previous unit stayed on screen over the unit screen (score bar,

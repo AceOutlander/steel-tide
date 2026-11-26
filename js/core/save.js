@@ -23,7 +23,8 @@ export const save = {
     } catch { /* private mode or corrupt save: start fresh */ }
     return this.data;
   },
-  write() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* ignore */ } },
+  frozen: false, // set just before the page reloads for a change of account: nothing more is written from this session
+  write() { if (this.frozen) return; try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* ignore */ } },
   get settings() { return this.data.settings; },
   get stats() { return this.data.stats; },
   get diff() { return DIFFICULTY[this.data.settings.difficulty] || DIFFICULTY.normal; },

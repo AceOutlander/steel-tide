@@ -214,6 +214,8 @@ export const menus = {
   showroomActive: false,
   init(a) {
     app = a; root = el('screens');
+    // the account's balance arrives a moment after the page: the screens that show Credits redraw when it does
+    store.onChange = () => { if (cur === 'title' || cur === 'units' || cur === 'hangar') this.refresh(); };
     root.addEventListener('click', (e) => this.click(e));
     root.addEventListener('pointerdown', (e) => { if (cur === 'hangar' && e.target.id === 'hdrag') { hg.drag = true; hg.px = e.clientX; e.target.setPointerCapture(e.pointerId); } });
     root.addEventListener('pointermove', (e) => { if (hg.drag && show.pivot) { show.pivot.rotation.y += (e.clientX - hg.px) * 0.01; hg.px = e.clientX; } });
@@ -250,6 +252,7 @@ export const menus = {
   click(e) {
     const t = e.target.closest('button, a'); if (!t || t.tagName === 'A') return; const d = t.dataset; audio.init(); audio.play('click');
     if (d.fast !== undefined) { app.setFast(!save.settings.fast, true); return; }
+    if (d.go === 'account' && !store.signedIn && store.goSignIn()) return; // the site's sign-in page, then back
     if (d.go) { this.show(d.go); return; }
     if (d.back !== undefined) return this.back();
     if (d.nation) { nation = d.nation; this.show('units'); return; }
@@ -265,7 +268,7 @@ export const menus = {
     if (d.deploy !== undefined) { if (!cosmetics.unlocked(unit)) return; app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub', sd: startSD && unit === 'marine' }); return; }
     if (d.pack) { st.msg = 'Opening Stripe in a new tab. Waiting for the payment…'; this.refresh(); store.checkout(d.pack, (got) => { st.msg = got ? `Purchase complete: +${fmtCredits(got)}` : 'No payment seen yet. If you paid, your Credits will appear shortly: open Account to check.'; if (cur === 'store') this.refresh(); }).then((r) => { if (!r.ok) { st.msg = r.message || 'Could not start the checkout.'; if (cur === 'store') this.refresh(); } }); return; }
     if (d.sendcode !== undefined) { const em = (el('acct-email') || {}).value || st.email; st.email = em.trim(); st.msg = 'Sending…'; this.refresh(); store.requestCode(st.email).then((r) => { st.sent = !!r.ok; st.msg = r.ok ? 'Code sent. Check your email (it works for 10 minutes).' : r.message || 'Could not send the code.'; if (cur === 'account') this.refresh(); }); return; }
-    if (d.verify !== undefined) { const code = ((el('acct-code') || {}).value || '').trim(); st.msg = 'Checking…'; store.verify(st.email, code).then((r) => { st.msg = r.ok ? (save.data.econ.dev ? 'Signed in. This save used developer Credits, so nothing from it was moved into the account.' : 'Signed in. Your progress is now kept with your account.') : r.message || 'That code is not right.'; if (r.ok) { st.sent = false; st.fresh = true; } if (cur === 'account') this.refresh(); }); return; }
+    if (d.verify !== undefined) { const code = ((el('acct-code') || {}).value || '').trim(); st.msg = 'Checking…'; store.verify(st.email, code).then((r) => { st.msg = r.ok ? 'Signed in. Your account keeps your Credits and items on any computer.' : r.message || 'That code is not right.'; if (r.ok) { st.sent = false; st.fresh = true; } if (cur === 'account') this.refresh(); }); return; }
     if (d.signout !== undefined) { store.signOut().then(() => { st.msg = 'Signed out. Playing as a guest.'; st.fresh = false; if (cur === 'account') this.refresh(); }); return; }
     if (d.delacct !== undefined) { if (!st.del) { st.del = true; st.msg = 'This removes your account, Credits and cosmetics from the server for good.'; return this.refresh(); } st.del = false; store.deleteAccount().then((r) => { st.msg = r.ok ? 'Account deleted.' : r.message || 'Could not delete the account.'; st.fresh = false; if (cur === 'account') this.refresh(); }); return; }
     if (d.htab) { hg.tab = d.htab; hg.sel = ITEMS.find((i) => i.kind === hg.tab).id; hg.confirm = ''; hg.msg = ''; return this.refresh(); }

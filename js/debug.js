@@ -115,7 +115,7 @@ function buildPanel() {
   const sync = () => {
     const local = !store.signedIn;
     box.querySelector('#dev-credits').textContent = 'Credits: ' + fmtCredits(econ.credits);
-    box.querySelector('#dev-note').textContent = local ? 'Grant Credits: local save only. A save that used it is not moved into an account.' : 'Signed in: Credits are held by the server and cannot be granted here.';
+    box.querySelector('#dev-note').textContent = local ? 'Grant Credits: local save only. Nothing from a local save is ever moved into an account.' : 'Signed in: Credits are held by the server and cannot be granted here.';
     for (const b of box.querySelectorAll('button')) { b.disabled = !local; b.style.opacity = local ? '1' : '.4'; b.style.cursor = local ? 'pointer' : 'not-allowed'; }
   };
   box.addEventListener('click', (e) => { const n = Number(e.target.dataset && e.target.dataset.grant); if (!n) return; e.stopPropagation(); dev.grant(n); sync(); });

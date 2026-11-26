@@ -2,8 +2,9 @@
 // js/core/storeconfig.js names a backend (enabled: true and an api address). While it is off the game is local-save only
 // and this file makes no network request at all.
 //
-// When it is on: signing in (email + one-time code) moves the local wallet into the account once; after that the server
-// holds the Credits, owned cosmetics and equipped set, and this module keeps the local copy in step with it. If the server
+// When it is on: the player signs in once for the whole site (js loaded from /account/hace.js on hunteracedev.com keeps the
+// sign-in and shows the prompt before the game). An account starts fresh: nothing moves in from a guest's local save. The
+// server holds the Credits, owned cosmetics and equipped set, and this module keeps the local copy in step with it. If the server
 // cannot be reached the game still plays: battle results wait in a queue and are sent (and checked) later.
 import { STORE_CONFIG } from './storeconfig.js';
 import { save } from './save.js';
@@ -11,12 +12,15 @@ import { save } from './save.js';
 const SESSION_KEY = 'steelTide.session.v1';
 const dev = /[?&](devtest|debugtest)/.test(location.search);
 // developer checks may point the game at a local test server; players cannot (the flag is needed)
-const api = () => { try { return (dev && localStorage.getItem('steelTide.devApi')) || (STORE_CONFIG.enabled ? STORE_CONFIG.api : ''); } catch { return ''; } };
+// the site account (when its script is loaded and switched on) names the backend and holds the sign-in for every game
+const site = () => (window.HACE && window.HACE.enabled ? window.HACE : null);
+const api = () => { try { return (site() && site().api) || (dev && localStorage.getItem('steelTide.devApi')) || (STORE_CONFIG.enabled ? STORE_CONFIG.api : ''); } catch { return ''; } };
 
 export const store = {
   me: null, online: true, packs: null, onChange: null,
   get enabled() { return !!api(); },
-  get token() { try { return localStorage.getItem(SESSION_KEY) || ''; } catch { return ''; } },
+  get site() { return site(); },
+  get token() { try { const h = site(); if (h) { const s = h.session(); return s ? s.token : ''; } return localStorage.getItem(SESSION_KEY) || ''; } catch { return ''; } },
   get signedIn() { return this.enabled && !!this.token; },
 
   async call(path, body, method = body ? 'POST' : 'GET') {
@@ -32,12 +36,12 @@ export const store = {
   pending() { return (save.data.econ.queue || []).filter((b) => !b.synced && b.played).reduce((s, b) => s + b.ships + b.aircraft + Math.min(b.infantry, 1000) + b.participation + b.win, 0); },
   // take the server's word for the wallet
   adopt(me) { if (!me) return; this.me = me; const e = save.data.econ; e.credits = me.credits + this.pending(); e.owned = me.owned.slice(); for (const n of ['aethia', 'extro']) if (me.equip && me.equip[n]) e.equip[n] = me.equip[n]; e.account = me.email; save.write(); this.onChange && this.onChange(); },
-  forget() { try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ } this.me = null; delete save.data.econ.account; save.write(); this.onChange && this.onChange(); },
+  forget() { try { if (site()) site().clear(); localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ } this.me = null; delete save.data.econ.account; save.write(); this.onChange && this.onChange(); },
 
   requestCode(email) { return this.call('/auth/request', { email }); },
   async verify(email, code) {
-    const e = save.data.econ, first = !e.account; // the local wallet travels with the first sign-in; the server takes it only once
-    const r = await this.call('/auth/verify', { email, code, guest: first && !e.dev ? { credits: e.credits, owned: e.owned, equip: e.equip } : undefined }); // a save that used developer Credits (e.dev) brings nothing with it
+    const e = save.data.econ; // an account starts fresh: nothing from the local (guest) save is sent
+    const r = await this.call('/auth/verify', { email, code });
     if (r.ok && r.token) { try { localStorage.setItem(SESSION_KEY, r.token); } catch { /* ignore */ } e.queue = (e.queue || []).map((b) => ({ ...b, synced: true })); this.adopt(r.me); }
     return r;
   },
@@ -59,6 +63,10 @@ export const store = {
     this._poll = setInterval(async () => { n++; const m = await this.call('/me'); if (m.ok && m.me.credits > before) { clearInterval(this._poll); const got = m.me.credits - before; this.adopt(m.me); onDone && onDone(got); } else if (n >= 20) { clearInterval(this._poll); onDone && onDone(0); } }, 3000);
     return r;
   },
-  async signOut() { await this.call('/signout', {}); this.forget(); },
-  async deleteAccount() { const r = await this.call('/account/delete', {}); if (r.ok) this.forget(); return r; },
+  // With the site account, signing out (or deleting the account) puts the guest's own save back in this browser and the
+  // page reloads: the save is written one last time, then frozen so nothing from this session lands in the guest's save.
+  async signOut() { const h = site(); if (h) { save.write(); save.frozen = true; await h.signOut(); location.reload(); return; } await this.call('/signout', {}); this.forget(); },
+  async deleteAccount() { const h = site(); if (h) { save.write(); save.frozen = true; const r = await h.deleteAccount(); if (r.ok) location.reload(); else save.frozen = false; return r; } const r = await this.call('/account/delete', {}); if (r.ok) this.forget(); return r; },
+  // signing in happens on the site's own page (which says the account starts fresh), then comes straight back here
+  goSignIn() { const h = site(); if (!h) return false; save.write(); save.frozen = true; location.href = '/account/?mode=signin&game=steel-tide&back=' + encodeURIComponent(location.pathname + location.search); return true; },
 };
