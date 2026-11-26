@@ -1,0 +1,44 @@
+# Publishes Steel Tide to GitHub Pages (https://hunteracedev.com/steel-tide/) on every push to main.
+#
+# Why a workflow: with Pages set to "deploy from a branch", GitHub starts its own build some time after a push, and
+# twice in November 2026 that build either never started or built the commit before the one just pushed. This workflow
+# runs on the push itself and publishes exactly that commit. It does what the branch build did (the same Jekyll pass,
+# so _config.yml still keeps CLAUDE.md, CHANGELOG.md and README.md off the site); nothing about the game changes.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push waits for the running one instead of cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
