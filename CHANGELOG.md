@@ -1,5 +1,32 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.3.4 (the heavy guns thunder)
+
+- The ships' big guns no longer sound like a small drum. A heavy gun shot is now built from layers: a sharp crack (the
+  muzzle blast), a deep boom with real sub-bass falling from 80 Hz to under 30, a gritty overdriven body, a rolling
+  thunder tail of about four seconds with echoes coming back over the water, and, faintly, the breech, a clank, the shell
+  hoist and the turret settling. Three CC0 recordings (a field gun, a deep blast, distant thunder) are mixed under the
+  synthesized layers; they are in `assets/sfx/` and listed in `CREDITS.md`. Without them the synthesis plays alone.
+- Size: the 380 mm guns of the Battlecruiser and the Super Destroyer are the loudest thing in the game (the Super
+  Destroyer's a little deeper); the Corvette's 76 mm deck gun is a short sharp bang; machine guns and the close-in AA
+  gun stay light. A triple turret fires as a ripple, barrel after barrel 75 ms apart (the shells too), and a ship's
+  turrets no longer all fire in the same instant, so a broadside rolls.
+- Distance: sound travels at 343 m/s. A gun 1 km away is heard 2.9 s after its flash, one 5 km away after 14.6 s. The
+  crack fades within about a kilometre; what arrives from far off is a deep rumble. The same delay now applies to every
+  sound in the battle (explosions, splashes, missiles). Your own guns are only slightly delayed, whatever the camera.
+- Feel: your own heavy guns turn everything else and the music down for about 0.3 s, kick the camera (scaled by the
+  Camera shake setting; a gun firing close to you kicks less), throw a white-hot flash and fireball that light the ship
+  and the water around it for a moment, and leave a big puff of yellow-brown smoke that hangs and drifts with the wind.
+- Shell impacts match: a heavy shell in the water is a deep thump with a taller, denser column; on a ship it is a heavy
+  explosion with the struck steel ringing and debris coming down. The deck gun has lighter versions of both.
+- The output now ends in a limiter and a soft ceiling, so it cannot clip however many guns fire. The big guns go round
+  the mix compressor, which is why a gun beside you is far louder than one on the horizon.
+- Settings: "Sound volume" is now "Effects volume" (it was already separate from Music volume).
+- For checks: `dev.listen(fn, seconds)` in the debug tool renders what `fn` plays through the whole output chain
+  without speakers and reports peak, start time, loudness over time and loudness per band. Measured: old heavy gun
+  gone in 0.8 s; new one holds for 0.6 s and rolls for 4.5 s, strongest band 30 to 80 Hz; 80 heavy shots with a dozen
+  explosions at once peak at 0.91 of full scale with no sample at full scale.
+
 ## Beta 0.3.3 (ready for the site-wide account; still switched off)
 
 - Steel Tide now uses the HunterAceDev site account instead of a sign-in of its own: one sign-in on hunteracedev.com

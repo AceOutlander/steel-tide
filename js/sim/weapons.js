@@ -27,6 +27,8 @@ export class Mount {
   constructor(unit, turret, key) {
     this.unit = unit; this.t = turret; this.def = WEAPONS[key]; this.key = key; this.cd = rand(0, 0.5); this.barrel = 0;
     this.ammo = this.def.ammo ?? Infinity; this.target = null; this.aligned = false; this.inArc = true; this.scan = rand(0, 1); this.lock = 0; this.manned = null; this.burst = 0;
+    // the heavy turrets of one ship do not all fire in the same instant: each waits a little longer than the one before
+    this.stagger = this.def.salvo ? (((unit._salvoN = (unit._salvoN || 0) + 1) - 1) % 5) * 0.05 : 0;
   }
   // world position of the mount (trunnion)
   pos(out) { const t = this.t; out.copy(t.node.position); out.y += t.pitch.position.y; return out.applyQuaternion(this.unit.quat).add(this.unit.pos); }
@@ -62,8 +64,11 @@ export class Mount {
     }
     const n = def.salvo ? t.muzzles.length : 1;
     for (let i = 0; i < n; i++) {
-      const mz = t.muzzles[this.barrel++ % t.muzzles.length]; mz.getWorldPosition(_a);
-      weapons.fireGun(u, def, _a, _c, u.vel, i === 0);
+      const mz = t.muzzles[this.barrel++ % t.muzzles.length];
+      // a multi-barrel heavy turret fires as a ripple: its barrels go one after another, a fraction of a second apart
+      const wait = def.salvo ? this.stagger + i * 0.075 + (i ? rand(-0.012, 0.012) : 0) : 0;
+      if (wait > 0.001) { weapons.ripple.push({ at: world.t + wait, m: this, mz, lite: i > 0 }); continue; }
+      mz.getWorldPosition(_a); weapons.fireGun(u, def, _a, _c, u.vel, i === 0 ? true : 'lite');
     }
     this.cd = 1 / def.rof; this.ammo--; if (t.barrels) t.spinV = 42;
     return true;
@@ -75,7 +80,7 @@ const B = { n: 0, tg: new Array(MAXB), pos: new Float32Array(MAXB * 3), vel: new
 let tracerMesh = null, shellMesh = null, missileGeo = null, bombGeo = null, torpGeo = null, samGeo = null, agmGeo = null;
 
 export const weapons = {
-  missiles: [], bombs: [], torps: [], flares: [],
+  missiles: [], bombs: [], torps: [], flares: [], ripple: [],
   init() {
     const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, 0, 0.5);
     MAT.tracer.color.setRGB(9, 5.5, 1.8); MAT.tracer.toneMapped = true; if (MAT.afterburner.color) MAT.afterburner.color.setScalar(4);
@@ -93,17 +98,24 @@ export const weapons = {
     missileGeo = buildAAM(); samGeo = buildSAM(); agmGeo = buildAGM(); bombGeo = buildBomb(); torpGeo = buildTorpedo();
   },
   mesh(parts, scale = 1) { const g = new THREE.Group(); for (const p of parts) g.add(new THREE.Mesh(p.geo, p.mat)); g.scale.setScalar(scale); gfx.scene.add(g); return g; },
-  clear() { B.n = 0; for (const l of [this.missiles, this.bombs, this.torps]) { for (const o of l) gfx.scene.remove(o.mesh); l.length = 0; } this.flares.length = 0; },
+  clear() { B.n = 0; this.ripple.length = 0; for (const l of [this.missiles, this.bombs, this.torps]) { for (const o of l) gfx.scene.remove(o.mesh); l.length = 0; } this.flares.length = 0; },
 
   fireGun(owner, def, pos, dir, inherit, sound = true) {
     if (B.n >= MAXB) return;
-    if (owner.isPlayer && (def.key === 'heavy' || def.key === 'deckgun')) gfx.shake(def.key === 'heavy' ? 0.3 : 0.1); // the player's own big guns
     const i = B.n++, i3 = i * 3, sp = def.spread * (owner.isPlayer ? 1 : save.diff.spread); B.tg[i] = owner.isPlayer && def.type === 'shell' ? owner.fireTarget || null : null;
     _d.copy(dir); _d.x += rand(-sp, sp); _d.y += rand(-sp, sp); _d.z += rand(-sp, sp); _d.normalize();
     B.pos[i3] = pos.x; B.pos[i3 + 1] = pos.y; B.pos[i3 + 2] = pos.z;
     B.vel[i3] = _d.x * def.speed + (inherit ? inherit.x : 0); B.vel[i3 + 1] = _d.y * def.speed + (inherit ? inherit.y : 0); B.vel[i3 + 2] = _d.z * def.speed + (inherit ? inherit.z : 0);
     B.life[i] = def.life; B.def[i] = def; B.owner[i] = owner; B.tr[i] = def.type === 'shell' ? 2 : Math.random() < (def.tracer || 0) ? 1 : 0;
-    if (sound) { fx.muzzle(pos, _d, def.key === 'heavy' ? 9 : def.key === 'deckgun' ? 3 : 0.6); audio.play(def.sound, { pos, vol: owner.isPlayer ? 1 : 0.8 }); }
+    if (sound) {
+      if (def.key === 'heavy' || def.key === 'deckgun') {   // a ship's gun: layered boom, muzzle blast, and a kick you feel
+        const big = def.key === 'heavy', lite = sound === 'lite', own = !!owner.isPlayer;
+        fx.gunBlast(pos, _d, big, lite);
+        audio.gun(big ? 'heavy' : 'deck', { pos, own, lite, pitch: owner.def && owner.def.key === 'superdestroyer' ? 0.92 : 1 });
+        const cd = own ? 0 : gfx.camera.position.distanceTo(pos), reach = big ? 260 : 70;   // your own guns kick hardest, a gun near you less
+        if (cd < reach) gfx.shake((big ? (lite ? 0.16 : 0.5) : 0.14) * (1 - cd / reach));
+      } else { fx.muzzle(pos, _d, 0.6); audio.play(def.sound, { pos, vol: owner.isPlayer ? 1 : 0.8 }); }
+    }
   },
 
   fireMissile(owner, def, pos, dir, target) {
@@ -147,6 +159,12 @@ export const weapons = {
   },
 
   update(dt) {
+    // barrels of a ripple whose moment has come
+    for (let i = this.ripple.length - 1; i >= 0; i--) {
+      const r = this.ripple[i]; if (r.at > world.t) continue;
+      this.ripple.splice(i, 1); const u = r.m.unit; if (!u.alive) continue;
+      r.mz.getWorldPosition(_a); r.m.dir(_c); this.fireGun(u, r.m.def, _a, _c, u.vel, r.lite ? 'lite' : true);
+    }
     this.updateBullets(dt); this.updateMissiles(dt); this.updateBombs(dt); this.updateTorps(dt);
     for (let i = this.flares.length - 1; i >= 0; i--) { const f = this.flares[i]; f.life -= dt; f.vel.y -= 6 * dt; f.pos.addScaledVector(f.vel, dt); if (f.life <= 0) this.flares.splice(i, 1); }
   },
@@ -172,7 +190,7 @@ export const weapons = {
           if (dx * dx + dy * dy + dz * dz > r * r) continue;
           if (u.hitTest(_a, _b, _hit, def.aa || def.key === 'cannon' ? 5 : def.type === 'shell' ? 1.5 : 0.6)) {
             u.damage(def.dmg * damageFactor(def, u), owner, _hit, def);
-            if (def.type === 'shell') { fx.explosion(_hit, def.key === 'heavy' ? 16 : 6); if (def.splash) this.blast(_hit, def.splash, def.dmg * 0.4, def, owner, u); if (owner.isPlayer) world.shellFall(owner, _hit, B.tg[i], u); }
+            if (def.type === 'shell') { const big = def.key === 'heavy'; fx.explosion(_hit, big ? 16 : 6, false); audio.play(big ? 'shellHit' : 'shellHitSmall', { pos: _hit, vol: big ? 1.2 : 0.9 }); if (def.splash) this.blast(_hit, def.splash, def.dmg * 0.4, def, owner, u); if (owner.isPlayer) world.shellFall(owner, _hit, B.tg[i], u); }
             else { fx.spark(_hit, _c.set(0, 1, 0)); if (Math.random() < 0.25) audio.play('hit', { pos: _hit, vol: 0.5 }); }
             dead = true; break;
           }
@@ -183,7 +201,7 @@ export const weapons = {
         const wy = waveHeight(_b.x, _b.z);
         if (_b.y < wy) {
           _b.y = wy; dead = true;
-          if (def.type === 'shell') { fx.splash(_b, def.key === 'heavy' ? 16 : 6); if (owner.isPlayer) world.shellFall(owner, _b, B.tg[i], null); if (def.splash) this.blast(_b, def.splash * 0.7, def.dmg * 0.3, def, owner); if (def.key === 'heavy') audio.play('explosion', { pos: _b, vol: 0.5 }); }
+          if (def.type === 'shell') { const big = def.key === 'heavy'; fx.splash(_b, big ? 16 : 6, false); audio.play(big ? 'shellWater' : 'shellWaterSmall', { pos: _b, vol: 1 }); if (owner.isPlayer) world.shellFall(owner, _b, B.tg[i], null); if (def.splash) this.blast(_b, def.splash * 0.7, def.dmg * 0.3, def, owner); }
           else if (Math.random() < 0.5) fx.splash(_b, 0.7, Math.random() < 0.15);
         }
       }

@@ -68,7 +68,7 @@ const SCREENS = {
       <div class="row"><label>Invert Y</label><button class="switch" role="switch" data-toggle="invertY" aria-checked="${s.invertY}" aria-label="Invert Y"></button></div>
       <div class="row"><label>Invert aircraft pitch (W = nose up)</label><button class="switch" role="switch" data-toggle="invertPlane" aria-checked="${!!s.invertPlane}" aria-label="Invert aircraft pitch"></button></div>
       <h3>Sound</h3>
-      ${slider('sfx', 'Sound volume', 0, 1, 0.05, s.sfx, (v) => Math.round(v * 100) + '%')}
+      ${slider('sfx', 'Effects volume', 0, 1, 0.05, s.sfx, (v) => Math.round(v * 100) + '%')}
       ${slider('music', 'Music volume', 0, 1, 0.05, s.music, (v) => Math.round(v * 100) + '%')}
       <h3>Keys <small style="color:var(--dim);text-transform:none;letter-spacing:0">click a key, then press the new one</small></h3>
       <div class="keys">${Object.keys(KEY_LABELS).map((a) => `<span>${KEY_LABELS[a]}</span><button class="kb" data-key="${a}">${save.keysFor(a).map(keyName).join(' / ')}</button>`).join('')}</div>

@@ -69,7 +69,7 @@ uniform float uTime; uniform vec3 uSunDir; uniform vec3 uSunColor; uniform sampl
 uniform vec3 uFogColor; uniform float uFogDensity; uniform float uFar; uniform vec3 uDeep; uniform vec3 uScatter; uniform vec3 uShallow; uniform vec3 uHorizon; uniform vec3 uZenith;
 uniform vec4 uWave[NW]; uniform vec3 uWaveB[NW]; uniform float uCw[NW]; uniform vec4 uBend[NW]; uniform vec2 uCap;
 uniform vec4 uShipA[${MAX_SHIPS}]; uniform vec4 uShipB[${MAX_SHIPS}]; uniform int uShipCount; uniform vec4 uHoleA; uniform vec4 uHoleB;
-uniform vec4 uIsl[${MAX_ISL}]; uniform int uIslCount; uniform vec4 uSplash[${MAX_SPLASH}]; uniform int uSplashCount; uniform float uUnder;
+uniform vec4 uIsl[${MAX_ISL}]; uniform int uIslCount; uniform vec4 uSplash[${MAX_SPLASH}]; uniform int uSplashCount; uniform float uUnder; uniform vec4 uFlash[2];
 varying vec3 vWorld;
 
 float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -209,6 +209,8 @@ DETAIL_OCTAVES
   float glint = exp(-dot(ds, ds) / (2.0 * var)) / (6.2832 * var) * (0.02 + 0.98 * pow(1.0 - max(dot(V, Hh), 0.0), 5.0));
   col += uSunColor * min(glint * 0.8, 11.0);
   col = mix(col, vec3(0.86, 0.9, 0.92) * ((0.4 + 0.85 * sunB) * (0.8 + 0.25 * ft)), white * 0.93);
+  // the muzzle flash of a big gun on the water around it (xyz: where, w: how bright right now)
+  for (int i = 0; i < 2; i++) { if (uFlash[i].w > 0.0) { vec3 fl = uFlash[i].xyz - vWorld; float fq = dot(fl, fl); col += vec3(1.0, 0.6, 0.26) * uFlash[i].w * (0.3 + 0.7 * max(dot(Nb, fl * inversesqrt(fq)), 0.0)) / (1.0 + fq / 1600.0); } }
   float fog = max(1.0 - exp(-uFogDensity * uFogDensity * dist * dist), smoothstep(0.55, 0.97, dist / uFar));
   col = mix(col, uFogColor, fog);
   gl_FragColor = vec4(col, 1.0);
@@ -249,7 +251,7 @@ export const ocean = {
       uHorizon: { value: new THREE.Color(0.55, 0.7, 0.85) }, uZenith: { value: new THREE.Color(0.12, 0.3, 0.62) },
       uShipA: { value: Array.from({ length: MAX_SHIPS }, () => new THREE.Vector4()) }, uShipB: { value: Array.from({ length: MAX_SHIPS }, () => new THREE.Vector4()) }, uShipCount: { value: 0 }, uHoleA: { value: new THREE.Vector4() }, uHoleB: { value: new THREE.Vector4() },
       uIsl: { value: Array.from({ length: MAX_ISL }, () => new THREE.Vector4(0, 0, 1, 0)) }, uIslCount: { value: 0 },
-      uSplash: { value: Array.from({ length: MAX_SPLASH }, () => new THREE.Vector4(0, 0, 1, 0)) }, uSplashCount: { value: 0 }, uUnder: { value: 0 },
+      uSplash: { value: Array.from({ length: MAX_SPLASH }, () => new THREE.Vector4(0, 0, 1, 0)) }, uSplashCount: { value: 0 }, uUnder: { value: 0 }, uFlash: { value: [new THREE.Vector4(), new THREE.Vector4()] },
     };
     this.mat = new THREE.ShaderMaterial({ uniforms: U, vertexShader: vert, fragmentShader: fragFor(2), side: THREE.DoubleSide, defines: { WATER: 2 } });
     this.mesh = new THREE.Mesh(gridGeometry(128), this.mat);
@@ -272,6 +274,8 @@ export const ocean = {
   setIslands(list) { const u = this.mat.uniforms; list.slice(0, MAX_ISL).forEach((is, i) => u.uIsl.value[i].set(is.x, is.z, is.r, 0)); u.uIslCount.value = Math.min(list.length, MAX_ISL); },
   // the opening in the sea for a ship with rooms below the waterline: ship = { pos, yaw }, hole = { x0, x1, z0, z1 } in its frame (null = none)
   setHole(ship, hole) { const u = this.mat.uniforms; if (!ship) { u.uHoleA.value.set(0, 0, 0, 0); return; } u.uHoleA.value.set(ship.pos.x, ship.pos.z, -Math.sin(ship.yaw), -Math.cos(ship.yaw)); u.uHoleB.value.set(hole.x0, hole.x1, hole.z0, hole.z1); },
+  // a gun flash lighting the water: slot 0 or 1, where it is, how bright (0 = off)
+  setFlash(i, p, k) { const v = this.mat.uniforms.uFlash.value[i]; if (p && k > 0) v.set(p.x, p.y, p.z, k); else v.w = 0; },
   // ships: array of { x, z, fx, fz, hl, hb, spd (0..1), wake (m) } nearest first
   setShips(ships) {
     const u = this.mat.uniforms, n = Math.min(ships.length, this.maxWakes, MAX_SHIPS);

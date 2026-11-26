@@ -84,6 +84,20 @@ export const dev = {
     if (document.querySelector('.screen')) menus.refresh();
     return true;
   },
+  // Sound checks without speakers: renders what fn() plays through the game's whole output chain and measures it.
+  // Returns peak (1 = full scale), the time the sound starts, loudness every 0.1 s (dB), and loudness per band:
+  // sub 30-80 Hz, low 80-250, mid 250-2000, high above 2000. listen(fn, secs, true) also returns the samples.
+  async listen(fn, secs = 6, raw = false) {
+    const s = S(), buf = await s.audio.offline(secs, fn); if (!buf) return null;
+    const sr = buf.sampleRate, L = buf.getChannelData(0), R = buf.getChannelData(1), n = L.length, m = new Float32Array(n);
+    let peak = 0, over = 0, start = -1; for (let i = 0; i < n; i++) { const a = Math.max(Math.abs(L[i]), Math.abs(R[i])); if (a > peak) peak = a; if (a >= 0.999) over++; if (start < 0 && a > 0.01) start = i / sr; m[i] = (L[i] + R[i]) * 0.5; }
+    const db = (x) => Math.round(20 * Math.log10(x + 1e-6)), w = Math.floor(sr * 0.1), env = [];
+    for (let i = 0; i < n; i += w) { let e = 0; const j1 = Math.min(n, i + w); for (let j = i; j < j1; j++) e += m[j] * m[j]; env.push(db(Math.sqrt(e / (j1 - i)))); }
+    const band = async (lo, hi) => { const c = new OfflineAudioContext(1, n, sr), src = c.createBufferSource(), b = c.createBuffer(1, n, sr); b.copyToChannel(m, 0); src.buffer = b; let node = src; for (let k = 0; k < 2; k++) { if (lo) { const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = lo; node.connect(f); node = f; } if (hi) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = hi; node.connect(f); node = f; } } node.connect(c.destination); src.start(); const d = (await c.startRendering()).getChannelData(0); let pk = 0, e = 0; const i0 = Math.max(0, Math.floor((start < 0 ? 0 : start) * sr)), i1 = Math.min(n, i0 + sr); for (let i = i0; i < i1; i++) { e += d[i] * d[i]; if (Math.abs(d[i]) > pk) pk = Math.abs(d[i]); } return db(Math.sqrt(e / (i1 - i0))); };
+    const out = { peak: +peak.toFixed(3), samplesAtFullScale: over, start: +start.toFixed(3), env: env.join(' '), firstSecond: { sub: await band(30, 80), low: await band(80, 250), mid: await band(250, 2000), high: await band(2000, 0) } };
+    if (raw) out.buf = buf;
+    return out;
+  },
   tapKey(code, hold = 0.12) { const s = S(); s.input._press(code); s.app.advance(hold); s.input._release(code); },
   spawn(type, nation = 'aethia', opts = {}) { const s = S(); s.app.play(nation, type, opts); s.app.advance(0.5); return s.player.unit; },
   // put a freshly spawned jet in the air: taxi, launch, climb away for `secs`

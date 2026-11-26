@@ -42,6 +42,8 @@ transport, attackheli, marine; add `&dock=1` to start a submarine in the battlec
    no console errors, and the "made for PC" screen at a phone size.
 2. Commit on `main`.
 3. `git push origin main`.
+   Sound: test pages must be silent (`?devtest=1` mutes the game). To check a sound, measure it with
+   `await __steelTide.dev.listen(() => __steelTide.audio.gun('heavy', { pos, own: true }), 6)` instead of playing it.
 4. The push starts the `Deploy to GitHub Pages` workflow (`.github/workflows/pages.yml`), which publishes exactly
    that commit. Wait for it: `gh run list -R AceOutlander/steel-tide -L 1` until it says `completed success`.
    (Pages is set to deploy from GitHub Actions, not from a branch: the branch build skipped or mis-built pushes.)

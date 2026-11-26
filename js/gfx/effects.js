@@ -6,6 +6,10 @@ import { audio } from '../audio/audio.js';
 import { rand } from '../core/util.js';
 import { ocean } from './ocean.js';
 
+// the wind over the battle area (m/s): funnel smoke already leans this way, and gun smoke drifts with it
+export const WIND = { x: 3.2, z: 1.1 };
+const _fp = new THREE.Vector3();
+
 const vsh = /* glsl */`
 attribute float size; attribute vec4 pcolor; uniform float uScale; varying vec4 vC; varying float vFog; uniform float uFogDensity;
 void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float d = max(-mv.z, 0.1);
@@ -23,7 +27,7 @@ class Cloud {
     this.max = max; this.n = 0; this.additive = additive;
     this.pos = new Float32Array(max * 3); this.col = new Float32Array(max * 4); this.size = new Float32Array(max);
     this.vel = new Float32Array(max * 3); this.life = new Float32Array(max); this.maxLife = new Float32Array(max);
-    this.grow = new Float32Array(max); this.drag = new Float32Array(max); this.grav = new Float32Array(max); this.a0 = new Float32Array(max); this.cool = new Float32Array(max);
+    this.grow = new Float32Array(max); this.drag = new Float32Array(max); this.grav = new Float32Array(max); this.a0 = new Float32Array(max); this.cool = new Float32Array(max); this.wind = new Float32Array(max);
     const g = this.geo = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('pcolor', new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
@@ -35,17 +39,17 @@ class Cloud {
     this.points = new THREE.Points(g, this.mat); this.points.frustumCulled = false; this.points.renderOrder = additive ? 11 : 10;
     gfx.scene.add(this.points);
   }
-  // p: {x,y,z, vx,vy,vz, r,g,b, a, size, grow, life, drag, grav, cool}
-  emit(x, y, z, vx, vy, vz, r, g, b, a, size, grow, life, drag = 0.6, grav = 0, cool = 0) {
+  // p: {x,y,z, vx,vy,vz, r,g,b, a, size, grow, life, drag, grav, cool, wind (0..1: how much the wind carries it)}
+  emit(x, y, z, vx, vy, vz, r, g, b, a, size, grow, life, drag = 0.6, grav = 0, cool = 0, wind = 0) {
     let i = this.n;
     if (i >= this.max) { i = (this._rr = ((this._rr || 0) + 1) % this.max); } else this.n++;
     const i3 = i * 3, i4 = i * 4;
     this.pos[i3] = x; this.pos[i3 + 1] = y; this.pos[i3 + 2] = z; this.vel[i3] = vx; this.vel[i3 + 1] = vy; this.vel[i3 + 2] = vz;
     this.col[i4] = r; this.col[i4 + 1] = g; this.col[i4 + 2] = b; this.col[i4 + 3] = a; this.a0[i] = a;
-    this.size[i] = size; this.grow[i] = grow; this.life[i] = life; this.maxLife[i] = life; this.drag[i] = drag; this.grav[i] = grav; this.cool[i] = cool;
+    this.size[i] = size; this.grow[i] = grow; this.life[i] = life; this.maxLife[i] = life; this.drag[i] = drag; this.grav[i] = grav; this.cool[i] = cool; this.wind[i] = wind;
   }
   update(dt) {
-    const { pos, vel, col, size, life, maxLife, grow, drag, grav, a0, cool } = this;
+    const { pos, vel, col, size, life, maxLife, grow, drag, grav, a0, cool, wind } = this;
     let n = this.n;
     for (let i = 0; i < n; i++) {
       life[i] -= dt;
@@ -54,13 +58,14 @@ class Cloud {
           const a = i * 3, b = n * 3, c = i * 4, d = n * 4;
           pos[a] = pos[b]; pos[a + 1] = pos[b + 1]; pos[a + 2] = pos[b + 2]; vel[a] = vel[b]; vel[a + 1] = vel[b + 1]; vel[a + 2] = vel[b + 2];
           col[c] = col[d]; col[c + 1] = col[d + 1]; col[c + 2] = col[d + 2]; col[c + 3] = col[d + 3];
-          size[i] = size[n]; life[i] = life[n]; maxLife[i] = maxLife[n]; grow[i] = grow[n]; drag[i] = drag[n]; grav[i] = grav[n]; a0[i] = a0[n]; cool[i] = cool[n];
+          size[i] = size[n]; life[i] = life[n]; maxLife[i] = maxLife[n]; grow[i] = grow[n]; drag[i] = drag[n]; grav[i] = grav[n]; a0[i] = a0[n]; cool[i] = cool[n]; wind[i] = wind[n];
         }
         i--; continue;
       }
       const i3 = i * 3, k = Math.max(0, 1 - drag[i] * dt);
       vel[i3] *= k; vel[i3 + 1] = vel[i3 + 1] * k - grav[i] * dt; vel[i3 + 2] *= k;
       pos[i3] += vel[i3] * dt; pos[i3 + 1] += vel[i3 + 1] * dt; pos[i3 + 2] += vel[i3 + 2] * dt;
+      if (wind[i] > 0) { pos[i3] += WIND.x * wind[i] * dt; pos[i3 + 2] += WIND.z * wind[i] * dt; }
       size[i] += grow[i] * dt;
       const t = life[i] / maxLife[i];
       col[i * 4 + 3] = a0[i] * (t < 0.7 ? t / 0.7 : 1) * (t > 0.92 ? (1 - t) / 0.08 : 1);
@@ -74,9 +79,46 @@ class Cloud {
 }
 
 export const fx = {
-  smoke: null, glow: null, k: 1,
-  init() { this.smoke = new Cloud(5000, false); this.glow = new Cloud(3000, true); gfx.onQuality((q) => { this.k = q.particles; }); this.k = gfx.q.particles; },
-  update(dt) { this.smoke.update(dt); this.glow.update(dt); },
+  smoke: null, glow: null, k: 1, lights: [], flashes: [null, null],
+  init() {
+    this.smoke = new Cloud(5000, false); this.glow = new Cloud(3000, true); gfx.onQuality((q) => { this.k = q.particles; }); this.k = gfx.q.particles;
+    // two lights for gun flashes. They stay in the scene at zero brightness, so a flash never changes the shaders.
+    for (let i = 0; i < 2; i++) { const l = new THREE.PointLight(0xffa25a, 0, 420, 2); gfx.scene.add(l); this.lights.push(l); }
+  },
+  update(dt) {
+    this.smoke.update(dt); this.glow.update(dt);
+    for (let i = 0; i < 2; i++) {
+      const f = this.flashes[i], l = this.lights[i];
+      if (!f || f.k <= 0) { if (l.intensity !== 0) { l.intensity = 0; ocean.setFlash(i, null, 0); } continue; }
+      f.t += dt; f.k = Math.max(0, 1 - f.t / f.life);
+      const e = f.k * f.k; l.position.copy(f.p); l.intensity = f.power * 5200 * e; ocean.setFlash(i, f.p, f.power * 2.4 * e);
+    }
+  },
+  // a flash of light on the ship and the water around p. power: 1 = a 380 mm gun. Only the two flashes that matter most
+  // to the viewer are lit at any moment.
+  flash(p, power, life = 0.15) {
+    const w = power / (1 + gfx.camera.position.distanceTo(p) / 300);
+    let k = -1, low = w;
+    for (let i = 0; i < 2; i++) { const f = this.flashes[i], cur = f ? f.w * f.k : 0; if (cur < low) { low = cur; k = i; } }
+    if (k < 0) return;
+    const f = this.flashes[k] || (this.flashes[k] = { p: new THREE.Vector3() });
+    f.p.copy(p); f.power = power; f.life = life; f.t = 0; f.w = w; f.k = 1;
+  },
+  // The muzzle blast of a ship's gun: a white-hot flash, a fireball along the line of fire, burning grains of powder,
+  // and a big puff of smoke that hangs and drifts down the wind. big: 380 mm; lite: second and third barrels of a ripple.
+  gunBlast(p, d, big, lite) {
+    const s = big ? 9 : 3, G = this.glow, S = this.smoke, far = gfx.camera.position.distanceTo(p) > 3000 ? 0.4 : 1;
+    G.emit(p.x + d.x * s * 0.5, p.y + d.y * s * 0.5, p.z + d.z * s * 0.5, d.x * 8, d.y * 8, d.z * 8, 5, 3.8, 2.0, 1, s * 3.4, s * 9, 0.09, 0, 0);
+    for (let i = 0; i < 3; i++) { const o = s * (1.0 + i * 1.1), v = 26 + i * 22; G.emit(p.x + d.x * o, p.y + d.y * o, p.z + d.z * o, d.x * v, d.y * v + 1, d.z * v, 3.8, 1.8, 0.45, 1, s * (2.6 - i * 0.55), s * 5, 0.15 + i * 0.05, 3, 0, 2.6); }
+    const ns = this.count((big ? 8 : 3) * far);
+    for (let i = 0; i < ns; i++) { const v = rand(30, 90); G.emit(p.x + d.x * s, p.y + d.y * s, p.z + d.z * s, d.x * v + rand(-9, 9), d.y * v + rand(-4, 9), d.z * v + rand(-9, 9), 3.4, 2.0, 0.6, 1, s * 0.09, 0, rand(0.25, 0.7), 1.2, 9.8); }
+    const n = this.count((big ? (lite ? 6 : 14) : 5) * far);
+    for (let i = 0; i < n; i++) {   // powder smoke: dirty yellow-brown at the muzzle, greyer further out
+      const v = rand(10, big ? 75 : 40), o = s * rand(0.5, 2.5), g = rand(0.36, 0.62);
+      S.emit(p.x + d.x * o, p.y + d.y * o, p.z + d.z * o, d.x * v + rand(-5, 5), d.y * v + rand(-2, 5), d.z * v + rand(-5, 5), g * 1.06, g, g * 0.86, 0.72, s * rand(1.0, 1.9), s * rand(0.3, 0.55), big ? rand(4.5, 9) : rand(1.8, 3.4), 2.0, -0.25, 0, 1);
+    }
+    this.flash(_fp.set(p.x + d.x * s, p.y + d.y * s, p.z + d.z * s), big ? 1 : 0.2, big ? 0.15 : 0.1);
+  },
   count(n) { const v = n * this.k; return Math.floor(v) + (Math.random() < v % 1 ? 1 : 0); },
 
   puff(p, vx, vy, vz, size, grey = 0.5, a = 0.5, life = 3, grow = 2) { this.smoke.emit(p.x, p.y, p.z, vx, vy, vz, grey, grey, grey * 1.02, a, size, grow, life, 0.5, -0.4); },
@@ -109,6 +151,11 @@ export const fx = {
     const n = this.count(Math.min(18, 4 + size));
     for (let i = 0; i < n; i++) { const a = rand(0, 6.283), s = rand(0, 0.35) * size; this.smoke.emit(p.x, p.y, p.z, Math.cos(a) * s, rand(1.5, 4.2) * size * 0.8, Math.sin(a) * s, 0.9, 0.95, 0.97, 0.75, size * rand(0.3, 0.6), size * 0.35, rand(0.8, 1.8) * (0.7 + size * 0.03), 0.3, 9.8); }
     for (let i = 0; i < n / 2; i++) { const a = rand(0, 6.283), s = rand(0.5, 1.5) * size; this.smoke.emit(p.x, p.y, p.z, Math.cos(a) * s, 0.3, Math.sin(a) * s, 0.92, 0.96, 0.98, 0.5, size * 0.5, size * 0.8, rand(1.5, 3), 0.8, 0); }
+    if (size >= 12) {   // a heavy shell: a tall, dense column that stands for a moment, and mist blowing off its top
+      const c = this.count(10);
+      for (let i = 0; i < c; i++) this.smoke.emit(p.x + rand(-1, 1) * size * 0.12, p.y, p.z + rand(-1, 1) * size * 0.12, rand(-1, 1) * size * 0.06, rand(2.4, 4.2) * size * 0.8, rand(-1, 1) * size * 0.06, 0.93, 0.96, 0.98, 0.85, size * rand(0.35, 0.6), size * 0.3, rand(2.2, 3.4), 0.25, 9.8);
+      for (let i = 0; i < 4; i++) this.smoke.emit(p.x, p.y + size * rand(0.6, 2.2), p.z, rand(-1, 1) * size * 0.2, rand(1, 3), rand(-1, 1) * size * 0.2, 0.94, 0.97, 0.99, 0.32, size * 1.1, size * 0.8, rand(3, 5), 0.6, 0.5, 0, 0.7);
+    }
     if (sound && size > 0.8) audio.play(size > 5 ? 'splash' : 'splashSmall', { pos: p, vol: Math.min(1, 0.3 + size * 0.06) });
   },
   spray(p, vx, vz, size = 1.5) { this.smoke.emit(p.x, p.y, p.z, vx + rand(-2, 2), rand(1, 4), vz + rand(-2, 2), 0.92, 0.96, 0.98, 0.45, size, size * 1.5, rand(0.6, 1.3), 0.6, 6); },
