@@ -1,5 +1,14 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.5 (a bridge to look out from)
+
+- Commanding a ship in first person used to be a camera floating in front of the bridge. Now you stand on the bridge:
+  window frames with mullions, wipers and a clear-view screen, a sloped console of screens and switches under the
+  windows, the helm with its wheel and compass, engine levers, an overhead panel of dials, a voice pipe, side windows
+  with grab rails, the captain's chair and a chart table behind you. The bow and the guns stay in view over the
+  console. Patrol boat, corvette, battlecruiser and carrier (in the island); the Super Destroyer already had a real
+  bridge to stand in. It turns red at battle stations with the rest of the ship's interior.
+
 ## Beta 0.6.4 (skin, collars, harness, signs)
 
 - Skin has a soft sheen at grazing angles and a gentle highlight, instead of flat colour.

@@ -218,3 +218,59 @@ export function addCabins(S) {
   model.interior = { group: g, mats: M, zones, hole: { x0: X0, x1: X1, z0: Z0, z1: Z1 }, door: { x: xw + s * 0.9, y, z: zd, side: s }, rooms: rooms.length };
   return model.interior;
 }
+
+// The bridge as seen by whoever has the ship in first person: window frames with mullions and wipers, a console of
+// screens under the windows, the helm and engine levers, an overhead panel, side windows, a chart table and the
+// captain's chair behind. Built round the eye point the camera uses (ship coordinates), shown only in that view.
+export function buildBridgeView(nation, E, beam) {
+  const M = interiorMats(nation), k = new Kit({ lod: 0, fine: true }), kl = new Kit({ lod: 0, fine: true }), g = new THREE.Group(); g.name = 'bridgeView';
+  const T = (hex, m = 1) => tone(M.int, hex, m), A = nation === 'aethia';
+  const WALL = T(0x9aa39f), DADO = T(0x56625f), FLOOR = T(0x353c40), CEIL = T(0x7c8683), FRAME = T(0x6a757a), DESK = T(0x39424a), STEEL = T(0x8f999e), BLK = T(0x101214), BRASS = T(0xa78a43), SCREEN = T(0x58d6b4), SCREEN2 = T(0xd6a04a), SCREEN3 = T(0x4aa0e0), BEZEL = T(0x14181b), RED = T(0xa3382b), CLOTH = T(A ? 0x2c4468 : 0x5e3a28), WOOD = T(0x7a5c3d);
+  const box = (c, xa, xb, ya, yb, za, zb, gr = null) => {
+    const geo = new THREE.BoxGeometry(Math.abs(xb - xa), Math.abs(yb - ya), Math.abs(zb - za));
+    if (gr) { const p = geo.attributes.position, col = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const v = p.getY(i) > 0 ? gr[1] : gr[0]; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = v; } geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); }
+    k.add(c, geo, (xa + xb) / 2, (ya + yb) / 2, (za + zb) / 2);
+  };
+  const hw = Math.min(2.9, Math.max(1.6, beam * 0.2)), y0 = E.y - 1.72, zf = E.z - 1.45, zb = E.z + 2.0, H = 2.34, w0 = y0 + 0.94, w1 = y0 + 2.1, zs = E.z + 0.5;
+  box(FLOOR, -hw, hw, y0 - 0.06, y0, zf - 0.1, zb); box(CEIL, -hw - 0.05, hw + 0.05, y0 + H, y0 + H + 0.08, zf - 0.12, zb);
+  // front: sill wall, header, mullions, rails
+  box(DADO, -hw, hw, y0, w0, zf - 0.08, zf, [0.55, 0.92]); box(WALL, -hw, hw, w1, y0 + H, zf - 0.08, zf, [1, 0.8]);
+  const n = Math.max(3, Math.round((2 * hw) / 0.95));
+  for (let i = 0; i <= n; i++) { const x = -hw + (i * 2 * hw) / n; box(FRAME, x - 0.026, x + 0.026, w0, w1, zf - 0.1, zf + 0.02); }
+  box(FRAME, -hw, hw, w0 - 0.03, w0 + 0.025, zf - 0.11, zf + 0.05); box(FRAME, -hw, hw, w1 - 0.025, w1 + 0.03, zf - 0.11, zf + 0.03);
+  // wipers on the two middle panes and a clear-view screen on the next one
+  for (const q of [-0.5, 0.5]) { const x = (q * 2 * hw) / n; k.tube(BLK, [x - 0.3, w0 + 0.03, zf - 0.06], [x + 0.12, w1 - 0.2, zf - 0.06], 0.008, 4); k.tube(BLK, [x - 0.3, w0 + 0.03, zf - 0.06], [x - 0.3, w0 + 0.1, zf - 0.06], 0.02, 5); }
+  k.torus(FRAME, 0.2, 0.016, (1.5 * 2 * hw) / n, (w0 + w1) / 2, zf - 0.05, null, 20);
+  // sides: windows as far back as the eye, plating behind; back wall with a doorway
+  for (const s of [-1, 1]) {
+    const x = s * hw;
+    box(DADO, x - 0.04, x + 0.04, y0, w0, zf, zb, [0.55, 0.92]); box(WALL, x - 0.04, x + 0.04, w1, y0 + H, zf, zb, [1, 0.8]); box(WALL, x - 0.04, x + 0.04, w0, w1, zs, zb, [0.92, 1]);
+    for (let z = zf; z <= zs + 0.01; z += (zs - zf) / 2) box(FRAME, x - 0.05, x + 0.05, w0, w1, z - 0.035, z + 0.035);
+    box(FRAME, x - 0.055, x + 0.055, w0 - 0.03, w0 + 0.025, zf, zs); box(FRAME, x - 0.055, x + 0.055, w1 - 0.025, w1 + 0.03, zf, zs);
+    k.tube(STEEL, [x - s * 0.1, y0 + 2.08, zf + 0.1], [x - s * 0.1, y0 + 2.08, zs], 0.016, 5); // grab rail
+  }
+  box(DADO, -hw, -0.45, y0, w0, zb - 0.06, zb, [0.55, 0.92]); box(WALL, -hw, -0.45, w0, y0 + H, zb - 0.06, zb, [0.92, 0.82]); box(DADO, 0.45, hw, y0, w0, zb - 0.06, zb, [0.55, 0.92]); box(WALL, 0.45, hw, w0, y0 + H, zb - 0.06, zb, [0.92, 0.82]);
+  box(WALL, -0.45, 0.45, y0 + 1.95, y0 + H, zb - 0.06, zb); for (const q of [-0.45, 0.45]) box(FRAME, q - 0.04, q + 0.04, y0, y0 + 1.97, zb - 0.09, zb + 0.03); box(BLK, -0.41, 0.41, y0, y0 + 1.95, zb + 0.02, zb + 0.04);
+  // console across the front: a sloped top full of screens, switch rows, a handrail along its edge
+  const cz = zf + 0.27, sl = 0.5, ct = 0.8;
+  box(DESK, -hw + 0.2, hw - 0.2, y0, y0 + ct - 0.11, zf, zf + 0.5, [0.6, 1]);
+  k.box(DESK, 2 * hw - 0.4, 0.05, 0.56, 0, y0 + ct, cz, [sl, 0, 0]);
+  const m = Math.max(3, Math.round((2 * hw - 0.6) / 0.62));
+  for (let i = 0; i < m; i++) { const x = -hw + 0.3 + ((i + 0.5) * (2 * hw - 0.6)) / m; k.box(BEZEL, 0.42, 0.012, 0.3, x, y0 + ct + 0.034, cz - 0.03, [sl, 0, 0]); k.box([SCREEN, SCREEN3, SCREEN2, SCREEN][i % 4], 0.36, 0.012, 0.24, x, y0 + ct + 0.04, cz - 0.03, [sl, 0, 0]); for (let q = -0.2; q <= 0.21; q += 0.1) k.box(q > 0.15 ? RED : STEEL, 0.026, 0.02, 0.026, x + q, y0 + ct - 0.07, cz + 0.22, [sl, 0, 0]); }
+  k.tube(STEEL, [-hw + 0.25, y0 + ct - 0.1, zf + 0.56], [hw - 0.25, y0 + ct - 0.1, zf + 0.56], 0.016, 5);
+  // helm: pedestal, wheel with spokes, compass binnacle; engine order levers to starboard
+  box(DESK, -0.2, 0.2, y0, y0 + 0.78, zf + 0.5, zf + 0.74); k.torus(BRASS, 0.19, 0.016, 0, y0 + 0.86, zf + 0.78, null, 20);
+  for (let a = 0; a < 3; a++) k.box(BRASS, 0.36, 0.015, 0.015, 0, y0 + 0.86, zf + 0.78, [0, 0, (a * Math.PI) / 3]);
+  k.cyl(BRASS, 0.07, 0.085, 0.08, 0, y0 + 0.82, zf + 0.62, 'y', 12); k.sphere(BLK, 0.058, 0, y0 + 0.87, zf + 0.62, [1, 0.55, 1], 10);
+  box(DESK, 0.42, 0.72, y0, y0 + 0.74, zf + 0.5, zf + 0.76); for (const q of [0.5, 0.64]) { k.tube(STEEL, [q, y0 + 0.74, zf + 0.66], [q, y0 + 0.92, zf + 0.58], 0.012, 5); k.sphere(RED, 0.028, q, y0 + 0.93, zf + 0.575, null, 8); }
+  // overhead panel with dials, a lamp (the fitting only: the bridge is kept dim), a voice pipe
+  box(DESK, -0.6, 0.6, y0 + H - 0.11, y0 + H, zf + 0.02, zf + 0.3); for (const q of [-0.42, -0.21, 0, 0.21, 0.42]) k.cyl(q === 0 ? SCREEN2 : STEEL, 0.06, 0.06, 0.012, q, y0 + H - 0.115, zf + 0.16, 'y', 14);
+  kl.box(M.lamp, 0.5, 0.03, 0.1, 0, y0 + H - 0.03, E.z + 1.0);
+  k.tube(BRASS, [-hw + 0.35, y0 + 0.7, zf + 0.5], [-hw + 0.35, y0 + 1.3, zf + 0.42], 0.022, 6); k.cyl(BRASS, 0.05, 0.03, 0.06, -hw + 0.35, y0 + 1.33, zf + 0.415, 'y', 10);
+  // behind: the captain's chair to starboard, a chart table to port
+  const cx = hw - 0.75, czz = E.z + 1.1; k.cyl(FRAME, 0.05, 0.2, 0.6, cx, y0 + 0.3, czz, 'y', 10); box(CLOTH, cx - 0.26, cx + 0.26, y0 + 0.6, y0 + 0.7, czz - 0.26, czz + 0.26); box(CLOTH, cx - 0.26, cx + 0.26, y0 + 0.7, y0 + 1.35, czz + 0.2, czz + 0.28); for (const q of [-0.28, 0.28]) box(FRAME, cx + q - 0.03, cx + q + 0.03, y0 + 0.82, y0 + 0.86, czz - 0.2, czz + 0.2);
+  box(WOOD, -hw + 0.08, -hw + 1.0, y0 + 0.9, y0 + 0.95, E.z + 0.75, zb - 0.15); box(FRAME, -hw + 0.1, -hw + 0.95, y0, y0 + 0.9, E.z + 0.8, zb - 0.2); k.box(SCREEN3, 0.6, 0.008, 0.8, -hw + 0.54, y0 + 0.955, (E.z + 0.75 + zb - 0.15) / 2);
+  k.build(g, { cast: false, receive: false }); kl.build(g, { cast: false, receive: false });
+  g.position.x = E.x; // built on the centre line; the carrier's bridge is out in the island
+  g.visible = false; return g;
+}

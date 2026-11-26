@@ -15,6 +15,7 @@ import { attachAI } from './ai.js';
 import { deckUnder } from './surface.js';
 import { battle } from '../world/battle.js';
 import { segSolid, inBounds, clearT, crowded, aboveWater, bridgeEye, buildCockpit, cut, fadeVeil } from './camrig.js';
+import { buildBridgeView } from '../units/v2/cabins.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3(), _f = new V3(), _g = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 // how each plane answers the stick: resp = how fast inputs build (1/s), bank = the bank angle A/D hold (rad)
@@ -238,6 +239,7 @@ export const player = {
   // Rules: never inside geometry (chase views are pushed out of the own hull or pulled in front of whatever is in the way,
   // first-person views use anchors outside the model or hide it), never under water unless the unit is a submerged sub.
   camera(dt) {
+    if (this._bv) { this._bv.visible = false; this._bv = null; } // the bridge's inside is drawn only in a ship's first-person view
     const u = this.unit, cam = gfx.camera, s = save.settings; if (!u) return;
     const view = u.model.view || {}, cp = Math.cos(this.pitch);
     _d.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp); // look direction from yaw/pitch
@@ -258,7 +260,15 @@ export const player = {
         _b.set(7.7, bay.y + 1.75, clamp(_a.z - 36, bay.z0 + 6, bay.z1 - 8)); host.toWorld(_b, cam.position);
         _a.y += 2.2; _a.z -= 10; host.toWorld(_a, _c); cam.lookAt(_c); near = 0.2;
       } else if (scope) { u.toWorld(u.model.scopeTop, cam.position); cam.position.y = Math.max(cam.position.y + 1.2, waveHeight(cam.position.x, cam.position.z) + 2.6); fov = 32; }
-      else if (this.mode === 'first') { u.toWorld(bridgeEye(u), cam.position); near = 0.25; if (u.kind === 'ship') aboveWater(cam.position, 1); }
+      else if (this.mode === 'first') {
+        const eye = bridgeEye(u); u.toWorld(eye, cam.position); near = 0.25;
+        if (u.kind === 'ship') {
+          aboveWater(cam.position, 1);
+          // the Super Destroyer has a real bridge to stand in; every other ship gets the bridge built round the eye
+          if (u.bridgeView === undefined) { u.bridgeView = u.model.interior && u.model.interior.bay ? null : buildBridgeView(u.nation, eye, u.dims.beam); if (u.bridgeView) u.root.add(u.bridgeView); }
+          if (u.bridgeView && u.alive) { u.bridgeView.visible = true; this._bv = u.bridgeView; near = 0.12; }
+        }
+      }
       else if (gun) {
         // over the gun and a little behind it; pulled forward if the superstructure is in the way
         const k = gun.t.kind, up = k === 'heavy' ? 6.4 : k === 'deckgun' ? 3.8 : 1.5, back = k === 'heavy' ? 12 : k === 'deckgun' ? 7.5 : 2.6;
