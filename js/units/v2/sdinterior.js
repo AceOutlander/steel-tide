@@ -34,9 +34,9 @@ function drawDeck(ctx, w, h) { // a 1.25 m square of deck: non-skid coating with
 }
 
 // stencilled plates: one texture of 4 x 4 labels; SIGN gives each label's cell
-export const SIGN = { mess: 0, berth: 1, ops: 2, galley: 3, workshop: 4, store: 5, office: 6, exit: 7, fire: 8, danger: 9, wtd: 10, aid: 11, smoke: 12, frame: 13, deck: 14, dc: 15 };
+export const SIGN = { mess: 0, berth: 1, ops: 2, galley: 3, workshop: 4, store: 5, office: 6, exit: 7, fire: 8, danger: 9, wtd: 10, aid: 11, armory: 12, frame: 13, engine: 14, dc: 15 };
 const SIGNS = [['MESS DECK', '#2f6b47'], ['BERTHING', '#2f6b47'], ['OPERATIONS', '#2f6b47'], ['GALLEY', '#2f6b47'], ['WORKSHOP', '#2f6b47'], ['STORES', '#2f6b47'], ["SHIP'S OFFICE", '#2f6b47'], ['EXIT  >', '#1f7a3a'],
-  ['FIRE POINT', '#a8261c'], ['DANGER|HIGH VOLTAGE', '#d2aa18', '#141414'], ['WATERTIGHT DOOR|KEEP CLOSED AT SEA', '#1f4f86'], ['+|FIRST AID', '#e6e8e4', '#1f7a3a'], ['NO SMOKING', '#a8261c'], ['FR 64', '#d8dad6', '#141414'], ['MAIN DECK', '#1f4f86'], ['DAMAGE CONTROL|LOCKER', '#a8261c']];
+  ['FIRE POINT', '#a8261c'], ['DANGER|HIGH VOLTAGE', '#d2aa18', '#141414'], ['WATERTIGHT DOOR|KEEP CLOSED AT SEA', '#1f4f86'], ['+|FIRST AID', '#e6e8e4', '#1f7a3a'], ['ARMOURY', '#a8261c'], ['FR 64', '#d8dad6', '#141414'], ['ENGINE ROOM', '#1f4f86'], ['DAMAGE CONTROL|LOCKER', '#a8261c']];
 function drawSigns(ctx, w, h) {
   const cw = w / 4, ch = h / 4; ctx.fillStyle = '#888'; ctx.fillRect(0, 0, w, h); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   SIGNS.forEach(([text, bg, fg = '#f2f3ef'], i) => {
@@ -176,6 +176,9 @@ export function buildInterior(nation, model, fine, fb) {
     box(DARKS, x - s * 0.66, x - s * 0.46, y - 0.16, y - 0.12, z0, z1);
   };
   const sign = (x, y, z, face, col = GREEN) => { if (!fine) return; if (face === 'x') box(col, x - 0.01, x + 0.01, y, y + 0.22, z - 0.3, z + 0.3); else box(col, x - 0.3, x + 0.3, y, y + 0.22, z - 0.01, z + 0.01); };
+  // a stencilled plate (see SIGN) on a wall; face 'x+' / 'x-' / 'z+' / 'z-' is the way it looks
+  const plate = (key, x, y, z, face, w = 0.7, h = 0.3) => k.add(M.signs, signGeo(key, w, h), x, y, z, [0, face === 'x+' ? HP : face === 'x-' ? -HP : face === 'z-' ? Math.PI : 0, 0]);
+  const ROOMKEY = { mess: 'mess', armory: 'armory', bunksS: 'berth', bunksP1: 'berth', bunksP2: 'berth', ward: 'ops', storeS: 'store', storeP: 'store' };
 
   const yA = P.yA, yB = P.yB, H = P.h, SH = P.shaft, HT = P.hatch;
 
@@ -223,7 +226,9 @@ export function buildInterior(nation, model, fine, fb) {
       const doors = rooms.filter((r) => r[1] === s && r[4]).map((r) => [r[4] - 0.7, r[4] + 0.7]);
       wall('z', s * cx, zL1, zRooms, y, H, doors); wall('z', s * cx, zRooms, zEnd, y, H);
       services(s * cx, zL1 + 0.3, zEnd - 0.3, y + H);
-      for (const r of rooms.filter((q) => q[1] === s)) { if (r[3] < zRooms) wall('x', r[3], s > 0 ? cx : -ox, s > 0 ? ox : -cx, y, H); if (r[4]) sign(s * (cx - 0.13), y + 2.25, r[4], 'x'); }
+      for (const r of rooms.filter((q) => q[1] === s)) { if (r[3] < zRooms) wall('x', r[3], s > 0 ? cx : -ox, s > 0 ? ox : -cx, y, H); if (r[4]) plate(ROOMKEY[r[0]] || 'store', s * (cx - 0.125), y + 2.4, r[4], s > 0 ? 'x-' : 'x+'); }
+      for (let z = zL1 + 6; z < zEnd - 4; z += 12) plate('frame', s * (cx - 0.125), y + 1.8, z, s > 0 ? 'x-' : 'x+', 0.34, 0.17);
+      plate(s > 0 ? 'fire' : 'aid', s * (cx - 0.125), y + 1.6, zL1 + 2.2, s > 0 ? 'x-' : 'x+', 0.5, 0.24); plate('dc', s * (cx - 0.125), y + 1.6, 60 + s * 3, s > 0 ? 'x-' : 'x+', 0.56, 0.26);
       wall('x', zRooms, s > 0 ? cx : -ox, s > 0 ? ox : -cx, y, H);
     }
     for (const [name, s, z0, z1, dz] of rooms) {
@@ -291,6 +296,8 @@ export function buildInterior(nation, model, fine, fb) {
       wall('x', zE0, s > 0 ? cx : -ox, s > 0 ? ox : -cx, y, H); wall('x', zE1, s > 0 ? cx : -ox, s > 0 ? ox : -cx, y, H); wall('z', s * ox, zE0, zE1, y, H);
     }
     wall('x', z0, -cx, -SH.x1, y, H); wall('x', z0, SH.x1, cx, y, H); wall('x', z1, -cx, cx, y, H, [[-1.1, 1.1]]);
+    plate('engine', cx - 0.125, y + 2.4, -6.5, 'x-'); plate('engine', -(cx - 0.125), y + 2.4, -18, 'x+'); plate('workshop', -(cx - 0.125), y + 2.4, 10, 'x+'); plate('danger', cx - 0.125, y + 1.6, -4.9, 'x-', 0.5, 0.24); plate('fire', -(cx - 0.125), y + 1.6, 0, 'x+', 0.5, 0.24);
+    for (const s of [-1, 1]) for (let z = z0 + 5; z < z1 - 3; z += 12) plate('frame', s * (cx - 0.125), y + 1.8, z, s > 0 ? 'x-' : 'x+', 0.34, 0.17);
     wall('x', -2, -ox, -cx, y, H);
     // starboard: main engine room. Two gas turbines in housings, reduction gear, a raised control desk, pipework
     slab(cx, ox, zE0, zE1, y, H, [], FLOOR2); deck(cx, ox, zE0, zE1, y);

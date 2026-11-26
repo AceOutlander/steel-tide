@@ -129,7 +129,7 @@ export function addCabins(S) {
   plate('exit', Xd - s * 0.05, 2.1, zd, s > 0 ? 'x-' : 'x+'); plate('wtd', Xd - s * 0.1, 1.45, zd + 0.83, s > 0 ? 'x-' : 'x+', 0.4, 0.18);
   if (wide) { // along the passage: frame plates, a first-aid box, a telephone, junction boxes feeding the cable tray, valve wheels on the fire main
     const cw_ = 0.68, px = xc - cw_ + 0.045, sx = xc + cw_ - 0.045;
-    plate('fire', px, 1.35, Z0 + 1.1, 'x+', 0.4, 0.18); plate('deck', sx, 1.6, Z0 + 0.9, 'x-', 0.5, 0.2);
+    plate('fire', px, 1.35, Z0 + 1.1, 'x+', 0.4, 0.18); plate('danger', sx, 1.6, Z0 + 0.9, 'x-', 0.44, 0.2);
     for (let z = Z0 + 3.5; z < Z1 - 2; z += 6.4) plate('frame', sx, 1.75, z, 'x-', 0.26, 0.13);
     box(WHITE, px, px + 0.1, yb(1.25), yb(1.6), Z1 - 2.4, Z1 - 2.05); plate('aid', px + 0.105, 1.425, Z1 - 2.225, 'x+', 0.32, 0.3);
     box(BLK, sx - 0.09, sx, yb(1.25), yb(1.6), Z1 - 3.4, Z1 - 3.2); box(BLK, sx - 0.13, sx - 0.09, yb(1.3), yb(1.55), Z1 - 3.34, Z1 - 3.26); plate('dc', px, 1.7, Z1 - 4.2, 'x+', 0.44, 0.2);
