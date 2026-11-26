@@ -1,5 +1,20 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.3.5 (the Hangar keeps the unit you are looking at)
+
+- Bug: in the Hangar's Paint tab, clicking Shark-mouth while a ship or submarine was on show switched the preview to
+  the Stealth Fighter. Cause: the preview changed the chosen unit itself whenever an aircraft-only paint was selected.
+- Now selecting an item never changes the unit on show. A paint the unit cannot wear is greyed out in the list with
+  "Jets and helicopters only" under its name, the unit stays as it is equipped, and the item's panel has a "Preview on
+  an aircraft" button: only that button (or the "Show on" list) changes the unit.
+- Buying Shark-mouth works whatever unit is on show. It can only be equipped on jets and helicopters; "Apply to every
+  aircraft" says that ships and submarines were skipped. "Apply to all units" confirms what it did too.
+- One rule decides what fits (`cosmetics.fits`), used by the list, the preview, equipping and the battle. A save that
+  somehow holds an aircraft-only paint for a ship is ignored for that ship.
+- Checked: all five paints on all twelve paintable unit types in both nations (the unit never changed, greyed rows and
+  the preview were right in every case), buying and equipping from a ship's screen, the other three tabs (they show the
+  marine and leave the Paint tab's unit alone), and the paints in a battle.
+
 ## Beta 0.3.4 (the heavy guns thunder)
 
 - The ships' big guns no longer sound like a small drum. A heavy gun shot is now built from layers: a sharp crack (the

@@ -68,20 +68,27 @@ export const cosmetics = {
     this.owned.push(id); if (it.pair && !this.owned.includes(it.pair)) this.owned.push(it.pair);
     save.write(); return { ok: true };
   },
-  paintFor(nation, unitType) { const k = this.set(nation).paint[unitType]; return k && this.owns('paint.' + k) ? k : ''; },
+  // can this unit type wear this item? Only paint is tied to a unit: an aircraft-only scheme fits jets and helicopters,
+  // nothing else. (Helmets, uniforms and accessories are the marine's.)
+  fits(id, unitType) { const it = ITEM[id]; return !!it && (it.kind !== 'paint' || (PAINT_UNITS.includes(unitType) && (!it.air || AIR.includes(unitType)))); },
+  paintFor(nation, unitType) { const k = this.set(nation).paint[unitType]; return k && this.owns('paint.' + k) && this.fits('paint.' + k, unitType) ? k : ''; },
   isEquipped(nation, id, unitType) {
     const it = ITEM[id], s = this.set(nation); if (!it) return false;
-    if (it.kind === 'paint') return s.paint[unitType] === it.key;
+    if (it.kind === 'paint') return s.paint[unitType] === it.key && this.fits(id, unitType);
     if (it.kind === 'helmet') return s.helmet === it.key;
     if (it.kind === 'uniform') return s.uniform === it.key;
     return s.acc.includes(it.key);
   },
-  // Equip (or take off). unitType: for paint, one unit type or 'all'. Returns { ok } or { ok: false, why }.
+  // Equip (or take off). unitType: for paint, one unit type or 'all'. Returns { ok } or { ok: false, why }; for paint
+  // also { on (true: painted, false: removed), done, skipped }: how many unit types changed and how many cannot wear it.
   toggle(nation, id, unitType) {
     const it = ITEM[id], s = this.set(nation); if (!it || !this.owns(id)) return { ok: false, why: 'Not owned yet.' };
     if (it.kind === 'paint') {
-      const types = unitType === 'all' ? PAINT_UNITS : [unitType], on = types.every((t) => s.paint[t] === it.key || (it.air && !AIR.includes(t)));
-      for (const t of types) { if (it.air && !AIR.includes(t)) continue; if (on) delete s.paint[t]; else s.paint[t] = it.key; }
+      const all = unitType === 'all' ? PAINT_UNITS : [unitType], types = all.filter((t) => this.fits(id, t)), skipped = all.length - types.length;
+      if (!types.length) return { ok: false, why: it.air ? 'Jets and helicopters only.' : 'This unit cannot wear it.', skipped };
+      const off = types.every((t) => s.paint[t] === it.key);
+      for (const t of types) { if (off) delete s.paint[t]; else s.paint[t] = it.key; }
+      save.write(); return { ok: true, on: !off, done: types.length, skipped };
     } else if (it.kind === 'helmet') s.helmet = s.helmet === it.key ? 'standard' : it.key;
     else if (it.kind === 'uniform') s.uniform = s.uniform === it.key ? 'standard' : it.key;
     else {

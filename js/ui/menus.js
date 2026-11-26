@@ -9,7 +9,7 @@ import { el, KTS, clamp } from '../core/util.js';
 import { world } from '../world/world.js';
 import { BUILDERS } from '../sim/factory.js';
 import { econ, fmtCredits, PAY, PAY_TABLE, CREDIT } from '../core/economy.js';
-import { cosmetics, ITEMS, ITEM, TIERS, SLOTS, AIR, PAINT_UNITS, MAX_ACCESSORIES } from '../core/cosmetics.js';
+import { cosmetics, ITEMS, ITEM, TIERS, SLOTS, PAINT_UNITS, MAX_ACCESSORIES } from '../core/cosmetics.js';
 import { applyPaint } from '../gfx/paint.js';
 import { store } from '../core/store.js';
 import { battle } from '../world/battle.js';
@@ -118,7 +118,7 @@ const SCREENS = {
   hangar: () => {
     const tabs = [['paint', 'Paint'], ['helmet', 'Helmets'], ['uniform', 'Uniforms'], ['accessory', 'Accessories']], N = NATIONS[hg.nation];
     const list = ITEMS.filter((i) => i.kind === hg.tab);
-    const row = (i) => { const own = cosmetics.owns(i.id), eq = cosmetics.isEquipped(hg.nation, i.id, hg.unit); return `<button class="hitem${i.id === hg.sel ? ' on' : ''}" data-item="${i.id}" style="--tier:${TIERS[i.tier].color}"><b>${i.name}</b><small>${i.kind === 'accessory' ? SLOTS[i.slot] + ' · ' : ''}${TIERS[i.tier].label}</small><span class="st">${eq ? 'EQUIPPED' : own ? 'OWNED' : '<i class="lock"></i>' + cosmetics.priceText(i)}</span></button>`; };
+    const row = (i) => { const own = cosmetics.owns(i.id), eq = cosmetics.isEquipped(hg.nation, i.id, hg.unit), na = !cosmetics.fits(i.id, hg.unit); return `<button class="hitem${i.id === hg.sel ? ' on' : ''}${na ? ' na' : ''}" data-item="${i.id}" style="--tier:${TIERS[i.tier].color}"><b>${i.name}</b><small>${i.kind === 'accessory' ? SLOTS[i.slot] + ' · ' : ''}${TIERS[i.tier].label}</small>${na ? `<em class="only">${ONLY_AIR}</em>` : ''}<span class="st">${eq ? 'EQUIPPED' : own ? 'OWNED' : '<i class="lock"></i>' + cosmetics.priceText(i)}</span></button>`; };
     return `<div class="screen"><div class="topbar"><h1>Hangar</h1><span style="display:flex;gap:.8em;align-items:center">${wallet()}${store.enabled ? '<button class="btn small" data-store>Get Credits</button>' : ''}<button class="btn small" data-back>Back</button></span></div>
       <div class="unitsel"><div class="unitlist"><div class="seg htabs">${tabs.map((t) => `<button data-htab="${t[0]}" class="${hg.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
         <div class="seg" style="margin:.7em 0">${['aethia', 'extro'].map((n) => `<button data-hnation="${n}" class="${hg.nation === n ? 'on' : ''}" style="color:${NATIONS[n].color}">${NATIONS[n].name}</button>`).join('')}</div>
@@ -144,23 +144,28 @@ const SCREENS = {
 const st = { msg: '', email: '', sent: false, del: false, fresh: false };
 // ---- Hangar ----
 const hg = { tab: 'paint', sel: '', unit: 'fighter', nation: 'aethia', confirm: '', msg: '', spin: 0.6, zoom: 1, drag: false };
+const ONLY_AIR = 'Jets and helicopters only';
+// The unit on show is the player's choice ("Show on"): selecting an item never changes it. A paint that unit cannot
+// wear is not drawn on it; the unit stays as it is equipped now.
 function hangarPreview() {
   const it = ITEM[hg.sel]; if (!it) return;
-  if (it.kind === 'paint') { if (it.air && !AIR.includes(hg.unit)) hg.unit = 'fighter'; showroomSet({ nation: hg.nation, unit: hg.unit, paint: it.key }); }
+  if (it.kind === 'paint') showroomSet({ nation: hg.nation, unit: hg.unit, paint: cosmetics.fits(it.id, hg.unit) ? it.key : cosmetics.paintFor(hg.nation, hg.unit) });
   else { const o = cosmetics.outfit(hg.nation); if (it.kind === 'helmet') o.helmet = it.key; else if (it.kind === 'uniform') o.uniform = it.key; else { o.acc = o.acc.filter((k) => ITEM['acc.' + k].slot !== it.slot); if (o.acc.length >= MAX_ACCESSORIES) o.acc.pop(); o.acc.push(it.key); } showroomSet({ nation: hg.nation, unit: 'marine', outfit: o }); }
 }
 function hangarInfo() {
   const box = el('hinfo'), it = ITEM[hg.sel]; if (!box || !it) return;
   const own = cosmetics.owns(it.id), eq = cosmetics.isEquipped(hg.nation, it.id, hg.unit), short = Math.max(0, it.price - econ.credits), T = TIERS[it.tier];
+  const na = !cosmetics.fits(it.id, hg.unit), allLabel = it.air ? 'Apply to every aircraft' : 'Apply to all units';
+  const tryAir = na ? '<button class="btn" data-hair>Preview on an aircraft</button>' : '';
   let act;
-  if (!own) act = short > 0 ? `<p class="need">Need ${fmtCredits(short)} more</p><button class="btn" data-store>${store.enabled ? 'Get Credits' : 'Get Credits (store coming soon)'}</button>`
-    : `<button class="btn primary" data-buy="${it.id}">${hg.confirm === it.id ? `Confirm: pay ${fmtCredits(it.price)}` : `Buy for ${fmtCredits(it.price)}`}</button>`;
-  else if (it.kind === 'paint') act = `<button class="btn primary" data-equip="${it.id}">${eq ? 'Remove from' : 'Paint'} the ${UNITS[hg.unit].label}</button><button class="btn" data-equip="${it.id}" data-all="1">${it.air ? 'Apply to every aircraft' : 'Apply to all units'}</button>`;
+  if (!own) act = (short > 0 ? `<p class="need">Need ${fmtCredits(short)} more</p><button class="btn" data-store>${store.enabled ? 'Get Credits' : 'Get Credits (store coming soon)'}</button>`
+    : `<button class="btn primary" data-buy="${it.id}">${hg.confirm === it.id ? `Confirm: pay ${fmtCredits(it.price)}` : `Buy for ${fmtCredits(it.price)}`}</button>`) + tryAir;
+  else if (it.kind === 'paint') act = (na ? tryAir : `<button class="btn primary" data-equip="${it.id}">${eq ? 'Remove from' : 'Paint'} the ${UNITS[hg.unit].label}</button>`) + `<button class="btn" data-equip="${it.id}" data-all="1">${allLabel}</button>`;
   else act = `<button class="btn primary" data-equip="${it.id}">${eq ? 'Unequip' : 'Equip'}</button>`;
   box.innerHTML = `<h2 style="color:${T.color}">${it.name}</h2><div class="cls" style="color:${T.color}">${T.label}${it.kind === 'accessory' ? ' · ' + SLOTS[it.slot] : ''}</div><p>${it.desc}</p>
     ${it.pair && !own ? `<p>Comes with: ${ITEM[it.pair].name} (${ITEM[it.pair].kind}).</p>` : ''}
-    <div class="stat"><span>Price</span><span>${cosmetics.priceText(it)}</span></div><div class="stat"><span>Status</span><span>${eq ? 'Equipped' : own ? 'Owned' : 'Preview only'}</span></div><div class="stat"><span>Your Credits</span><span>${fmtCredits(econ.credits)}</span></div>
-    <p class="hmsg">${hg.msg || (own ? '' : 'You are trying it on. Looks only: nothing here changes how a unit performs.')}</p>
+    <div class="stat"><span>Price</span><span>${cosmetics.priceText(it)}</span></div><div class="stat"><span>Status</span><span>${eq ? 'Equipped' : own ? 'Owned' : na ? 'Not owned' : 'Preview only'}</span></div><div class="stat"><span>Your Credits</span><span>${fmtCredits(econ.credits)}</span></div>
+    <p class="hmsg">${hg.msg || (na ? `${ONLY_AIR}: the ${UNITS[hg.unit].label} cannot wear it, so it is shown as it is.` : own ? '' : 'You are trying it on. Looks only: nothing here changes how a unit performs.')}</p>
     <div class="hact">${act}</div><p class="hnote">Drag to turn, wheel to zoom. Equipped looks are saved for ${NATIONS[hg.nation].name}.</p>`;
 }
 
@@ -197,7 +202,7 @@ function showroomSet(custom = null) {
     show.cam = new THREE.PerspectiveCamera(32, 1, 0.5, 4000); show.pivot = new THREE.Group(); show.scene.add(show.pivot);
   }
   const key = nation_ + ':' + unit_ + (custom ? ':' + (custom.paint || '') + ':' + JSON.stringify(custom.outfit || '') : '');
-  show.unit = unit_;
+  show.unit = unit_; show.paint = custom ? custom.paint || '' : cosmetics.paintFor(nation_, unit_);
   if (!show.cache[key]) {
     const nation = nation_, unit = unit_; // the build below uses these names
     let g; if (unit === 'marine') { g = buildSoldier(nation, { role: 'marine', ...(custom && custom.outfit ? custom.outfit : cosmetics.outfit(nation)) }); g.userData.size = 2.6; g.userData.lift = 0; }
@@ -241,6 +246,8 @@ export const menus = {
   },
   refresh() { const st = stack; this.show(cur, opts); stack = st; },
   get open() { return cur !== null; },
+  // what the showroom is showing now (checks): the unit, the paint scheme given to it, and whether the scheme added parts (the jaws)
+  get showing() { return { unit: show.unit, paint: show.paint, extra: !!(show.model && show.model.getObjectByName('paint-extra')) }; },
   hide() { cur = null; root.innerHTML = ''; this.showroomActive = false; stack = []; if (app) app.syncHud(); },
   // (the list is copied before show(): show() adds the screen being left to it, which would make Back go forward again)
   back() { if (cur === 'pause') { app.resume(); return; } const prev = stack.pop(); if (prev) { const s = stack.slice(); this.show(prev, opts); stack = s; } else if (cur === 'nation' || cur === 'units') this.show(cur === 'units' ? 'nation' : 'title'); else this.show(app.state === 'paused' ? 'pause' : 'title'); },
@@ -277,7 +284,13 @@ export const menus = {
     if (d.buy) { if (hg.confirm !== d.buy) { hg.confirm = d.buy; hangarInfo(); return; } hg.confirm = '';
       if (store.signedIn) { hg.msg = 'Buying…'; hangarInfo(); store.buyCosmetic(d.buy).then((r) => { hg.msg = r.ok ? 'Bought. It is yours for good.' : r.error === 'offline' ? 'The server cannot be reached. Purchases wait until it is back.' : r.message || 'Could not buy that.'; if (cur === 'hangar') this.refresh(); }); return; }
       const r = cosmetics.buy(d.buy); hg.msg = r.ok ? 'Bought. It is yours for good.' : ''; return this.refresh(); }
-    if (d.equip) { const r = cosmetics.toggle(hg.nation, d.equip, d.all ? 'all' : hg.unit); hg.msg = r.ok ? '' : r.why; if (r.ok) store.saveEquip(); return this.refresh(); }
+    if (d.hair !== undefined) { hg.unit = 'fighter'; hg.msg = ''; return this.refresh(); }   // the only way an item's screen changes the unit on show: the player asks
+    if (d.equip) {
+      const r = cosmetics.toggle(hg.nation, d.equip, d.all ? 'all' : hg.unit), it = ITEM[d.equip];
+      hg.msg = !r.ok ? r.why : !d.all || it.kind !== 'paint' ? ''
+        : (r.on ? (it.air ? 'Painted on every jet and helicopter.' : 'Painted on all units.') : (it.air ? 'Removed from every jet and helicopter.' : 'Removed from all units.')) + (r.skipped ? ' Ships and submarines cannot wear it, so they were skipped.' : '');
+      if (r.ok) store.saveEquip(); return this.refresh();
+    }
     if (d.store !== undefined) { if (store.enabled) this.show('store'); else { hg.msg = 'Store coming soon.'; if (cur === 'hangar') hangarInfo(); else this.notice('Store coming soon.'); } return; }
     if (d.continue !== undefined) { this.show('units', { redeploy: true, next: true }); return; }
     if (d.resume !== undefined) return app.resume();
