@@ -21,6 +21,8 @@ TONES = [  # geometry (race mix, age) and the CC0 MakeHuman skin for each of the
     dict(race={"asian": 0.85, "caucasian": 0.15, "african": 0.0}, age=0.5, skin='young_asian_male/young_lightskinned_male_diffuse3.png', hair=(0.07, 0.06, 0.055), brow=(0.07, 0.06, 0.05), eye=(0.17, 0.11, 0.07)),
     dict(race={"asian": 0.1, "caucasian": 0.9, "african": 0.0}, age=0.62, skin='middleage_caucasian_male/middleage_lightskinned_male_diffuse.png', hair=(0.33, 0.27, 0.2), brow=(0.25, 0.2, 0.14), eye=(0.25, 0.33, 0.42)),
     dict(race={"asian": 0.0, "caucasian": 0.1, "african": 0.9}, age=0.5, skin='young_african_male/young_darkskinned_male_diffuse.png', hair=(0.035, 0.03, 0.03), brow=(0.035, 0.03, 0.03), eye=(0.13, 0.085, 0.055)),
+    dict(race={"asian": 0.45, "caucasian": 0.55, "african": 0.0}, age=0.55, skin='young_caucasian_male2/young_lightskinned_male_diffuse2.png', hair=(0.11, 0.085, 0.065), brow=(0.1, 0.075, 0.055), eye=(0.2, 0.26, 0.2)),
+    dict(race={"asian": 0.35, "caucasian": 0.0, "african": 0.65}, age=0.6, skin='middleage_african_male/middleage_darkskinned_male_diffuse.png', hair=(0.04, 0.035, 0.035), brow=(0.04, 0.035, 0.03), eye=(0.12, 0.08, 0.05)),
 ]
 ARMS = lambda sd: [BI[n + sd] for n in ('uarm', 'larm', 'hand', 'fin', 'fin2', 'thumb')]
 LEGS = lambda sd: [BI[n + sd] for n in ('uleg', 'lleg', 'foot')]

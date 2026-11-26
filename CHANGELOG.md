@@ -1,5 +1,10 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.9 (six faces)
+
+- Six different faces and skin tones instead of four (two more MakeHuman CC0 skins, listed in CREDITS.md), so crews
+  and marines repeat less.
+
 ## Beta 0.6.8 (the rifle up close)
 
 - The rifle has the small parts of a real one in its close-up model (the one in your hands in first person): receiver

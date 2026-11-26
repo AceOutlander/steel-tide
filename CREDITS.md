@@ -33,6 +33,8 @@ on the developer's computer; nothing of it is in the game.
 | `assets/people/skin_1.webp` | `young_asian_male` skin (`young_lightskinned_male_diffuse3.png`) | same pack | CC0 1.0 |
 | `assets/people/skin_2.webp` | `middleage_caucasian_male` skin (`middleage_lightskinned_male_diffuse.png`) | same pack | CC0 1.0 |
 | `assets/people/skin_3.webp` | `young_african_male` skin (`young_darkskinned_male_diffuse.png`) | same pack | CC0 1.0 |
+| `assets/people/skin_4.webp` | `young_caucasian_male2` skin (`young_lightskinned_male_diffuse2.png`) | same pack | CC0 1.0 |
+| `assets/people/skin_5.webp` | `middleage_african_male` skin (`middleage_darkskinned_male_diffuse.png`) | same pack | CC0 1.0 |
 
 The skin files are the head and hands cut out of those textures and laid out again; the eyebrows, the darker cropped
 hair, the lash line and the eyes are painted in by the build script. Uniforms, helmets, vests, boots and all other

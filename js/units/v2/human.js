@@ -793,7 +793,7 @@ export function buildSoldier(nation, opts = {}) {
   let ukey = UNIFORM_ALIAS[opts.uniform] || opts.uniform; if (!UNIFORMS[ukey]) ukey = RD.uniform;
   let helmet = HELMET_ALIAS[opts.helmet] || opts.helmet; if (!HELMETS.includes(helmet)) helmet = RD.helmet;
   const U = uniformDef(nation, ukey, opts), arms = opts.parts === 'arms';
-  const base = { nation, U, ukey, helmet, jersey: ukey === 'jersey' ? opts.jersey || 'yellow' : '', vest: !!opts.vest, prop: opts.prop || RD.prop || '', acc: arms || !Array.isArray(opts.acc) ? [] : opts.acc.filter((k) => ACCESSORIES.includes(k)).sort(), parts: opts.parts || '', tintable: !!opts.tintable, skin: opts.skin ?? (SEED * 7) % SKIN.length };
+  const base = { nation, U, ukey, helmet, jersey: ukey === 'jersey' ? opts.jersey || 'yellow' : '', vest: !!opts.vest, prop: opts.prop || RD.prop || '', acc: arms || !Array.isArray(opts.acc) ? [] : opts.acc.filter((k) => ACCESSORIES.includes(k)).sort(), parts: opts.parts || '', tintable: !!opts.tintable, skin: (opts.skin ?? SEED * 7) % (people.ready ? people.meta.tones.length : SKIN.length) };
   const root = new THREE.Group(), bones = [];
   for (let i = 0; i < NB; i++) { const d = SK[i], b = new THREE.Bone(); b.name = d[0]; const p = d[1]; if (p < 0) { b.position.set(d[2], d[3], d[4]); root.add(b); } else { b.position.set(d[2] - SK[p][2], d[3] - SK[p][3], d[4] - SK[p][4]); bones[p].add(b); } bones.push(b); }
   root.updateMatrixWorld(true);
