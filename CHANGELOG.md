@@ -1,5 +1,11 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.11 (finer camouflage)
+
+- Looking at the cloth close up, the camouflage's shapes were still too big and too contrasty. The clusters are now
+  about 6 cm, 3 cm and 1 cm across (they were 11, 5 and 1.2), the darkest and lightest tones are closer to the base,
+  and the folds in the combat uniform are deeper, so creases show through the pattern.
+
 ## Beta 0.6.10 (watertight doors in the Super Destroyer)
 
 - Every doorway inside the Super Destroyer has a raised sill with a yellow edge (you step over it) and its watertight

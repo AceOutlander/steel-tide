@@ -65,10 +65,10 @@ function digitalCamo(ctx, w, h, P, seed) {
   const G = 176, c = document.createElement('canvas'); c.width = c.height = G; const x = c.getContext('2d'), im = x.createImageData(G, G), d = im.data;
   const rgb = P.map((s) => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)]);
   // each layer: big drifting shapes broken up by two finer scales, wider than tall like real patterns
-  const L = [[1, 0.56], [2, 0.6], [3, 0.655], [4, 0.7]].map(([k, th], i) => ({ k, th, a: pnoise(seed + i * 17 + 1, 5), b: pnoise(seed + i * 17 + 2, 11), c: pnoise(seed + i * 17 + 3, 44) }));
+  const L = [[1, 0.555], [2, 0.6], [3, 0.665], [4, 0.705]].map(([k, th], i) => ({ k, th, a: pnoise(seed + i * 17 + 1, 9), b: pnoise(seed + i * 17 + 2, 19), c: pnoise(seed + i * 17 + 3, 55) }));
   for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
     let col = rgb[0];
-    for (const l of L) { const u = i / G, v = j / G, n = l.a(u * 5, v * 5) * 0.5 + l.b(u * 11, v * 11) * 0.32 + l.c(u * 44, v * 44) * 0.18; if (n > l.th) col = rgb[l.k]; }
+    for (const l of L) { const u = i / G, v = j / G, n = l.a(u * 9, v * 9) * 0.46 + l.b(u * 19, v * 19) * 0.34 + l.c(u * 55, v * 55) * 0.2; if (n > l.th) col = rgb[l.k]; }
     const o = (j * G + i) * 4; d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255;
   }
   x.putImageData(im, 0, 0); ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, 0, 0, w, h); ctx.restore();
@@ -78,8 +78,8 @@ function digitalCamo(ctx, w, h, P, seed) {
 export const JERSEY = { yellow: 0xd9ad18, green: 0x2c7a36, red: 0xb32d24, blue: 0x2552a6, white: 0xe2e2de, brown: 0x6b4526, purple: 0x6d3a94 };
 export const JERSEY_KEYS = Object.keys(JERSEY);
 const NAT = {
-  aethia: { camo: ['#586573', '#414c59', '#727e8a', '#2c353f', '#8b96a1'], work: 0x4a5c78, work2: 0x35455d, flight: 0x5a6776, flightHelmet: 0xd5d9dc, helmet: 0x5d6b78, carrier: 0x4d5863, pouch: 0x424c56, glove: 0x59616a, deck: 0x2b3442, cap: 0x2a3850, flak: 0x69747e, khaki: 0xb3a482, web: 0x3a4148 },
-  extro: { camo: ['#2f3a34', '#1c2421', '#435244', '#12362e', '#566250'], work: 0x3d4c42, work2: 0x2b3630, flight: 0x3e4539, flightHelmet: 0x2b322f, helmet: 0x2b3530, carrier: 0x272d2c, pouch: 0x1f2524, glove: 0x4a4f43, deck: 0x262b28, cap: 0x1f2a25, flak: 0x3a433e, khaki: 0x8b886a, web: 0x1d2120 },
+  aethia: { camo: ['#5a6775', '#465260', '#6f7b87', '#36414c', '#828d98'], work: 0x4a5c78, work2: 0x35455d, flight: 0x5a6776, flightHelmet: 0xd5d9dc, helmet: 0x5d6b78, carrier: 0x4d5863, pouch: 0x424c56, glove: 0x59616a, deck: 0x2b3442, cap: 0x2a3850, flak: 0x69747e, khaki: 0xb3a482, web: 0x3a4148 },
+  extro: { camo: ['#323d36', '#242d29', '#445345', '#1b382f', '#535f4e'], work: 0x3d4c42, work2: 0x2b3630, flight: 0x3e4539, flightHelmet: 0x2b322f, helmet: 0x2b3530, carrier: 0x272d2c, pouch: 0x1f2524, glove: 0x4a4f43, deck: 0x262b28, cap: 0x1f2a25, flak: 0x3a433e, khaki: 0x8b886a, web: 0x1d2120 },
 };
 export const NATION_KIT = NAT;
 const BOOT = 0x1d1b19, SOLE = 0x0d0d0d, BELT = 0x1c1c1b;
@@ -87,7 +87,7 @@ const BOOT = 0x1d1b19, SOLE = 0x0d0d0d, BELT = 0x1c1c1b;
 // A uniform is data, so later cosmetics only add entries here. opts.jersey picks the flight-deck colour.
 // cloth: which fabric the body uses ('camo' = the nation's pattern, 'plain' = dyed cloth tinted by the colours below).
 export const UNIFORMS = {
-  fatigues: (n) => ({ cloth: 'camo', top: 0xffffff, bottom: 0xffffff, glove: NAT[n].glove, vest: 'carrier', vestCol: NAT[n].carrier, pouchCol: NAT[n].pouch, pockets: true, fit: { off: 0.0155, fold: 1.4 }, belt: NAT[n].web, gearBelt: true }),
+  fatigues: (n) => ({ cloth: 'camo', top: 0xffffff, bottom: 0xffffff, glove: NAT[n].glove, vest: 'carrier', vestCol: NAT[n].carrier, pouchCol: NAT[n].pouch, pockets: true, fit: { off: 0.0155, fold: 1.75 }, belt: NAT[n].web, gearBelt: true }),
   working: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: null, vest: null, belt: BELT, shirt: true, tuck: true, fit: { off: 0.01, fold: 0.8 } }),
   khaki: (n) => ({ cloth: 'plain', top: NAT[n].khaki, bottom: NAT[n].khaki, glove: null, vest: null, belt: BELT, shirt: true, tuck: true, fit: { off: 0.009, fold: 0.6 } }),
   battle: (n) => ({ cloth: 'plain', top: NAT[n].work, bottom: NAT[n].work2, glove: 0x8a8672, vest: 'flak', vestCol: NAT[n].flak, belt: BELT, tuck: true, fit: { off: 0.01, fold: 0.8 } }),
@@ -235,7 +235,7 @@ export const kit = {
   // body fabric. 'camo' carries the nation's pattern; 'plain' is dyed cloth whose colour comes from the vertex colours.
   cloth(nation, kind = 'camo') {
     const key = kind === 'camo' ? 'camo_' + nation : 'plain', T = textures();
-    return M.cloth[key] || (M.cloth[key] = new THREE.MeshStandardMaterial({ name: 'hk_cloth_' + key, map: kind === 'camo' ? T.camo[nation] : T.cloth, normalMap: T.clothN, normalScale: V2(1), roughness: 0.93, metalness: 0, vertexColors: true }));
+    return M.cloth[key] || (M.cloth[key] = new THREE.MeshStandardMaterial({ name: 'hk_cloth_' + key, map: kind === 'camo' ? T.camo[nation] : T.cloth, normalMap: T.clothN, normalScale: V2(1.35), roughness: 0.93, metalness: 0, vertexColors: true }));
   },
   gear() { const T = textures(); return M.gear || (M.gear = new THREE.MeshStandardMaterial({ name: 'hk_gear', map: T.gear, normalMap: T.gearN, normalScale: V2(0.6), roughness: 0.8, metalness: 0.02, vertexColors: true })); },
   skin(tone = 0) {
