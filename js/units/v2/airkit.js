@@ -18,6 +18,23 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MAT, registerTexture } from '../../gfx/materials.js';
 import { gfx } from '../../gfx/renderer.js';
+import { bakeFigure, NATION_KIT } from './human.js';
+import { people } from './people.js';
+
+// the seated pilot: the same person as everyone else in the game (js/units/v2/human.js), frozen in the sitting pose
+const PILOTS = {};
+function pilotGeo(nation) {
+  if (PILOTS[nation]) return PILOTS[nation];
+  const { geo } = bakeFigure(nation, { role: 'pilot' }, 'sit', { lod: 1, t: 1 }); geo.computeBoundingBox();
+  { // a baked figure leaves its cloth white for a per-person dye: dye it the flight suit's colour here
+    const suit = new THREE.Color(NATION_KIT[nation].flight), c = geo.attributes.color, t = geo.attributes.tint;
+    for (let i = 0; i < c.count; i++) if (t.getX(i) > 0.5) c.setXYZ(i, c.getX(i) * suit.r, c.getY(i) * suit.g, c.getZ(i) * suit.b);
+    geo.deleteAttribute('tint');
+  }
+  const top = geo.boundingBox.max.y, p = geo.attributes.position; let zs = 0, n = 0;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) > top - 0.06) { zs += p.getZ(i); n++; }
+  return (PILOTS[nation] = { geo, head: [0, top - 0.128, zs / Math.max(1, n)] });
+}
 
 const TAU = Math.PI * 2;
 const V3 = THREE.Vector3;
@@ -292,7 +309,7 @@ export function airMats(nation) {
   const discTex = (n, tip) => registerTexture('v2air_disc' + n + tip, { size: 256, wrap: false, draw: (c, w, h) => drawDisc(c, w, h, n, tip) });
   const disc = (n, tip = 'rgba(214,170,40,0.34)') => { const key = 'disc' + n + tip; return MATS[key] || (MATS[key] = new THREE.MeshBasicMaterial({ map: discTex(n, tip), transparent: true, depthWrite: false, side: THREE.DoubleSide })); };
   const P = { m: paint, r: 1, g: 1, b: 1 }, mul = (k, g = k, b = k) => ({ m: paint, r: k, g, b });
-  return (MATS[nation] = {
+  return (MATS[nation] = { nation,
     nation, A, paint, glass, glassDark, trim, metal, lamp, disc, insignia: MAT.insignia[nation], burner: MAT.afterburner,
     P, mul, PD: mul(A ? 0.42 : 0.5), PL: mul(A ? 1.16 : 1.3, A ? 1.16 : 1.34, A ? 1.18 : 1.36), G: glass, GD: glassDark,
     under: A ? 1.14 : 1.22,                                   // how much lighter the paint is underneath
@@ -658,6 +675,10 @@ export function addPilot(k, M, x, y, z, o = {}) {
     k.torus(C.yellow, 0.045, 0.011, x - 0.07, hy + 1.0, z + 0.2 + lean, [1.2, 0, 0], 8); k.torus(C.yellow, 0.045, 0.011, x + 0.07, hy + 1.0, z + 0.2 + lean, [1.2, 0, 0], 8);
   }
   if (o.seatOnly) return;
+  if (people.ready && k.lod === 0 && M.nation) { // the real figure, sat so that its head is where the dummy's was
+    const P = pilotGeo(M.nation), a = lean * 0.45, hy2 = P.head[1] * Math.cos(a) - P.head[2] * Math.sin(a), hz2 = P.head[1] * Math.sin(a) + P.head[2] * Math.cos(a);
+    k.add(tone(trim, 0xffffff), P.geo.clone(), x, y - hy2, z - hz2, [a, 0, 0]); return;
+  }
   // pilot: torso, shoulders, harness, arms forward to the controls, helmet, visor, mask and hose
   k.sphere(M.suit, 1, x, hy + 0.3, z + 0.1, [0.19, 0.3, 0.15], 10);
   k.sphere(M.suit, 1, x, hy + 0.5, z + 0.1, [0.25, 0.12, 0.14], 10);

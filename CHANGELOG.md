@@ -1,5 +1,11 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.3 (real pilots in the cockpits)
+
+- The pilots sitting in the fighters and helicopters were still the old dummy (two blobs and a ball). They are now the
+  same person as everyone else: seated, hands forward on the controls, flight suit, harness, helmet with visor, mask
+  and hose. Only the close-up model of an aircraft carries the full figure.
+
 ## Beta 0.6.2 (narrower passages in the Super Destroyer, finer helmet straps)
 
 - The Super Destroyer's passages on both decks are 2.7 m wide instead of 5.2 m; the rooms beside them took the space.
