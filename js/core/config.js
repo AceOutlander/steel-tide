@@ -1,7 +1,7 @@
 // Game data: nations, unit classes, weapons. Both nations share identical stats; only looks and names differ.
 import { KTS } from './util.js';
 
-export const VERSION = 'Beta 0.3.5';
+export const VERSION = 'Beta 0.4.0';
 export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {
@@ -64,20 +64,23 @@ export const UNITS = {
 export const UNIT_ORDER = ['patrol', 'corvette', 'battlecruiser', 'carrier', 'superdestroyer', 'reconsub', 'attacksub', 'fighter', 'bomber', 'recon', 'transport', 'attackheli', 'marine'];
 
 // pen: armour class the round defeats at full damage; below that damage falls off sharply.
+// Ammunition. Aircraft: `ammo` is the whole load, gone until the aircraft rearms (js/sim/rearm.js). Ship and helicopter
+// mounts: `ammo` is all the mount has; or `mag` rounds ready to fire, `magReload` seconds to bring up the next lot, and
+// `store` more below (a heavy turret counts salvos). Torpedoes: `tubes` loaded, `reload` seconds a tube, `stock` reloads.
 export const WEAPONS = {
-  mg: { key: 'mg', name: '12.7 mm machine gun', type: 'gun', rof: 10, speed: 880, dmg: 7, pen: 0, range: 2000, spread: 0.005, sound: 'mg', tracer: 1, life: 2.6, heat: true },
+  mg: { key: 'mg', name: '12.7 mm machine gun', type: 'gun', rof: 10, speed: 880, dmg: 7, pen: 0, range: 2000, spread: 0.005, sound: 'mg', tracer: 1, life: 2.6, heat: true, mag: 100, magReload: 6, store: 1900 },
   rifle: { key: 'rifle', name: 'Assault rifle', type: 'gun', rof: 9, speed: 800, dmg: 16, pen: 0, range: 600, spread: 0.004, sound: 'rifle', tracer: 0.5, life: 1.2, mag: 30, reload: 2.2 },
-  chin: { key: 'chin', name: 'Quad chin machine gun', type: 'gun', rof: 24, speed: 900, dmg: 7, pen: 0, range: 2200, spread: 0.008, sound: 'mg', tracer: 1, life: 2.6 },
+  chin: { key: 'chin', name: 'Quad chin machine gun', type: 'gun', rof: 24, speed: 900, dmg: 7, pen: 0, range: 2200, spread: 0.008, sound: 'mg', tracer: 1, life: 2.6, ammo: 1200 },
   cannon: { key: 'cannon', name: '20 mm cannon', type: 'gun', rof: 30, speed: 1050, dmg: 9, pen: 0, range: 1800, spread: 0.004, sound: 'cannon20', tracer: 1, life: 2.0, ammo: 480 },
-  ciws: { key: 'ciws', name: 'Close-in AA gun', type: 'gun', rof: 28, speed: 1100, dmg: 5, pen: 0, range: 2600, spread: 0.007, sound: 'ciws', tracer: 1, life: 2.6, aa: true },
-  deckgun: { key: 'deckgun', name: '76 mm twin deck gun', type: 'shell', rof: 1.6, speed: 760, dmg: 95, pen: 1, splash: 9, range: 9000, aiRange: 5000, spread: 0.004, sound: 'deckgun', life: 16 },
-  heavy: { key: 'heavy', name: '380 mm triple turret', type: 'shell', rof: 0.13, speed: 620, dmg: 560, pen: 3, splash: 28, range: 15000, aiRange: 5600, spread: 0.005, sound: 'heavygun', life: 30, salvo: 3 },
-  sam: { key: 'sam', name: 'Surface-to-air missile', type: 'missile', seeker: 'radar', speed: 720, accel: 260, turnG: 28, dmg: 130, range: 9500, reload: 5, life: 16, sound: 'sam', lockTime: 1.6 },
+  ciws: { key: 'ciws', name: 'Close-in AA gun', type: 'gun', rof: 28, speed: 1100, dmg: 5, pen: 0, range: 2600, spread: 0.007, sound: 'ciws', tracer: 1, life: 2.6, aa: true, mag: 1500, magReload: 20, store: 4500 },
+  deckgun: { key: 'deckgun', name: '76 mm twin deck gun', type: 'shell', rof: 1.6, speed: 760, dmg: 95, pen: 1, splash: 9, range: 9000, aiRange: 5000, spread: 0.004, sound: 'deckgun', life: 16, mag: 80, magReload: 16, store: 1120 },
+  heavy: { key: 'heavy', name: '380 mm triple turret', type: 'shell', rof: 0.13, speed: 620, dmg: 560, pen: 3, splash: 28, range: 15000, aiRange: 5600, spread: 0.005, sound: 'heavygun', life: 30, salvo: 3, ammo: 150 },
+  sam: { key: 'sam', name: 'Surface-to-air missile', type: 'missile', seeker: 'radar', speed: 720, accel: 260, turnG: 28, dmg: 130, range: 9500, reload: 5, life: 16, sound: 'sam', lockTime: 1.6, mag: 8, magReload: 25, store: 88 },
   aam_ir: { key: 'aam_ir', name: 'Short-range heat-seeker', type: 'missile', seeker: 'ir', speed: 760, accel: 300, turnG: 34, dmg: 90, range: 4500, reload: 1.0, life: 9, ammo: 4, sound: 'missile', lockTime: 1.0, cone: 0.42 },
   aam_rad: { key: 'aam_rad', name: 'Medium-range radar missile', type: 'missile', seeker: 'radar', speed: 900, accel: 300, turnG: 24, dmg: 120, range: 11000, reload: 1.5, life: 16, ammo: 4, sound: 'missile', lockTime: 2.2, cone: 0.3 },
   agm: { key: 'agm', name: 'Guided attack missile', type: 'missile', seeker: 'surface', speed: 380, accel: 160, turnG: 12, dmg: 300, pen: 2, splash: 10, range: 6000, reload: 1.4, life: 20, ammo: 8, sound: 'missile', lockTime: 1.2, cone: 0.35 },
   bomb: { key: 'bomb', name: '900 kg bomb', type: 'bomb', dmg: 700, pen: 3, splash: 38, reload: 0.28, ammo: 24, sound: 'bombdrop' },
-  torpedo: { key: 'torpedo', name: 'Heavy torpedo', type: 'torpedo', speed: 27, dmg: 1700, pen: 3, splash: 25, range: 7000, reload: 9, tubes: 4, life: 260, sound: 'torpedo' },
+  torpedo: { key: 'torpedo', name: 'Heavy torpedo', type: 'torpedo', speed: 27, dmg: 1700, pen: 3, splash: 25, range: 7000, reload: 14, tubes: 4, stock: 12, life: 260, sound: 'torpedo' },
 };
 
 export const QUALITY = {

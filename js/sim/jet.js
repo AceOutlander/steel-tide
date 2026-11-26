@@ -12,6 +12,7 @@ import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
 import { surfaceBelow } from './surface.js';
 import { wrecks } from './wreck.js';
+import { begin, tick } from './rearm.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _f = new V3(), _u = new V3(), _r = new V3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
 const XA = new V3(1, 0, 0), YA = new V3(0, 1, 0), ZA = new V3(0, 0, 1);
@@ -66,7 +67,8 @@ export class Jet extends Unit {
     _q.setFromAxisAngle(YA, this.deckYaw); this.quat.copy(c.quat).multiply(_q);
     this.vel.copy(c.vel);
   }
-  launch(cat) { if (this.state !== 'deck') return; this.deckLocal.copy(cat.pos); this.deckYaw = cat.yaw; this.state = 'cat'; this.catV = 0; this.catLeft = cat.length; this.throttle = 1; audio.play('catapult', { pos: this.pos }); }
+  launch(cat) { if (this.state !== 'deck' || this.service) return;   // not while the deck crew are still working on it
+    this.deckLocal.copy(cat.pos); this.deckYaw = cat.yaw; this.state = 'cat'; this.catV = 0; this.catLeft = cat.length; this.throttle = 1; audio.play('catapult', { pos: this.pos }); }
   rearm() { for (const k in this.fw) { this.fw[k].ammo = this.fw[k].def.ammo ?? Infinity; } this.flares = this.def.flares; this.hp = this.maxHp; }
 
   update(dt) {
@@ -75,7 +77,10 @@ export class Jet extends Unit {
     if (this.ai) this.ai.update(dt);
     const def = this.def, c = this.ctl;
     this.throttle = approach(this.throttle, clamp(c.throttle, 0, 1), dt * 0.6);
-    if (this.state === 'deck') { if (!this.carrier || !this.carrier.alive) { this.kill(null); return; } this.stick(); this.speed = 0; }
+    if (this.state === 'deck') {
+      if (!this.carrier || !this.carrier.alive) { this.kill(null); return; } this.stick(); this.speed = 0;
+      if (this.service && tick(this, dt) && this.isPlayer) world.say(this.def.weapons.length ? 'Rearmed, refuelled and repaired. Taxi to the catapult.' : 'Refuelled and repaired. Taxi to the catapult.', 'good');
+    }
     else if (this.state === 'cat') {
       this.catV += 36 * dt; const s = this.catV * dt; this.catLeft -= s;
       this.deckLocal.x += -Math.sin(this.deckYaw) * s; this.deckLocal.z += -Math.cos(this.deckYaw) * s; this.stick();
@@ -86,7 +91,11 @@ export class Jet extends Unit {
       if (!this.carrier.alive) { this.kill(null); return; }
       this.catV = Math.max(0, this.catV - 52 * dt); const s = this.catV * dt;
       this.deckLocal.x += -Math.sin(this.deckYaw) * s; this.deckLocal.z += -Math.cos(this.deckYaw) * s; this.stick(); this.speed = this.catV;
-      if (this.catV <= 0) { this.state = 'deck'; this.landedT = world.t; this.rearm(); if (this.isPlayer) world.say('Trapped. Aircraft re-armed and repaired.', 'good'); }
+      if (this.catV <= 0) {   // stopped on the wires: the deck crew take over (see rearm.js)
+        this.state = 'deck'; this.landedT = world.t;
+        const sv = begin(this, this.carrier, this.def.weapons.length ? 'Deck crew rearming and refuelling' : 'Deck crew refuelling');
+        if (this.isPlayer) world.say(sv ? `Trapped. ${sv.label}: about ${Math.round(sv.total)} s.` : 'Trapped. Nothing to load: taxi to the catapult when ready.', 'good');
+      }
     } else this.fly(dt);
     this.visuals(dt);
   }

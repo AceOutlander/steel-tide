@@ -24,6 +24,12 @@ function screen(p, out) {
   return out;
 }
 const sp = { x: 0, y: 0, ok: false };
+// like place, but never hidden: a point out of view is held at the nearest edge of the screen
+function placeEdge(node, p) {
+  _v.copy(p).project(gfx.camera); let x = _v.x, y = _v.y; if (_v.z > 1) { x = -x; y = -y; }
+  if (_v.z > 1 || Math.abs(x) > 0.9 || Math.abs(y) > 0.82) { const k = Math.max(Math.abs(x) / 0.9, Math.abs(y) / 0.82, 1e-6); x /= k; y /= k; }
+  node.hidden = false; node.style.transform = `translate(${(x * 0.5 + 0.5) * gfx.w}px, ${(-y * 0.5 + 0.5) * gfx.h}px)`;
+}
 function place(node, p) { screen(p, sp); if (sp.ok) { node.hidden = false; node.style.transform = `translate(${sp.x}px, ${sp.y}px)`; } else node.hidden = true; return sp.ok; }
 
 export const hud = {
@@ -39,11 +45,11 @@ export const hud = {
       <div id="h-weap" class="hud-box"></div><div id="h-econ" class="hud-box"></div><div id="h-pops"></div>
       <div id="h-cross" class="r"><i class="l t"></i><i class="l b"></i><i class="l lf"></i><i class="l rt"></i><i class="ring"></i><i class="dot"></i></div><div id="h-rinfo"></div><div id="h-hitx" hidden></div><div id="h-dmg" hidden></div><div id="h-dirs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div id="h-lead" class="mark" hidden><i></i><span></span></div><div id="h-fall0" class="mark fall" hidden><span></span></div><div id="h-fall1" class="mark fall" hidden><span></span></div><div id="h-fall2" class="mark fall" hidden><span></span></div>
-      <div id="h-nose" class="mark" hidden><i></i></div><div id="h-fpm" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div>
+      <div id="h-nose" class="mark" hidden><i></i></div><div id="h-fpm" class="mark" hidden><i></i></div><div id="h-lock" class="mark" hidden><i></i><span></span></div><div id="h-aimtg" class="mark" hidden><i></i><b><u></u></b><span></span></div><div id="h-bomb" class="mark" hidden><i></i></div><div id="h-rearm" class="mark" hidden><i></i><span></span></div>
       <div id="h-stick" hidden><i></i></div>
       <div id="h-warn"></div><div id="h-prompt" hidden></div><div id="h-msg" hidden></div><div id="h-hint"></div>
       <div id="h-map" hidden><div class="mapwrap"><canvas width="640" height="640"></canvas><div class="scoreboard" id="h-sb"></div></div></div>`;
-    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'rleg', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'econ', 'pops', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
+    for (const id of ['vig', 'black', 'scope', 'scopetxt', 'feed', 'score', 'radar', 'rlbl', 'rleg', 'status', 'cl', 'nm', 'hp', 'grid', 'thr', 'weap', 'econ', 'pops', 'cross', 'rinfo', 'hitx', 'dmg', 'dirs', 'lead', 'fall0', 'fall1', 'fall2', 'nose', 'fpm', 'lock', 'aimtg', 'bomb', 'rearm', 'stick', 'warn', 'prompt', 'msg', 'hint', 'map', 'sb']) E[id] = el('h-' + id);
     rctx = E.radar.querySelector('canvas').getContext('2d'); mctx = E.map.querySelector('canvas').getContext('2d');
     world.onFeed = (text, cls) => this.feed(text, cls);
   },
@@ -92,6 +98,9 @@ export const hud = {
     } else E.aimtg.hidden = true;
     if (player.showLead && u.alive && place(E.lead, player.leadPoint)) { const lt = player.leadT >= 0.8 ? `Impact in ${player.leadT.toFixed(1)} s` : ''; if (E.lead._t !== lt) { E.lead.lastChild.textContent = lt; E.lead._t = lt; } } else E.lead.hidden = true;
     if (player.showBomb) place(E.bomb, player.bombPoint); else E.bomb.hidden = true;
+    // where to rearm, while something has run out: a marker that stays on the edge of the screen when the place is out of view
+    const ra = player.rearmAt;
+    if (ra && u.alive) { placeEdge(E.rearm, ra.pos); const rt = `REARM  ${(Math.hypot(ra.pos.x - u.pos.x, ra.pos.z - u.pos.z) / 1000).toFixed(1)} km`; if (E.rearm._t !== rt) { E.rearm.lastChild.textContent = rt; E.rearm._t = rt; } } else E.rearm.hidden = true;
     E.stick.hidden = !(heli && u.state === 'fly'); if (!E.stick.hidden) E.stick.firstChild.style.transform = `translate(${player.stick.x * 3.1}em, ${player.stick.y * 3.1}em)`;
     E.scope.hidden = !player.scopeView;
     u.hitFlash = Math.max(0, (u.hitFlash || 0) - dt * 1.5); E.vig.style.opacity = Math.min(0.8, u.hitFlash + (u.hp < u.maxHp * 0.25 ? 0.25 : 0));
@@ -120,13 +129,17 @@ export const hud = {
     const keys = player.keys || []; let wh = '';
     keys.forEach((k, i) => {
       const def = WEAPONS[k]; let am = '';
-      if (veh.fw && veh.fw[k]) { const w = veh.fw[k]; am = w.ammo === Infinity ? '' : String(w.ammo); if (w.cd > 0.3) am += ' …'; }
-      else if (k === 'torpedo') am = `${veh.tubes.ready}/${veh.tubes.def.tubes} tubes`;
+      let dry = false;
+      if (veh.fw && veh.fw[k]) { const w = veh.fw[k]; dry = w.ammo <= 0; am = w.ammo === Infinity ? '' : dry ? 'EMPTY' : String(w.ammo); if (w.cd > 0.3 && !dry) am += ' …'; }
+      else if (k === 'torpedo') { const tb = veh.tubes; dry = tb.ready <= 0 && tb.stock <= 0; am = dry ? 'EMPTY' : `${tb.ready}/${tb.def.tubes} tubes · ${tb.stock} in store`; }
       else if (k === 'rifle') am = u.reloadT > 0 ? 'reloading' : `${u.mag}/30`;
-      else { const ms = veh.mounts.filter((m) => m.key === k), rdy = ms.filter((m) => m.cd <= 0 && m.inArc).length; am = `${rdy}/${ms.length} ready`; }
-      wh += `<div class="wp${k === veh.selKey ? ' on' : ''}"><span><kbd>${i + 1}</kbd>${def.name}</span><span class="am">${am}</span></div>`;
+      else {   // a group of mounts: how many can fire now, and the rounds they have left between them (a heavy turret counts shells)
+        const ms = veh.mounts.filter((m) => m.key === k), rdy = ms.filter((m) => m.cd <= 0 && m.inArc && m.ammo > 0).length, left = ms.reduce((a, m) => a + m.rounds(), 0) * (def.salvo || 1);
+        dry = left <= 0; am = dry ? 'EMPTY' : `${rdy}/${ms.length} ready` + (left === Infinity ? '' : ` · ${left.toLocaleString('en-US')}`);
+      }
+      wh += `<div class="wp${k === veh.selKey ? ' on' : ''}${dry ? ' dry' : ''}"><span><kbd>${i + 1}</kbd>${def.name}</span><span class="am">${am}</span></div>`;
     });
-    if (veh.mounts) { const auto = {}; for (const m of veh.mounts) if (!keys.includes(m.key)) auto[m.key] = (auto[m.key] || 0) + 1; for (const k in auto) wh += `<div class="wp auto"><span>${auto[k]}× ${WEAPONS[k].name}</span><span class="am">crew</span></div>`; }
+    if (veh.mounts) { const auto = {}; for (const m of veh.mounts) if (!keys.includes(m.key)) auto[m.key] = (auto[m.key] || 0) + 1; for (const k in auto) { const left = veh.mounts.reduce((a, m) => a + (m.key === k ? m.rounds() : 0), 0); wh += `<div class="wp auto"><span>${auto[k]}× ${WEAPONS[k].name}</span><span class="am">${left <= 0 ? 'EMPTY' : left === Infinity ? 'crew' : 'crew · ' + left.toLocaleString('en-US')}</span></div>`; } }
     if (u.gun) wh = `<div class="wp on"><span>${u.gun.def.name}</span><span class="am">manned</span></div>`;
     if (!wh) wh = '<div class="wp auto"><span>No weapons</span><span></span></div>';
     if (E.weap._h !== wh) { E.weap.innerHTML = wh; E.weap._h = wh; }
@@ -201,10 +214,10 @@ export const hud = {
         } else t = `${rng}  ·  ${!arc ? 'OUT OF ARC' : rdy ? (ms.length > 1 ? `${rdy}/${ms.length} READY` : 'READY') : wait < 0.25 ? 'FIRING' : `RELOADING ${wait.toFixed(1)} s`}`;
       }
     } else if (kind === 'sub' || kind === 'scope') {
-      const tb = veh.tubes; if (tb) t = veh.depth > 40 ? 'TOO DEEP TO FIRE' : `${tb.ready}/${tb.def.tubes} TUBES${player.aimTarget ? `  ·  ${(player.aimTarget.pos.distanceTo(veh.pos) / 1000).toFixed(1)} km` : ''}`;
+      const tb = veh.tubes; if (tb) t = tb.ready <= 0 && tb.stock <= 0 ? 'OUT OF TORPEDOES' : veh.depth > 40 ? 'TOO DEEP TO FIRE' : `${tb.ready}/${tb.def.tubes} TUBES  ·  ${tb.stock} IN STORE${player.aimTarget ? `  ·  ${(player.aimTarget.pos.distanceTo(veh.pos) / 1000).toFixed(1)} km` : ''}`;
     } else if (kind === 'heli' || kind === 'jet') {
       const w = veh.fw && veh.fw[veh.selKey], def = WEAPONS[veh.selKey];
-      if (def) t = def.name + (w && w.ammo !== Infinity ? `  ·  ${w.ammo}` : '');
+      if (def) t = def.name + (w && w.ammo !== Infinity ? `  ·  ${w.ammo <= 0 ? 'EMPTY' : w.ammo}` : '');
     } else if (kind === 'foot') t = u.reloadT > 0 ? 'RELOADING' : u.mag <= 5 ? `${u.mag} ROUNDS` : '';
     if (E.rinfo._t !== t) { E.rinfo.textContent = t; E.rinfo._t = t; }
   },

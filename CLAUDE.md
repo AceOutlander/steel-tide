@@ -10,7 +10,7 @@ The home page entry lives in the site repo (`aceoutlander.github.io`, `index.htm
 - Everything is generated in code: models (`js/units/`), textures and materials (`js/gfx/materials.js`), sound
   (`js/audio/audio.js`). There are no model, texture or audio files. The only image is the share picture in `assets/`.
 - Module map: `js/core` (config, input, save, maths), `js/gfx` (renderer + quality presets, materials, ocean, effects),
-  `js/units` (one model module per unit class + the shared builders), `js/sim` (ship/sub, jet, heli, soldier, weapons,
+  `js/units` (one model module per unit class + the shared builders), `js/sim` (ship/sub, jet, heli, soldier, weapons, rearming in `rearm.js`,
   AI, crew, player controls and cameras), `js/world` (islands, detection, battle flow), `js/ui` (HUD, menus).
 - The Super Destroyer (`js/units/v2/superdestroyer.js`) is the one unit with rooms inside: `js/units/v2/sdinterior.js`
   builds them and adds their floors and walls to the ship's `decks` and `blocks` lists (marked `in: 1`). It is also the

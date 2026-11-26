@@ -11,6 +11,7 @@ import { save } from '../core/save.js';
 import { V3, clamp, damp, rand, wrapPi, approach, yawToDir, T } from '../core/util.js';
 import { Mount, weapons } from './weapons.js';
 import { setAlert } from '../units/v2/sdinterior.js';
+import { begin, tick } from './rearm.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const scorchGeo = new THREE.CircleGeometry(1, 10);
@@ -286,7 +287,7 @@ export class Sub extends Ship {
     super(type, nation, name, build);
     this.depth = 0; this.depthT = 0; this.scope = false; this.scopeA = 0; this.pingT = 0; this.pinged = 0; this.dockedTo = null; this.crewed = false;
     const d = this.dims; this.box = { x: d.beam / 2, y0: -d.draft, y1: (this.model.sailTop || d.height - d.draft), z: d.length / 2 };
-    this.tubes = this.def.weapons.includes('torpedo') ? { def: WEAPONS.torpedo, cd: 0, n: 0, ready: WEAPONS.torpedo.tubes, loadT: 0 } : null;
+    this.tubes = this.def.weapons.includes('torpedo') ? { def: WEAPONS.torpedo, cd: 0, n: 0, ready: WEAPONS.torpedo.tubes, loadT: 0, stock: WEAPONS.torpedo.stock } : null;   // stock: reloads carried aboard
     this.selKey = this.tubes ? 'torpedo' : null; this.maxDepth = 160;
   }
   depthNow() { return this.depth; }
@@ -304,7 +305,8 @@ export class Sub extends Ship {
   }
   update(dt) {
     if (this.alive) {
-      const tb = this.tubes; if (tb) { tb.cd -= dt; if (tb.ready < tb.def.tubes) { tb.loadT += dt; if (tb.loadT >= tb.def.reload) { tb.loadT = 0; tb.ready++; } } }
+      // an empty tube is reloaded from the torpedoes carried aboard, one tube at a time; when those are gone it stays empty
+      const tb = this.tubes; if (tb) { tb.cd -= dt; if (tb.ready < tb.def.tubes && tb.stock > 0) { tb.loadT += dt; if (tb.loadT >= tb.def.reload) { tb.loadT = 0; tb.ready++; tb.stock--; } } }
       if (this.transit) return this.updateTransit(dt);
       if (this.dockedTo) return this.updateDocked(dt);
       const rate = 2.2 + Math.abs(this.speed) * 0.12;
@@ -321,8 +323,17 @@ export class Sub extends Ship {
       _e.set(this.pitchA * (1 - k) + clamp((this.depthT - this.depth) * -0.01, -0.12, 0.12), this.yaw, this.rollA * (1 - k), 'YXZ'); this.quat.setFromEuler(_e);
     }
   }
+  rearm() { const tb = this.tubes; if (tb) { tb.ready = tb.def.tubes; tb.stock = tb.def.stock; tb.loadT = 0; } }
   updateDocked(dt) {
     const s = this.dockedTo, dk = s.model.dock;
+    // in a friendly dock the ship's crew restock the torpedoes (see rearm.js)
+    if (s.nation === this.nation && this.tubes) {
+      if (!this.service) begin(this, s, 'Restocking torpedoes');
+      const own = !!this.ai && !s.isPlayer;   // a submarine under its own crew, in a ship that is not the player's
+      if (tick(this, dt)) { if (this.isPlayer) world.say('Torpedoes restocked: all tubes loaded.', 'good'); else if (own) { this.undock(); return; } }   // restocked: back out to the fight
+    }
+    // another of our submarines needs this dock for torpedoes: cast off (once this one's own restocking is done)
+    if (this.makeWay && !this.service) { this.makeWay = false; if (this.ai && !s.isPlayer) { this.undock(); return; } }
     this.yaw = s.yaw; this.speed = s.speed; this.vel.copy(s.vel); this.throttle = 0; this.ctl.throttle = 0;
     s.toWorld(dk.pos, this.pos); this.quat.copy(s.quat);
     if (dk.under) this.depth = this.depthT = dk.depth; else { this.depth = 0; this.pos.y = s.pos.y * 0.5; }
@@ -351,7 +362,7 @@ export class Sub extends Ship {
     this.dockedTo = ship; ship.docked = this; this.depthT = 0;
   }
   undock() {
-    const s = this.dockedTo; if (!s) return; const dk = s.model.dock; s.docked = null; this.dockedTo = null;
+    const s = this.dockedTo; if (!s) return; const dk = s.model.dock; s.docked = null; this.dockedTo = null; this.service = null;   // casting off early throws the restocking away
     if (dk.under) { this.transit = { ship: s, pts: [dk.pos.clone(), dk.exit.clone()], len: dk.pos.distanceTo(dk.exit), t: 0, dur: 24, dock: false }; s.dockBusy = this; return; }
     this.speed = s.speed - 3; this.throttle = -0.3; this.ctl.throttle = -0.35; this.undockT = world.t + 9;
   }

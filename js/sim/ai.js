@@ -3,6 +3,7 @@ import { world } from '../world/world.js';
 import { MAP } from '../core/config.js';
 import { V3, clamp, rand, wrapPi, angDiff, pick } from '../core/util.js';
 import { weapons } from './weapons.js';
+import { spot, makeWay } from './rearm.js';
 import { flyToward, seekLock } from './jet.js';
 import { WEAPONS } from '../core/config.js';
 
@@ -26,6 +27,7 @@ class ShipAI {
     // steer toward the planned heading
     const err = angDiff(u.yaw, this.heading);
     u.ctl.rudder = clamp(err * 2.2, -1, 1); u.ctl.throttle = this.thr * (Math.abs(err) > 1.2 ? 0.7 : 1);
+    if (u.slowFor > world.t) u.ctl.throttle = Math.min(u.ctl.throttle, 0.2);   // one of our submarines is coming to the dock (rearm.js)
   }
   plan() {
     const u = this.u, def = u.def, type = u.type, home = ownCarrier(u), foe = enemyCarrier(u);
@@ -86,11 +88,12 @@ class SubAI extends ShipAI {
   update(dt) {
     const u = this.u;
     if (u.transit) return;
-    if (u.dockedTo) { this.launchT -= dt; if (this.launchT <= 0 && !u.dockedTo.isPlayer) u.undock(); return; }
+    if (u.dockedTo) { if (u.service) return; if (u.makeWay) { u.makeWay = false; u.undock(); return; }   // another of ours needs the dock
+      this.launchT -= dt; if (this.launchT <= 0 && !u.dockedTo.isPlayer) u.undock(); return; }   // restocking: wait for it
     if (u.undockT > world.t) { u.ctl.throttle = -0.35; u.ctl.rudder = 0; return; }
     // sent home by the player: make for the ship's dock unless there is a fight close by, and dock when in position
     let home = this.returnTo;
-    if (home && (!home.alive || !home.model.dock || (home.docked && home.docked !== u))) { home = this.returnTo = null; u.returnTo = null; }
+    if (home && (!home.alive || !home.model.dock || (home.docked && home.docked !== u && !(u.tubes && u.tubes.ready <= 0 && u.tubes.stock <= 0)))) { home = this.returnTo = null; u.returnTo = null; }
     if (home && u.canDock(home)) { u.dock(home); this.homing = false; return; }
     super.update(dt);
     if (home && this.homing) { const dk = home.model.dock; u.scope = false; u.depthT = dk.under ? dk.depth : 0; return; }
@@ -112,8 +115,10 @@ class SubAI extends ShipAI {
     const isSurf = (e) => e.kind === 'ship' && e.type !== 'patrol';
     let tg = nearestEnemy(u, isSurf, 9000); this.target = tg; u.aiTarget = tg;
     let gx, gz, thr = 0.6;
+    // nothing left to fire: go to the nearest friendly dock and restock
+    if (u.tubes && u.tubes.ready <= 0 && u.tubes.stock <= 0) { const sp = spot(u); if (sp) { if (!this.returnTo) { this.returnTo = sp.ship; u.returnTo = sp.ship; } makeWay(sp, u); } }
     const home = this.returnTo; this.homing = false;
-    if (home && home.alive && !(tg && u.tubes && tg.pos.distanceTo(u.pos) < 2200)) {
+    if (home && home.alive && !(tg && u.tubes && u.tubes.ready > 0 && tg.pos.distanceTo(u.pos) < 2200)) {
       // come up astern of the ship, then run in along its wake to the dock
       const dk = home.model.dock, zc = dk.under ? dk.exit.z + 20 : dk.pos.z + 20; home.toWorld(_c.set(0, 0, zc + 230), _a); home.toWorld(_c.set(0, 0, zc), _b);
       const lx = home.toLocal(u.pos, _d).x, lz = _d.z, onFinal = lz > zc - 10 && Math.abs(lx) < 60 + (lz - zc) * 0.5;
@@ -138,13 +143,17 @@ class JetAI {
   }
   update(dt) {
     const u = this.u, c = u.ctl;
-    if (u.state !== 'fly') { c.throttle = 1; return; }
-    if (u.gearDown && world.t - (u.launchT || 0) > 2) u.gearDown = false;
+    if (u.state !== 'fly') {
+      // back on deck after a trip home: when the deck crew have finished, taxi to a catapult and go again
+      if (this.state === 'rtb' && u.state === 'deck' && !u.service) { const cv = u.carrier, cat = cv.model.catapults[Math.random() < 0.5 ? 0 : 1]; this.state = 'patrol'; this.final = false; this.newWp(); u.park(cv, cat.pos, cat.yaw); u.launch(cat); }
+      c.throttle = u.state === 'deck' || u.state === 'arrest' ? 0 : 1; return;
+    }
+    if (u.gearDown && this.state !== 'rtb' && world.t - (u.launchT || 0) > 2) u.gearDown = false;
     this.think -= dt; this.evadeT -= dt;
     if (this.think <= 0) { this.think = 0.4 + Math.random() * 0.3; this.plan(); }
     // missile defence: flares and a hard break across the missile's path
     if (u.incoming > 0) { if (u.flareCd <= 0 && Math.random() < 0.05) weapons.dropFlares(u); if (this.evadeT <= 0) { this.evadeT = 3.5; u.fwd(_a); this.breakDir = _b.set(-_a.z, rand(-0.5, 0.3), _a.x).multiplyScalar(Math.random() < 0.5 ? 1 : -1).normalize().clone(); } }
-    let dir = this.dir, ab = false, thr = 0.85;
+    let dir = this.dir, ab = false, thr = 0.85, rtbFloor = 0;   // rtbFloor: on final approach the usual "stay 110 m up" rule gives way to the deck height
     if (this.evadeT > 0 && this.breakDir) { dir = _d.copy(this.breakDir); ab = true; thr = 1; }
     else if (this.state === 'engage' && this.target) {
       const tg = this.target; _a.copy(tg.pos).sub(u.pos); const d = _a.length(), tof = d / 1000;
@@ -155,6 +164,24 @@ class JetAI {
       if (key) { u.selKey = key; if (seekLock(u, WEAPONS[key], _b, dt + 0.35, true) && (u.lockTarget.incoming || 0) < 1 && Math.random() < 0.3) u.fire(key); }
       if (d < 1100 && ang < 0.05 && u.fw.cannon) u.fire('cannon');
       if (d < 350) { dir.y += 0.6; dir.normalize(); }
+    } else if (this.state === 'rtb') {
+      // Going home to rearm: out to a gate astern of the carrier, then down the line of the landing strip.
+      const cv = ownCarrier(u);
+      if (!cv || !cv.alive) { this.state = 'patrol'; this.final = false; u.gearDown = false; }
+      else {
+        const L = cv.model.landing, yawL = cv.yaw + L.yaw, bx = Math.sin(yawL), bz = Math.cos(yawL);   // (bx, bz): pointing astern along the strip
+        cv.toWorld(L.touch, _a); const deckY = _a.y, dx = u.pos.x - _a.x, dz = u.pos.z - _a.z, along = dx * bx + dz * bz, across = dz * bx - dx * bz;
+        if (!this.final) {
+          dir = _d.set(_a.x + bx * 2200 - u.pos.x, deckY + 260 - u.pos.y, _a.z + bz * 2200 - u.pos.z); const dg = dir.length(); dir.normalize(); thr = 0.9; u.gearDown = false;
+          if (dg < 600 || (along > 1200 && Math.abs(across) < 300 && u.pos.y < deckY + 500)) this.final = true;
+        } else {
+          const ahead = Math.max(0, along - 400); dir = _d.set(_a.x + bx * ahead - u.pos.x, deckY + 8 + along * 0.075 - u.pos.y, _a.z + bz * ahead - u.pos.z).normalize();
+          thr = u.speed > u.def.stall * 1.55 ? 0.15 : 0.95; u.gearDown = along < 1500; rtbFloor = deckY + 4;
+          // over the stern, lined up and low: the wires take it (the same arrest a player's trap ends in)
+          if (along < 170 && along > -40 && Math.abs(across) < 45 && u.pos.y - deckY < 40) { u.carrier = cv; u.deckLocal.copy(L.touch); u.deckYaw = L.yaw; u.catV = Math.min(u.speed, 78); u.state = 'arrest'; u.gearDown = true; u.throttle = 0; c.throttle = 0; c.ab = false; this.final = false; return; }
+          if (along < -40 || Math.abs(across) > 500) { this.final = false; u.gearDown = false; }   // missed: go round again
+        }
+      }
     } else if (this.state === 'strike' && this.target) {
       const tg = this.target; _a.set(tg.pos.x + tg.vel.x * 8, 0, tg.pos.z + tg.vel.z * 8);
       const d = Math.hypot(_a.x - u.pos.x, _a.z - u.pos.z); const alt = d > 1500 ? 650 : 480;
@@ -168,16 +195,20 @@ class JetAI {
       if (this.state === 'egress') { this.egT -= dt; ab = true; thr = 1; if (this.egT <= 0) this.state = 'patrol'; }
     }
     // never fly into the sea, the islands or out of the area
-    const floor = Math.max(0, world.terrain(u.pos.x + u.vel.x * 3, u.pos.z + u.vel.z * 3)) + 110;
+    const floor = rtbFloor || Math.max(0, world.terrain(u.pos.x + u.vel.x * 3, u.pos.z + u.vel.z * 3)) + 110;
     const ahead = u.pos.y + u.vel.y * 3.5;
     if (ahead < floor) { dir.y = Math.max(dir.y, 0.5 + (floor - ahead) * 0.01); dir.normalize(); }
     if (u.pos.y > 3200) { dir.y = Math.min(dir.y, -0.15); }
     const lim = MAP.half + 1500; if (Math.abs(u.pos.x) > lim || Math.abs(u.pos.z) > lim) { dir.set(-u.pos.x, 0.05, -u.pos.z).normalize(); }
-    if (u.speed < u.def.stall * 1.5) { thr = 1; ab = true; dir.y = Math.min(dir.y, 0.1); }
+    if (u.speed < u.def.stall * (rtbFloor ? 1.2 : 1.5)) { thr = 1; ab = true; dir.y = Math.min(dir.y, 0.1); }
     flyToward(u, dir, c); c.throttle = thr; c.ab = ab; this.dir.copy(dir);
   }
   plan() {
     const u = this.u, t = u.type;
+    // Out of what it fights with, or badly damaged: home to the carrier to rearm (js/sim/rearm.js). No carrier: carry on.
+    if (this.state === 'rtb') return;
+    const fw = u.fw, none = (k) => !fw[k] || fw[k].ammo <= 0, out = t === 'fighter' ? none('aam_ir') && none('aam_rad') : t === 'bomber' ? none('bomb') : false;
+    if ((out || u.hp < u.maxHp * 0.35) && this.state !== 'strike' && this.evadeT <= 0) { const cv = ownCarrier(u); if (cv && cv.alive) { this.state = 'rtb'; this.final = false; this.target = null; return; } }
     if (t === 'fighter') {
       const tg = nearestEnemy(u, (e) => e.isAir, 9000);
       if (tg) { this.state = 'engage'; this.target = tg; } else if (this.state === 'engage') { this.state = 'patrol'; this.target = null; }
@@ -186,7 +217,6 @@ class JetAI {
         const tg = nearestEnemy(u, (e) => e.kind === 'ship' && e.def.armor >= 1, 16000) || (enemyCarrier(u) && enemyCarrier(u).alive && Math.random() < 0.1 ? enemyCarrier(u) : null);
         if (tg) { this.state = 'strike'; this.target = tg; this.runT = 0; }
       } else if (this.state === 'strike' && (!this.target || !this.target.alive)) { this.state = 'patrol'; this.target = null; }
-      if (u.fw.bomb.ammo <= 0 && this.state === 'patrol') { this.rearmT = (this.rearmT || 0) + 0.5; if (this.rearmT > 45) { this.rearmT = 0; u.fw.bomb.ammo = WEAPONS.bomb.ammo; } }
     }
   }
 }
@@ -198,13 +228,14 @@ class HeliAI {
     const u = this.u, c = u.ctl; this.think -= dt;
     if (this.think <= 0) { this.think = 0.5; if (u.type === 'transport') this.planTransport(); else this.planAttack(); }
     if (u.incoming > 0 && u.flareCd <= 0 && Math.random() < 0.04) weapons.dropFlares(u);
-    if (this.state === 'load' || this.state === 'unload' || this.state === 'idle') { c.collective = -1; c.pitch = c.roll = c.yaw = 0; u.spool = false; this.wait -= dt; return; }
+    if (this.state === 'load' || this.state === 'unload' || this.state === 'idle' || this.state === 'service') { c.collective = -1; c.pitch = c.roll = c.yaw = 0; u.spool = false; this.wait -= dt; return; }
     u.spool = true;
     if (u.state === 'landed') { c.collective = 1; c.pitch = c.roll = 0; return; }
     // fly to the goal: lean toward it, hold height, point the nose
     const dx = this.goal.x - u.pos.x, dz = this.goal.z - u.pos.z, d = Math.hypot(dx, dz);
     const wantSp = Math.min(u.def.speed * this.cruise, d * 0.22 + (this.landing ? 0 : 2));
-    const vx = (dx / (d || 1)) * wantSp - u.vel.x, vz = (dz / (d || 1)) * wantSp - u.vel.z;
+    const gv = this.padShip && this.padShip.alive ? this.padShip.vel : null;   // landing on a ship under way: keep up with it
+    const vx = (dx / (d || 1)) * wantSp + (gv ? gv.x : 0) - u.vel.x, vz = (dz / (d || 1)) * wantSp + (gv ? gv.z : 0) - u.vel.z;
     const s = Math.sin(u.yaw), co = Math.cos(u.yaw), af = -s * vx - co * vz, ar = co * vx - s * vz;
     c.pitch = clamp(af * 0.09, -1, 1); c.roll = clamp(ar * 0.09, -1, 1);
     const hd = this.face ? Math.atan2(-(this.face.x - u.pos.x), -(this.face.z - u.pos.z)) : d > 60 ? Math.atan2(-dx, -dz) : u.yaw;
@@ -215,13 +246,23 @@ class HeliAI {
   }
   planAttack() {
     const u = this.u;
+    // on the deck being rearmed: wait for the deck crew, then go back out
+    this.padShip = null;
+    if (this.state === 'service') { if (!u.service) { this.state = 'patrol'; this.landing = false; } return; }
+    // missiles gone or badly damaged: land on the nearest friendly helipad
+    const pad = (u.fw.agm && u.fw.agm.ammo <= 0) || u.hp < u.maxHp * 0.4 ? spot(u) : null;
+    if (pad) {
+      this.target = null; u.aiTarget = null; this.face = null; this.cruise = 0.9; this.alt = 120;
+      this.goal.copy(pad.pos); this.padShip = pad.ship; this.landing = pad.d < 300;
+      if (u.state === 'landed' && u.on === pad.ship) this.state = 'service';
+      return;
+    }
     const tg = nearestEnemy(u, (e) => (e.kind === 'ship' && e.def.armor <= 1) || e.kind === 'heli' || (e.kind === 'sub' && e.depth < 3) || (e.kind === 'soldier' && !e.aboard), 8000);
     this.target = tg; u.aiTarget = tg; this.landing = false;
     if (tg) {
       const d = Math.hypot(tg.pos.x - u.pos.x, tg.pos.z - u.pos.z), stand = 1500;
       _a.set(u.pos.x - tg.pos.x, 0, u.pos.z - tg.pos.z).normalize().multiplyScalar(stand); this.goal.set(tg.pos.x + _a.x, 0, tg.pos.z + _a.z); this.alt = 90; this.face = tg.pos; this.cruise = 0.9;
       if (u.fw.agm && u.fw.agm.ammo > 0 && !tg.isAir && tg.kind !== 'soldier') { u.fwd(_b); if (seekLock(u, WEAPONS.agm, _b, 0.5, false) && (u.lockTarget.incoming || 0) < 1 && d < 5200) u.fire('agm'); }
-      else if (u.fw.agm && u.fw.agm.ammo <= 0) { this.rearm = (this.rearm || 0) + 0.5; if (this.rearm > 50) { this.rearm = 0; u.fw.agm.ammo = WEAPONS.agm.ammo; } }
     } else {
       this.face = null; this.cruise = 0.6;
       if (Math.hypot(this.goal.x - u.pos.x, this.goal.z - u.pos.z) < 200 || Math.random() < 0.01) this.goal.set(rand(-3500, 3500), 0, sgn(u.nation) * rand(300, 3200));
@@ -245,7 +286,7 @@ class HeliAI {
     } else if (this.state === 'return') {
       if (!home || !home.alive) { this.goal.set(pad.x + 60, pad.y, pad.z); this.landing = true; if (u.state === 'landed') this.state = 'idle'; return; }
       const hp = home.model.helipads[0]; home.toWorld(hp.pos, _a); _a.addScaledVector(home.vel, 1.5); const d = Math.hypot(_a.x - u.pos.x, _a.z - u.pos.z); this.goal.copy(_a); this.landing = d < 300;
-      if (u.state === 'landed' && u.on === home) { this.state = 'load'; this.wait = rand(14, 22); u.rearm(); }
+      if (u.state === 'landed' && u.on === home) { this.state = 'load'; this.wait = rand(14, 22); }   // the deck crew rearm it while it loads (heli.js)
       else if (u.state === 'landed') { this.state = 'outbound2'; }
     } else if (this.state === 'outbound2') { this.state = 'return'; }
   }

@@ -37,6 +37,13 @@ export const crew = {
     const extra = Math.max(0, (COUNT[ship.type] || 0) - posts.length);
     for (let i = 0; i < extra; i++) { const d = m.decks[Math.floor(rand(0, m.decks.length))]; if (!d) break; const x = rand(d.x0 + 1, d.x1 - 1), z = rand(d.z0 + 1, d.z1 - 1); if (blocked(ship, x, d.y, z)) continue; list.push({ x, y: d.y, z, yaw: rand(0, 6), deck: d, t: rand(0, 9), walk: 0, wait: rand(1, 12), col: carrier ? JERSEY[Math.floor(rand(0, 6))] : UNIFORM[ship.nation], hat: carrier ? JERSEY[Math.floor(rand(0, 6))] : 0x3a3f45, tx: x, tz: z }); }
   },
+  // Send the nearest free hands on that deck to work on something (an aircraft being rearmed): they walk over, stand by
+  // it for `secs`, then go back to their rounds. Ordnance crew wear red jerseys, the one fuel hand purple.
+  attend(ship, x, z, r, secs, count = 4) {
+    const list = ship.crewList; if (!list) return;
+    const free = list.filter((c) => !c.gun && c.wait < 1e8 && !(c.busy > world.t)).sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z)).slice(0, count);
+    free.forEach((c, i) => { const a = 0.9 + i * ((Math.PI * 2) / count); c.tx = x + Math.sin(a) * r; c.tz = z + Math.cos(a) * r; c.wait = secs + 2; c.busy = world.t + secs; c.col = c.hat = i === count - 1 ? 0x7a3fa0 : 0xb5332a; });
+  },
   put(mesh, mat, i, color) { mesh.setMatrixAt(i, mat); if (color !== undefined && mesh.instanceColor) { _c.setHex(color); mesh.instanceColor.setXYZ(i, _c.r, _c.g, _c.b); } },
   update(dt, cam) {
     if (!parts) return; n = 0; let nArms = 0;

@@ -9,6 +9,7 @@ import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
 import { surfaceBelow } from './surface.js';
 import { wrecks } from './wreck.js';
+import { begin, tick } from './rearm.js';
 
 const _a = new V3(), _b = new V3(), _f = new V3(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const surf = { y: 0, ship: null, type: 'water', localY: 0 };
@@ -44,7 +45,11 @@ export class Heli extends Unit {
     if (this.state === 'landed') {
       if (this.on && !this.on.alive) { this.on = null; this.kill(null); return; }
       this.stick();
-      if (this.rpm > 0.92 && c.collective > 0.15) { this.state = 'fly'; this.vel.y += 1.5; if (this.on) { this.onYaw = 0; this.on = null; } }
+      // down on a friendly ship with a helipad (the carrier's deck, a Super Destroyer): the deck crew rearm and repair it
+      const host = this.on && this.on.nation === this.nation && this.on.model.helipads && this.on.model.helipads.length ? this.on : null;
+      if (host && !this.service && this.rpm < 0.6) begin(this, host, 'Deck crew rearming');
+      if (this.service && tick(this, dt) && (this.isPlayer || this.pilot)) world.say('Rearmed and repaired. Clear to lift off.', 'good');
+      if (this.rpm > 0.92 && c.collective > 0.15) { this.state = 'fly'; this.service = null; this.vel.y += 1.5; if (this.on) { this.onYaw = 0; this.on = null; } }   // lifting off early throws the work away
     } else {
       this.pitchA = damp(this.pitchA, clamp(c.pitch, -1, 1) * TILT, 3.2, dt); this.rollA = damp(this.rollA, clamp(c.roll, -1, 1) * TILT, 3.6, dt);
       this.yaw = wrapPi(this.yaw + clamp(c.yaw, -1, 1) * 1.1 * dt - Math.tan(this.rollA) * 0.25 * dt * clamp(this.speed / 40, 0, 1));
@@ -83,7 +88,7 @@ export class Heli extends Unit {
     const py = this.model.pylons; if (py && py.length) this.toWorld(py[w.n++ % py.length], _a); else _a.copy(this.pos);
     this.fwd(_f); weapons.fireMissile(this, w.def, _a, _f, this.lockTarget); w.cd = w.def.reload; w.ammo--; return true;
   }
-  rearm() { for (const k in this.fw) this.fw[k].ammo = this.fw[k].def.ammo ?? Infinity; this.flares = this.def.flares; this.hp = this.maxHp; }
+  rearm() { for (const k in this.fw) this.fw[k].ammo = this.fw[k].def.ammo ?? Infinity; for (const m of this.mounts) m.refill(); this.flares = this.def.flares; this.hp = this.maxHp; }
   onKilled(by) {
     for (const s of [...this.passengers]) { s.aboard = null; s.kill(by); } this.passengers.length = 0;
     if (this.pilot) { const s = this.pilot; this.pilot = null; s.aboard = null; s.kill(by); }

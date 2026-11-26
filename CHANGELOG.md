@@ -1,5 +1,37 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.4.0 (rearming)
+
+- Ammunition is no longer gone for good, and no longer comes back by magic. `js/sim/rearm.js` holds the rules; the crews
+  of both sides follow the same ones as the player.
+- **Planes** land on their side's carrier to rearm and refuel. The deck crew (a few of the hands on deck walk over, in
+  red and purple jerseys) need 20 to 40 s, depending on how much is missing and how damaged the aircraft is; a progress
+  bar and the seconds left are shown, and the catapult will not fire until they have finished. The recon plane, which
+  has no weapons, refuels and is repaired. There is no fuel gauge: fuel is not burned in flight (decision below).
+- **Helicopters** land on a friendly ship that has a helipad (the carrier, anywhere on its deck, or a Super Destroyer)
+  and stay down for 15 to 30 s. Lifting off early throws the work away. The gunship's chin gun now has 1,200 rounds.
+- **Attack submarines** carry 12 reloads for their four tubes (14 s a tube, one at a time). When tubes and store are
+  both empty they dock with a friendly Battlecruiser or Super Destroyer and are restocked in up to 30 s. A submarine
+  already in that dock casts off to make way, and a ship under its own crew slows down so the submarine can catch it.
+- **HUD:** every weapon row shows what is left (a ship's row: mounts ready and rounds remaining; a submarine's: tubes
+  and store) and turns to EMPTY. When something runs out the feed says so once ("Out of missiles. Land on the carrier
+  to rearm") and a yellow REARM marker with the distance stays on the nearest place to rearm, held at the edge of the
+  screen when it is out of view.
+- **Computer-controlled units:** fighters go home when their missiles are gone, bombers when their bombs are gone, both
+  when badly damaged; they fly an approach from astern, trap, wait for the deck crew and launch again. Gunships land on
+  the nearest friendly helipad (they now match a moving ship's speed on the way down). Attack submarines go to the
+  nearest friendly dock. The old hidden refills (bombs back after 45 s, missiles after 50 s) are gone.
+- **Ships** had endless ammunition. Each mount now has its own: a heavy turret 150 salvos; a deck gun 80 rounds ready
+  and 1,120 below (16 s to bring up the next 80); a close-in AA gun a 1,500-round drum and three more (20 s to change);
+  a machine gun 100-round belts (6 s) from 2,000 rounds; a SAM launcher 8 missiles ready and 88 below (25 s to reload
+  the launcher). A ship cannot rearm: when a mount's store is empty it stays empty.
+- Decisions: (1) no fuel burn was added: "refuel" is part of the deck service, because a fuel gauge would be a new way
+  to lose an aircraft that was not asked for; (2) a computer-flown jet's last 170 m onto the wires is guided (it is
+  put on the strip and arrested as a player's trap is), so they do not crash on their own deck; (3) a helicopter may
+  rearm anywhere on the deck of a ship that has a helipad, not only on the painted circle; (4) ship stores were sized
+  from a five-minute battle so that they last roughly twenty minutes of steady firing.
+- Fixed on the way: a submarine sitting in a dock never ran its crew's "cast off" logic, so docks stayed occupied.
+
 ## Beta 0.3.5 (the Hangar keeps the unit you are looking at)
 
 - Bug: in the Hangar's Paint tab, clicking Shark-mouth while a ship or submarine was on show switched the preview to

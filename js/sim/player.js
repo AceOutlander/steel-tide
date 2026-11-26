@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gfx } from '../gfx/renderer.js';
 import { waveHeight } from '../gfx/ocean.js';
 import { audio } from '../audio/audio.js';
+import { emptyKey, spot, outText, serviceText, makeWay } from './rearm.js';
 import { input } from '../core/input.js';
 import { save } from '../core/save.js';
 import { world } from '../world/world.js';
@@ -52,6 +53,7 @@ export const player = {
     for (let i = 0; i < 4; i++) if (input.tap('weapon' + (i + 1)) && keys[i]) { u.selKey = keys[i]; audio.play('click'); }
     if (input.wheel && keys.length > 1) { u.selKey = keys[(keys.indexOf(u.selKey) + (input.wheel > 0 ? 1 : keys.length - 1)) % keys.length]; audio.play('click'); }
     this.keys = keys;
+    this.rearmNote(u);
     this.aim(); // from the camera as it was last drawn
     // fire discipline: the trigger is dead while the reticle is on one of our own
     this.lmb = input.lmb && !this.aimFriend; this.lmbHit = input.lmbHit && !this.aimFriend; u.fireTarget = this.aimTarget;
@@ -88,7 +90,7 @@ export const player = {
     if (u.transit) { this.prompt = (u.transit.dock ? 'Docking: the ship is taking the submarine in' : 'Leaving through the hull doors') + (back ? '  ' + back : ''); u.aimPoint.copy(this.aimPoint); this.hint = home ? 'B return to the ship' : ''; return; }
     if (u.dockedTo) {
       const under = u.dockedTo.model.dock.under;
-      this.prompt = (under ? '<kbd>E</kbd> Launch through the hull doors' : '<kbd>E</kbd> Cast off from the dock') + (back ? '  ' + back : ''); u.aimPoint.copy(this.aimPoint); this.hint = home ? 'E launch  B return to the ship' : 'E launch';
+      this.prompt = (u.service ? serviceText(u) + '  ' : '') + (under ? '<kbd>E</kbd> Launch through the hull doors' : '<kbd>E</kbd> Cast off from the dock') + (back ? '  ' + back : ''); u.aimPoint.copy(this.aimPoint); this.hint = home ? 'E launch  B return to the ship' : 'E launch';
       if (input.tap('use')) { if (!u.homeShip) u.homeShip = u.dockedTo; u.undock(); world.say(under ? 'Hull doors open. Leaving the dock.' : 'Cast off. Backing out of the dock.', 'info'); }
       return;
     }
@@ -111,6 +113,16 @@ export const player = {
     this.hint = 'W/S throttle  A/D rudder  R/F depth  P periscope  Q sonar ping' + (u.tubes ? '  LMB torpedo' : '') + (home ? '  B return to the ship' : '');
   },
 
+  // Out of something that can only be had elsewhere: say so once, and keep a waypoint on the nearest place to get it.
+  rearmNote(u) {
+    this.rearmAt = null;
+    if (!u.alive || (u.kind !== 'jet' && u.kind !== 'heli' && u.kind !== 'sub')) return;
+    const k = emptyKey(u); if (!k) { this._outKey = null; return; }
+    const sp = spot(u);
+    if (k !== this._outKey || u !== this._outUnit) { this._outKey = k; this._outUnit = u; world.say(outText(u, k, sp, WEAPONS), 'bad'); }
+    if (sp && !u.service && !u.dockedTo) { this.rearmAt = sp; makeWay(sp, u); }
+  },
+
   // ---- jets ------------------------------------------------------------------------------------------------------------------
   // Planes fly on the keys: W nose down, S nose up, A/D a coordinated banked turn, Q/E rudder, Shift/Ctrl throttle.
   // The mouse only looks around. Guns and missiles follow the nose.
@@ -125,7 +137,8 @@ export const player = {
     if (u.state === 'deck') {
       const cv = u.carrier; this.yaw = wrapPi(cv.yaw + u.deckYaw); this.pitch = 0.02; this.lookYaw = this.lookPitch = 0; this.jp = this.jt = 0; this.holdP = undefined;
       const onCat = cv.model.catapults.find((k) => k.pos.distanceTo(u.deckLocal) < 3);
-      if (onCat) { this.prompt = 'Hold <kbd>Shift</kbd> to full throttle: the catapult fires at 100%'; if (c.throttle >= 0.99) { u.launch(onCat); } }
+      if (u.service) { this.prompt = serviceText(u); c.throttle = 0; }   // the deck crew are loading it: nothing to do but wait
+      else if (onCat) { this.prompt = 'Hold <kbd>Shift</kbd> to full throttle: the catapult fires at 100%'; if (c.throttle >= 0.99) { u.launch(onCat); } }
       else { this.prompt = '<kbd>E</kbd> Taxi to the catapult'; c.throttle = 0; if (input.tap('use')) { const k = cv.model.catapults[0]; u.park(cv, k.pos, k.yaw); u.gearDown = true; } }
       return;
     }
@@ -168,7 +181,7 @@ export const player = {
       if (input.key('Space')) { this.stick.x = damp(this.stick.x, 0, 8, dt); this.stick.y = damp(this.stick.y, 0, 8, dt); }
       c.pitch = -this.stick.y; c.roll = this.stick.x; c.yaw = input.axis('right', 'left');
       this.yaw = u.yaw; this.pitch = -0.08;
-    } else { this.stick.x = this.stick.y = 0; c.pitch = c.roll = c.yaw = 0; u.spool = c.collective > 0 || u.spool; this.prompt = u.rpm < 0.9 ? 'Hold <kbd>W</kbd> to spin up and lift off' : ''; if (u.pilot) { this.prompt += (this.prompt ? '  ' : '') + '<kbd>E</kbd> Get out'; if (input.tap('use')) { this.leaveHeli(u); return; } } }
+    } else { this.stick.x = this.stick.y = 0; c.pitch = c.roll = c.yaw = 0; u.spool = c.collective > 0 || u.spool; this.prompt = u.service ? serviceText(u) + '  (lifting off stops it)' : u.rpm < 0.9 ? 'Hold <kbd>W</kbd> to spin up and lift off' : ''; if (u.pilot) { this.prompt += (this.prompt ? '  ' : '') + '<kbd>E</kbd> Get out'; if (input.tap('use')) { this.leaveHeli(u); return; } } }
     if (input.tap('flares')) weapons.dropFlares(u);
     u.aimPoint.copy(this.aimPoint); u.aimLead = this.aimTarget && this.assist === 'full' ? (u._lead || (u._lead = new V3())).copy(this.aimTarget.vel).sub(u.vel) : null; u.firing = this.lmb && u.selKey === 'chin';
     const w = u.fw[u.selKey];

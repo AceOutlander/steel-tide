@@ -26,7 +26,8 @@ const SLEW = { mg: 3.2, chin: 3.5, deckgun: 0.9, heavy: 0.3, ciws: 3.0, sam: 1.4
 export class Mount {
   constructor(unit, turret, key) {
     this.unit = unit; this.t = turret; this.def = WEAPONS[key]; this.key = key; this.cd = rand(0, 0.5); this.barrel = 0;
-    this.ammo = this.def.ammo ?? Infinity; this.target = null; this.aligned = false; this.inArc = true; this.scan = rand(0, 1); this.lock = 0; this.manned = null; this.burst = 0;
+    // ammo: rounds ready to fire. store: rounds below, brought up a magazine at a time. full: everything it started with.
+    this.ammo = this.def.mag ?? this.def.ammo ?? Infinity; this.store = this.def.store || 0; this.full = this.ammo + this.store; this.target = null; this.aligned = false; this.inArc = true; this.scan = rand(0, 1); this.lock = 0; this.manned = null; this.burst = 0;
     // the heavy turrets of one ship do not all fire in the same instant: each waits a little longer than the one before
     this.stagger = this.def.salvo ? (((unit._salvoN = (unit._salvoN || 0) + 1) - 1) % 5) * 0.05 : 0;
   }
@@ -60,7 +61,7 @@ export class Mount {
     this.dir(_c);
     if (def.type === 'missile') {
       const mz = t.muzzles[this.barrel++ % t.muzzles.length]; mz.getWorldPosition(_a);
-      weapons.fireMissile(u, def, _a, _c, target); this.cd = def.reload; return true;
+      weapons.fireMissile(u, def, _a, _c, target); this.cd = def.reload; this.spend(); return true;
     }
     const n = def.salvo ? t.muzzles.length : 1;
     for (let i = 0; i < n; i++) {
@@ -70,9 +71,16 @@ export class Mount {
       if (wait > 0.001) { weapons.ripple.push({ at: world.t + wait, m: this, mz, lite: i > 0 }); continue; }
       mz.getWorldPosition(_a); weapons.fireGun(u, def, _a, _c, u.vel, i === 0 ? true : 'lite');
     }
-    this.cd = 1 / def.rof; this.ammo--; if (t.barrels) t.spinV = 42;
+    this.cd = 1 / def.rof; this.spend(); if (t.barrels) t.spinV = 42;
     return true;
   }
+  // one round (or salvo) gone. An empty magazine is refilled from the store, which takes the crew a while.
+  spend() {
+    if (--this.ammo > 0 || this.store <= 0) return;
+    const n = Math.min(this.def.mag, this.store); this.store -= n; this.ammo = n; this.cd = Math.max(this.cd, this.def.magReload); this.loading = world.t + this.def.magReload;
+  }
+  rounds() { return this.ammo === Infinity ? Infinity : Math.max(0, this.ammo) + this.store; }
+  refill() { this.ammo = this.def.mag ?? this.def.ammo ?? Infinity; this.store = this.def.store || 0; this.loading = 0; }
 }
 
 // ---- projectile pool -------------------------------------------------------------------------------------------------------
