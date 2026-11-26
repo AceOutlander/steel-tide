@@ -1,5 +1,12 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.6.7 (pools of light) and 0.6.6 (name plates in the Super Destroyer)
+
+- Every ceiling fitting in every interior now throws a pool of light on the deck and a glow on the ceiling round it,
+  so passages and rooms are no longer evenly lit. The pools turn red with the lamps at battle stations.
+- The Super Destroyer's passages have stencilled plates: each room's name over its door (MESS DECK, BERTHING,
+  ARMOURY, OPERATIONS, STORES, ENGINE ROOM, WORKSHOP), frame numbers, FIRE POINT, FIRST AID, DANGER, DAMAGE CONTROL.
+
 ## Beta 0.6.5 (a bridge to look out from)
 
 - Commanding a ship in first person used to be a camera floating in front of the bridge. Now you stand on the bridge:

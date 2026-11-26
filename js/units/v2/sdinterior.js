@@ -76,12 +76,15 @@ export function interiorMats(nation) {
   const water = new THREE.MeshBasicMaterial({ color: 0x0b2c36, transparent: true, opacity: 0.82, depthWrite: false }); water.name = 'sdPool.insignia';
   const dark = new THREE.MeshBasicMaterial({ color: 0x020405 }); dark.name = 'sdDark.insignia';
   const signs = new THREE.MeshBasicMaterial({ map: registerTexture('int_signs', { aspect: 2, wrap: false, draw: drawSigns }) }); signs.name = 'sdSigns.insignia';
-  return (MATS[nation] = { int, lamp, water, dark, signs, alert: 0 });
+  // the pool of light a ceiling fitting throws on the deck (and the glow on the ceiling round it): added on top of the surface
+  const glowT = registerTexture('int_glow', { size: 128, wrap: false, draw(ctx, w, h) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h); const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,246,225,1)'); g.addColorStop(0.35, 'rgba(255,246,225,0.5)'); g.addColorStop(0.7, 'rgba(255,246,225,0.12)'); g.addColorStop(1, 'rgba(255,246,225,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); } });
+  const glow = new THREE.MeshBasicMaterial({ map: glowT, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.34 }); glow.name = 'sdGlow.insignia';
+  return (MATS[nation] = { int, lamp, water, dark, signs, glow, alert: 0 });
 }
 // 0 = normal white lighting, 1 = red battle-stations lighting
 export function setAlert(mats, k) {
   if (Math.abs(k - mats.alert) < 0.004) return; mats.alert = k;
-  mats.int.color.setRGB(1, 1 - 0.46 * k, 1 - 0.5 * k); mats.lamp.color.setRGB(1, 0.953 - 0.72 * k, 0.847 - 0.7 * k);
+  mats.int.color.setRGB(1, 1 - 0.46 * k, 1 - 0.5 * k); mats.lamp.color.setRGB(1, 0.953 - 0.72 * k, 0.847 - 0.7 * k); if (mats.glow) mats.glow.color.setRGB(1, 1 - 0.75 * k, 1 - 0.8 * k);
 }
 
 /** the parts of rectangle r (x0, x1, z0, z1 and whatever else it carries) that lie outside rectangle h */
@@ -134,6 +137,7 @@ export function buildInterior(nation, model, fine, fb) {
         const x = x0 + ((i + 0.5) * (x1 - x0)) / nx, z = z0 + ((j + 0.5) * (z1 - z0)) / nz;
         if (ceilHoles.some((q) => x > q.x0 - 0.8 && x < q.x1 + 0.8 && z > q.z0 - 0.8 && z < q.z1 + 0.8)) continue;
         box(FRAME, x - 0.22, x + 0.22, y + h - 0.07, y + h, z - 0.75, z + 0.75); lampBox(x - 0.16, x + 0.16, y + h - 0.1, y + h - 0.07, z - 0.68, z + 0.68);
+        kl.add(M.glow, new THREE.PlaneGeometry(Math.min(5.5, (x1 - x0) / nx + 1.5), 6.5), x, y + 0.02, z, [-HP, 0, 0]); kl.add(M.glow, new THREE.PlaneGeometry(2.2, 3.4), x, y + h - 0.004, z, [HP, 0, 0]);
       }
     }
   };

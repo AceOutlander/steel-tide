@@ -49,7 +49,8 @@ export function addCabins(S) {
   };
   const yb = (v) => y + v; // heights above the deck
   // a fluorescent fitting under the ceiling, its tube along `axis`
-  const lamp = (x, z, axis = 'z') => { const lx = axis === 'x' ? 0.62 : 0.09, lz = axis === 'x' ? 0.09 : 0.62; box(FRAME, x - lx, x + lx, yb(H - 0.07), yb(H), z - lz, z + lz); kl.box(M.lamp, lx * 2 - 0.1, 0.035, lz * 2 - 0.1, x, yb(H - 0.085), z); if (fine) for (const q of [-0.8, 0.8]) box(STEEL, x + (axis === 'x' ? q * lx : 0) - 0.012, x + (axis === 'x' ? q * lx : 0) + 0.012, yb(H - 0.12), yb(H - 0.07), z + (axis === 'x' ? 0 : q * lz) - 0.012, z + (axis === 'x' ? 0 : q * lz) + 0.012); };
+  const lamp = (x, z, axis = 'z') => { const lx = axis === 'x' ? 0.62 : 0.09, lz = axis === 'x' ? 0.09 : 0.62;
+    kl.add(M.glow, new THREE.PlaneGeometry(axis === 'x' ? 3.6 : 2.6, axis === 'x' ? 2.6 : 3.6), x, y + 0.045, z, [-HP, 0, 0]); kl.add(M.glow, new THREE.PlaneGeometry(axis === 'x' ? 2.2 : 1.2, axis === 'x' ? 1.2 : 2.2), x, yb(H - 0.004), z, [HP, 0, 0]); box(FRAME, x - lx, x + lx, yb(H - 0.07), yb(H), z - lz, z + lz); kl.box(M.lamp, lx * 2 - 0.1, 0.035, lz * 2 - 0.1, x, yb(H - 0.085), z); if (fine) for (const q of [-0.8, 0.8]) box(STEEL, x + (axis === 'x' ? q * lx : 0) - 0.012, x + (axis === 'x' ? q * lx : 0) + 0.012, yb(H - 0.12), yb(H - 0.07), z + (axis === 'x' ? 0 : q * lz) - 0.012, z + (axis === 'x' ? 0 : q * lz) + 0.012); };
   // steel wall along z at x (axis 'z') or along x at z (axis 'x'), a0..a1, with door gaps [[g0, g1]]; face: which side shows stiffeners
   const wall = (axis, c, a0, a1, gaps = [], th = 0.08) => {
     const seg = (b0, b1, y0, y1, col, t = th, gr = null) => { if (b1 - b0 < 0.02) return; if (axis === 'x') box(col, b0, b1, y0, y1, c - t / 2, c + t / 2, gr); else box(col, c - t / 2, c + t / 2, y0, y1, b0, b1, gr); };
