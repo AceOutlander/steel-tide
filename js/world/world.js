@@ -3,9 +3,10 @@ import * as THREE from 'three';
 import { gfx } from '../gfx/renderer.js';
 import { ocean } from '../gfx/ocean.js';
 import { MAT } from '../gfx/materials.js';
-import { mulberry32, sstep, clamp } from '../core/util.js';
+import { mulberry32, sstep, clamp, inZones } from '../core/util.js';
 import { NATIONS } from '../core/config.js';
 
+const _in = new THREE.Vector3();
 const ISLANDS = [
   { x: 0, z: 0, r: 640, h: 58, s: 1.3 }, { x: -3700, z: -1250, r: 430, h: 74, s: 4.1 }, { x: 3500, z: 1450, r: 390, h: 50, s: 2.2 },
   { x: 2900, z: -2900, r: 300, h: 92, s: 5.7 }, { x: -2800, z: 2700, r: 340, h: 42, s: 0.4 },
@@ -127,10 +128,13 @@ export const world = {
   // pinging boat away to every enemy sonar within 9 km.
   // Aircraft: radar range scales with the target's signature (stealth fighter 0.45, cloaked bomber a tenth of normal);
   // eyes still work up close whatever the radar says.
-  sonarRange(f) { return f.kind === 'sub' ? (f.def.sonar || 3000) : f.kind === 'ship' && (f.type === 'corvette' || f.type === 'battlecruiser') ? 2200 : 0; },
+  sonarRange(f) { return f.kind === 'sub' ? (f.def.sonar || 3000) : f.kind !== 'ship' ? 0 : f.type === 'superdestroyer' ? 2800 : f.type === 'corvette' || f.type === 'battlecruiser' ? 2200 : 0; },
+  // the ship whose interior holds this point (a camera, a person), or null
+  insideShip(p) { for (const s of this.units) { const inn = s.model && s.model.interior; if (!inn || !s.alive || s.pos.distanceToSquared(p) > s.radius * s.radius * 1.2) continue; s.toLocal(p, _in); if (inZones(inn.zones, _in, 0.35)) return s; } return null; },
   // how observer f detects e at horizontal range d: 'eye' | 'radar' | 'sonar' | 'ping' | null
   detects(f, e, d) {
-    if (e.kind === 'soldier' && e.aboard) return null;
+    if (e.kind === 'soldier' && (e.aboard || e.inside)) return null;
+    if (e.kind === 'sub' && e.dockedTo && e.dockedTo.model.dock.under) return null; // inside the ship's hull
     const t = this.t, son = this.sonarRange(f);
     if (e.kind === 'sub' && e.depth > 3 && !e.dockedTo) {
       if (son) {

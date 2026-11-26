@@ -58,10 +58,11 @@ export const crew = {
     for (const mt of ship.mounts) if (mt.key === 'mg') person({ gun: mt, variant: 'gunner' });
     const posts = m.posts || []; let nb = 0;
     for (const p of posts) {
-      const o = { x: p.x, y: p.y, z: p.z, yaw: p.yaw || 0, home: p };
+      const o = { x: p.x, y: p.y, z: p.z, yaw: p.yaw || 0, home: p, in: p.in };
       if (p.kind === 'flight') deckHand({ ...o, wait: rand(4, 30) });
       else if (p.kind === 'bridge') { const off = nb++ % 3 === 0; person({ ...o, officer: off, col: off ? N.khaki : N.work }); }
       else if (p.kind === 'lookout') person({ ...o, variant: 'lookout', idle: 'watch' });
+      else if (p.kind === 'work') person({ ...o, idle: 'work' });                               // kneeling at a machine
       else person({ ...o, wait: rand(4, 30) });
     }
     const extra = Math.max(0, (COUNT[ship.type] || 0) - posts.length);
@@ -111,7 +112,8 @@ export const crew = {
       _base.compose(s.pos, s.quat, _s);
       const list = s.crewList, show = Math.ceil(list.length * Math.min(1, k));
       for (let i = 0; i < list.length; i++) {
-        const c = list[i]; c.t += dt; c.walk = false;
+        const c = list[i]; if (c.in && !s.interiorOn) continue; // people inside are only worked out while the interior is being drawn
+        c.t += dt; c.walk = false;
         if (c.gun) { const t = c.gun.t, y = t.rest + t.yaw; if (c.gun.manned) continue; _p.copy(t.gunner).applyAxisAngle(YA, y).add(t.node.position); c.x = _p.x; c.y = _p.y; c.z = _p.z; c.yaw = y; }
         else if (c.wait < 1e8) {
           // amble to a new spot on the same deck now and then

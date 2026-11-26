@@ -108,9 +108,9 @@ export const hud = {
     const cells = [];
     const kts = (Math.abs(veh.kind === 'heli' || veh.kind === 'jet' ? veh.vel.length() : veh.speed) / KTS).toFixed(0);
     cells.push(['SPD', `${veh.speed < 0 ? '-' : ''}${kts} kn`], ['HDG', `${hdg.toFixed(0).padStart(3, '0')}°`]);
-    if (veh.kind === 'jet' || veh.kind === 'heli') { cells.push(['ALT', `${Math.max(0, veh.pos.y).toFixed(0)} m`], ['V/S', `${veh.vel.y.toFixed(0)} m/s`]); if (veh.kind === 'jet') { cells.push(['G', veh.gSmooth.toFixed(1)], ['THR', `${(veh.throttle * 100).toFixed(0)}%${veh.abOn ? ' AB' : ''}`], ['GEAR', veh.gearDown ? 'DOWN' : 'UP'], ['FLR', String(veh.flares)], ['CREW', String(veh.def.crew)]); if (veh.def.cloak) cells.push(['CLOAK', veh.cloaked ? `${veh.cloakT.toFixed(0)} s` : veh.cloakCd > 0 ? `wait ${veh.cloakCd.toFixed(0)}` : 'READY']); } else cells.push(['RPM', `${(veh.rpm * 100).toFixed(0)}%`], ['FLR', String(veh.flares)], ['CREW', String(veh.def.crew)]); if (veh.type === 'transport') cells.push(['TROOPS', `${veh.passengers.length}/${veh.def.seats}`]); }
-    else if (veh.kind === 'sub') cells.push(['DEPTH', `${veh.depth.toFixed(0)} m`], ['ORDER', `${veh.depthT.toFixed(0)} m`], ['SCOPE', veh.scopeA > 0.9 ? 'UP' : veh.scope ? 'RAISING' : 'DOWN'], ['SONAR', veh.pingT > world.t ? 'ACTIVE' : 'PASSIVE'], ['CREW', String(veh.def.crew)]);
-    else if (veh.kind === 'ship') cells.push(['THR', `${(veh.throttle * 100).toFixed(0)}%`], ['RUD', veh.rudderA > 0.05 ? 'PORT' : veh.rudderA < -0.05 ? 'STBD' : 'MID'], ['CREW', String(veh.def.crew)], ['FLOOD', `${(veh.flood * 100).toFixed(0)}%`]);
+    if (veh.kind === 'jet' || veh.kind === 'heli') { cells.push(['ALT', `${Math.max(0, veh.pos.y).toFixed(0)} m`], ['V/S', `${veh.vel.y.toFixed(0)} m/s`]); if (veh.kind === 'jet') { cells.push(['G', veh.gSmooth.toFixed(1)], ['THR', `${(veh.throttle * 100).toFixed(0)}%${veh.abOn ? ' AB' : ''}`], ['GEAR', veh.gearDown ? 'DOWN' : 'UP'], ['FLR', String(veh.flares)], ['CREW', veh.def.crew.toLocaleString('en-US')]); if (veh.def.cloak) cells.push(['CLOAK', veh.cloaked ? `${veh.cloakT.toFixed(0)} s` : veh.cloakCd > 0 ? `wait ${veh.cloakCd.toFixed(0)}` : 'READY']); } else cells.push(['RPM', `${(veh.rpm * 100).toFixed(0)}%`], ['FLR', String(veh.flares)], ['CREW', veh.def.crew.toLocaleString('en-US')]); if (veh.type === 'transport') cells.push(['TROOPS', `${veh.passengers.length}/${veh.def.seats}`]); }
+    else if (veh.kind === 'sub') cells.push(['DEPTH', `${veh.depth.toFixed(0)} m`], ['ORDER', `${veh.depthT.toFixed(0)} m`], ['SCOPE', veh.scopeA > 0.9 ? 'UP' : veh.scope ? 'RAISING' : 'DOWN'], ['SONAR', veh.pingT > world.t ? 'ACTIVE' : 'PASSIVE'], ['CREW', veh.def.crew.toLocaleString('en-US')]);
+    else if (veh.kind === 'ship') cells.push(['THR', `${(veh.throttle * 100).toFixed(0)}%`], ['RUD', veh.rudderA > 0.05 ? 'PORT' : veh.rudderA < -0.05 ? 'STBD' : 'MID'], ['CREW', veh.def.crew.toLocaleString('en-US')], ['FLOOD', `${(veh.flood * 100).toFixed(0)}%`]);
     else cells.push(['STANCE', u.swim ? 'SWIM' : u.ctl.crouch ? 'CROUCH' : 'STAND'], ['ON', u.on ? (u.on.name || u.on.def.label) : u.swim ? 'Sea' : 'Island']);
     const gh = cells.map((c) => `<div><span>${c[0]}</span>${c[1]}</div>`).join(''); if (E.grid._h !== gh) { E.grid.innerHTML = gh; E.grid._h = gh; } // only touch the page when a number changed
     const thr = veh.kind === 'heli' ? veh.ctl.collective * 0.5 + 0.2 : veh.throttle ?? 0; E.thr.hidden = veh.kind === 'soldier';
@@ -194,7 +194,10 @@ export const hud = {
       if (ms.length) {
         const rdy = ms.filter((m) => m.cd <= 0 && m.inArc).length, arc = ms.some((m) => m.inArc), wait = Math.min(...ms.map((m) => Math.max(m.cd, 0)));
         const rng = player.aimTarget ? `${(player.aimTarget.pos.distanceTo(veh.pos) / 1000).toFixed(1)} km` : `${(player.aimPoint.distanceTo(veh.pos) / 1000).toFixed(1)} km`;
-        t = `${rng}  ·  ${!arc ? 'OUT OF ARC' : rdy ? (ms.length > 1 ? `${rdy}/${ms.length} READY` : 'READY') : `RELOADING ${wait.toFixed(1)} s`}`;
+        if (key === 'sam' && !u.gun) { // the missile group fired by hand: it needs an aircraft under the reticle and a lock
+          const tg = player.aimTarget && player.aimTarget.isAir ? player.aimTarget : null, lk = tg ? Math.max(...ms.map((m) => (m.target === tg ? m.lock : 0))) : 0;
+          t = tg ? `${rng}  ·  ${lk >= WEAPONS.sam.lockTime ? `LOCKED  ·  ${rdy}/${ms.length} READY` : 'LOCKING'}` : 'AIM AT AN AIRCRAFT  ·  CREW FIRING';
+        } else t = `${rng}  ·  ${!arc ? 'OUT OF ARC' : rdy ? (ms.length > 1 ? `${rdy}/${ms.length} READY` : 'READY') : wait < 0.25 ? 'FIRING' : `RELOADING ${wait.toFixed(1)} s`}`;
       }
     } else if (kind === 'sub' || kind === 'scope') {
       const tb = veh.tubes; if (tb) t = veh.depth > 40 ? 'TOO DEEP TO FIRE' : `${tb.ready}/${tb.def.tubes} TUBES${player.aimTarget ? `  ·  ${(player.aimTarget.pos.distanceTo(veh.pos) / 1000).toFixed(1)} km` : ''}`;
@@ -238,9 +241,10 @@ export const hud = {
     ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.beginPath();
     if (e.isPlayer) { ctx.moveTo(0, -6 * k); ctx.lineTo(4.2 * k, 5 * k); ctx.lineTo(0, 2.6 * k); ctx.lineTo(-4.2 * k, 5 * k); ctx.closePath(); ctx.fill(); }
     else if (e.kind === 'ship') {
-      const L = (e.type === 'carrier' ? 8.5 : e.type === 'battlecruiser' ? 7 : e.type === 'corvette' ? 4.8 : 3.4) * k, B = (e.type === 'carrier' ? 3 : e.type === 'battlecruiser' ? 2.2 : 1.7) * k;
+      const L = (e.type === 'carrier' ? 8.5 : e.type === 'superdestroyer' ? 9.6 : e.type === 'battlecruiser' ? 7 : e.type === 'corvette' ? 4.8 : 3.4) * k, B = (e.type === 'carrier' ? 3 : e.type === 'superdestroyer' ? 2.9 : e.type === 'battlecruiser' ? 2.2 : 1.7) * k;
       if (e.type === 'carrier') { ctx.rect(-B, -L, B * 2, L * 2); ctx.fill(); ctx.strokeRect(-B - 2.2, -L - 2.2, B * 2 + 4.4, L * 2 + 4.4); }
       else { ctx.moveTo(0, -L); ctx.lineTo(B, -L * 0.45); ctx.lineTo(B, L); ctx.lineTo(-B, L); ctx.lineTo(-B, -L * 0.45); ctx.closePath(); ctx.fill(); }
+      if (e.type === 'superdestroyer') { const o = 2.4; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(0, -L - o * 1.6); ctx.lineTo(B + o, -L * 0.45 - o * 0.4); ctx.lineTo(B + o, L + o); ctx.lineTo(-B - o, L + o); ctx.lineTo(-B - o, -L * 0.45 - o * 0.4); ctx.closePath(); ctx.stroke(); } // the biggest hull, with an outline round it
     } else if (e.kind === 'sub') { const d = 3.6 * k; ctx.moveTo(0, -d * 1.3); ctx.lineTo(d, 0); ctx.lineTo(0, d * 1.3); ctx.lineTo(-d, 0); ctx.closePath(); ctx.fill(); }
     else if (e.kind === 'heli') { const d = 3 * k; ctx.lineWidth = 1.9; ctx.moveTo(-d, -d); ctx.lineTo(d, d); ctx.moveTo(d, -d); ctx.lineTo(-d, d); ctx.stroke(); }
     else if (e.kind === 'jet') { const d = k; ctx.moveTo(0, -5 * d); ctx.lineTo(1.1 * d, -1 * d); ctx.lineTo(4.6 * d, 1.8 * d); ctx.lineTo(1.1 * d, 1.5 * d); ctx.lineTo(0.9 * d, 3.6 * d); ctx.lineTo(2.3 * d, 4.9 * d); ctx.lineTo(-2.3 * d, 4.9 * d); ctx.lineTo(-0.9 * d, 3.6 * d); ctx.lineTo(-1.1 * d, 1.5 * d); ctx.lineTo(-4.6 * d, 1.8 * d); ctx.lineTo(-1.1 * d, -1 * d); ctx.closePath(); ctx.fill(); }
@@ -305,7 +309,7 @@ export const hud = {
       <h3 style="margin-top:1.2em">Service record</h3>
       <div class="stat"><span>Ships sunk</span><span>${st.sinkings}</span></div><div class="stat"><span>Aircraft shot down</span><span>${st.aircraft}</span></div>
       <div class="stat"><span>Battles won / lost</span><span>${st.battlesWon} / ${st.battlesLost}</span></div>
-      <p style="color:var(--dim);font-size:.8em;margin-top:1.4em">Hold Tab to keep this open. White marker: you. Hull shapes: ships (carriers boxed). Diamonds: submarines. Planes: aircraft. X: helicopters.</p>`;
+      <p style="color:var(--dim);font-size:.8em;margin-top:1.4em">Hold Tab to keep this open. White marker: you. Hull shapes: ships (carriers boxed, a Super Destroyer outlined). Diamonds: submarines. Planes: aircraft. X: helicopters.</p>`;
   },
 };
 function hdgOf(yaw) { return String(Math.round(((((-yaw * 180) / Math.PI) % 360) + 360) % 360)).padStart(3, '0'); }

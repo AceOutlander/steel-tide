@@ -17,6 +17,7 @@ import { wrecks } from './sim/wreck.js';
 import { econ, fmtCredits, PAY } from './core/economy.js';
 import { applyPaint } from './gfx/paint.js';
 import { store } from './core/store.js';
+import { cosmetics } from './core/cosmetics.js';
 import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
@@ -55,7 +56,11 @@ export const app = {
         };
         econ.onPop = (t) => hud.pop(t);
         econ.onCap = () => { world.say(`Infantry pay limit reached (${fmtCredits(PAY.infantryCap)} this battle). Ships and aircraft still pay full. Go after bigger targets!`, 'info'); };
-        world.onKill = (u, by) => { battle.onKill(u, by); if (by && by.isPlayer) world.playerKills = (world.playerKills || 0) + 1; if (u.isPlayer || (player.soldier === u && player.unit && player.unit.pilot === u)) this.playerDied(u, by); };
+        world.onKill = (u, by) => { battle.onKill(u, by); if (by && by.isPlayer) world.playerKills = (world.playerKills || 0) + 1; if (u.isPlayer || (player.soldier === u && player.unit && player.unit.pilot === u)) {
+            // lost the submarine while its ship is still afloat: back aboard the ship instead of the redeploy screen
+            const home = u.kind === 'sub' && u === player.unit && u.homeShip && u.homeShip.alive ? u.homeShip : null;
+            if (home && this.state === 'battle') { home.ai = null; player.setUnit(home); home.invuln = world.t + 2; world.say(`${u.name || 'The submarine'} is lost. You are back aboard ${home.name}.`, 'bad'); } else this.playerDied(u, by);
+          } };
         battle.onEnd = () => this.nextBattle();
         input.onLockChange = (l) => { if (!l && this.state === 'battle') this.pause(); };
         document.addEventListener('visibilitychange', () => { if (document.hidden) { if (this.state === 'battle') this.pause(); audio.suspend(); } else { last = performance.now(); if (this.state !== 'paused') audio.resume(); } });
@@ -77,6 +82,7 @@ export const app = {
 
   // ---- flow ------------------------------------------------------------------------------------------------------------------
   play(nation, type, opts = {}) {
+    if (!cosmetics.unlocked(type) && !window.__steelTide.dev) { menus.show('units'); return; } // a locked unit cannot be started from the address bar either
     audio.init(); audio.resume(); audio.setScene('battle');
     if (world.playerNation !== nation || world.over || !battle.active) { battle.start(nation); world.playerKills = 0; hud.clearFeed(); }
     if (player.unit && player.unit.alive && player.unit.isPlayer) battle.releasePlayer(player.unit);
@@ -151,7 +157,10 @@ export const app = {
     wakeList.length = Math.min(shipList.length, 16);
     for (let k = 0; k < wakeList.length; k++) { const u = shipList[k], o = wakeList[k] || (wakeList[k] = {}), spd = clamp(Math.abs(u.speed) / u.def.speed, 0, 1); o.x = u.pos.x; o.z = u.pos.z; o.fx = -Math.sin(u.yaw); o.fz = -Math.cos(u.yaw); o.hl = u.dims.length / 2; o.hb = Math.min(u.dims.beam / 2, u.dims.length * 0.075); o.spd = u.alive ? spd : 0.15; o.wake = u.dims.length * 2.6 * spd; }
     ocean.setShips(wakeList);
-    const wy = waveHeight(cp.x, cp.z), under = wy - cp.y;
+    // a camera inside a ship is dry even below the waterline, and the sea is not drawn through the rooms down there
+    let holeShip = null; for (const u of U) if (u.interiorOn) { holeShip = u; break; }
+    ocean.setHole(holeShip, holeShip && holeShip.model.interior.hole);
+    const wy = waveHeight(cp.x, cp.z), under = holeShip && world.insideShip(cp) ? 0 : wy - cp.y;
     gfx.setUnderwater(under > 0.05 ? under : 0); audio.setUnderwater(under > 0.05);
     ocean.update(sim ? dt : 0, cam);
     if (sim) { fx.update(dt); wrecks.update(dt, cp); crew.update(dt, cp); if (under > 0.05 && Math.random() < 0.3) { cam.getWorldDirection(_a); _b.copy(cp).addScaledVector(_a, 6 + Math.random() * 14); _b.x += (Math.random() - 0.5) * 16; _b.y += (Math.random() - 0.5) * 8; _b.z += (Math.random() - 0.5) * 16; fx.bubbles(_b, 0.6); } }

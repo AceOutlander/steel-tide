@@ -24,11 +24,12 @@ const AIR = [['fighter', -600, 700], ['fighter', 500, 900], ['fighter', 1400, 11
 
 export const battle = {
   nameIdx: { aethia: 0, extro: 0 }, respawns: [], endT: 0, onEnd: null, active: false, parked: {},
+  sdChance: 0.4, // how often a side brings its Super Destroyer to a battle (never more than one a side)
 
   shipName(nation) { const l = NATIONS[nation].shipNames; return l[this.nameIdx[nation]++ % l.length]; },
   unitName(type, nation) {
     const N = NATIONS[nation];
-    if (type === 'carrier' || type === 'battlecruiser') return N.capital[type];
+    if (N.capital[type]) return N.capital[type];
     const k = UNITS[type].kind;
     if (k === 'ship' || k === 'sub') return this.shipName(nation);
     if (k === 'soldier') return '';
@@ -39,6 +40,7 @@ export const battle = {
     world.clear(); weapons.clear(); wrecks.clear(); world.onBattleStart && world.onBattleStart(); this.respawns.length = 0; this.nameIdx = { aethia: 0, extro: 0 }; this.endT = 0; this.active = true; world.t = 0;
     world.playerNation = playerNation;
     for (const n of ['aethia', 'extro']) this.spawnSide(n);
+    for (const n of ['aethia', 'extro']) if (Math.random() < this.sdChance) { const u = this.spawnSD(n); world.say(`${NATIONS[n].name} has brought a Super Destroyer: ${u.name}.`, n === playerNation ? 'info' : 'bad'); }
     world.say(`${NATIONS.aethia.name} and ${NATIONS.extro.name} fleets are closing. Sink the enemy carrier.`, 'info');
   },
 
@@ -60,6 +62,15 @@ export const battle = {
     const th = createUnit('transport', n, this.unitName('transport', n)); th.place(cv, hp.pos, 0); attachAI(th); world.add(th);
     for (let i = 0; i < 4; i++) this.spawnMarine(n, 'deck');
     for (let i = 0; i < 4; i++) this.spawnMarine(n, 'island');
+  },
+
+  // The Super Destroyer, with an attack submarine in its dock. home: arriving from the home edge (the player asked for one).
+  spawnSD(n, home = false) {
+    const s = sgn(n), u = createUnit('superdestroyer', n, this.unitName('superdestroyer', n));
+    if (home) u.pos.set(rand(-1500, 1500), 0, s * (MAP.carrierZ + 1100)); else u.pos.set(700 * s, 0, 4500 * s);
+    u.yaw = facing(n); u.throttle = 0.5; u.speed = u.def.speed * 0.4; attachAI(u, new V3(700 * s, 0, -1500)); world.add(u);
+    const sub = createUnit('attacksub', n, this.unitName('attacksub', n)); attachAI(sub, new V3(-1200 * s, 0, 0)); world.add(sub); sub.berth(u);
+    return u;
   },
 
   // parked aircraft on the flight deck (the air wing waiting its turn)
@@ -101,7 +112,9 @@ export const battle = {
     let u = null;
     if (def.kind === 'ship' || def.kind === 'sub') {
       // take command of one of our ships of that class if one is afloat, otherwise a fresh one arrives from the home edge
-      u = world.units.find((x) => x.nation === n && x.type === type && x.alive && !x.isPlayer);
+      const free = (x) => x.nation === n && x.type === type && x.alive && !x.isPlayer;
+      u = world.units.find((x) => free(x) && !x.dockedTo && !x.transit) || world.units.find(free); // a submarine at sea before one sitting in a dock
+      if (!u && type === 'superdestroyer') u = this.spawnSD(n, true);
       if (!u) { u = createUnit(type, n, this.unitName(type, n)); u.pos.set(rand(-1500, 1500), 0, s * (MAP.carrierZ + 900)); u.yaw = facing(n); world.add(u); if (type === 'carrier') { world.carriers[n] = u; this.dressCarrier(u); } }
       u.ai = null;
       if (def.kind === 'sub') {
@@ -123,7 +136,9 @@ export const battle = {
       world.add(u);
     } else {
       u = createUnit('marine', n);
-      if (cv && cv.alive) { const hp = cv.model.helipads[0].pos; u.placeOn(cv, new V3(hp.x - 9, hp.y, hp.z - 17)); u.look = cv.yaw + Math.PI * 0.85; } else { const p = world.pads[n === 'aethia' ? 0 : 1]; u.placeAt(p.x, world.terrain(p.x, p.z), p.z); }
+      const sd = opts.sd && world.units.find((x) => x.type === 'superdestroyer' && x.nation === n && x.alive);
+      if (sd) { const hp = sd.model.helipads[0].pos; u.placeOn(sd, new V3(hp.x + 4, hp.y, hp.z - 14)); u.look = sd.yaw; } // by the helipad, facing the hatch that leads below
+      else if (cv && cv.alive) { const hp = cv.model.helipads[0].pos; u.placeOn(cv, new V3(hp.x - 9, hp.y, hp.z - 17)); u.look = cv.yaw + Math.PI * 0.85; } else { const p = world.pads[n === 'aethia' ? 0 : 1]; u.placeAt(p.x, world.terrain(p.x, p.z), p.z); }
       world.add(u);
     }
     this.spawning = false; this.dress(u, cosmetics.paintFor(n, type), cosmetics.outfit(n));
@@ -149,6 +164,7 @@ export const battle = {
     if (u.type === 'carrier') { this.finish(otherNation(u.nation)); return; }
     if (u.kind === 'soldier') { if (!u.isPlayer) this.respawns.push({ type: 'marine', nation: u.nation, t: world.t + rand(15, 30) }); return; }
     if (u.isPlayer && u.kind !== 'ship' && u.kind !== 'sub') return; // the player's own extra aircraft is not part of the roster
+    if (u.type === 'superdestroyer') return;                          // one a side at most: a sunk one is not replaced
     this.respawns.push({ type: u.type, nation: u.nation, t: world.t + (u.type === 'battlecruiser' ? 150 : u.kind === 'ship' || u.kind === 'sub' ? rand(45, 70) : rand(22, 40)) });
   },
   finish(winner) {

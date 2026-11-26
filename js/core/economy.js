@@ -7,8 +7,8 @@ export const CREDIT = '⚓';
 export const fmtCredits = (n) => Math.round(n).toLocaleString('en-US') + CREDIT;
 
 // What a kill pays. Soldiers (and every crew member lost with a ship or aircraft) pay 25 each, up to 1,000 a battle.
-export const PAY = { soldier: 25, aircraft: 150, patrol: 100, corvette: 250, submarine: 400, battlecruiser: 800, carrier: 2000, assist: 0.5, participation: 300, win: 1000, infantryCap: 1000 };
-export const PAY_TABLE = [['Marine or sailor', PAY.soldier], ['Aircraft (any)', PAY.aircraft], ['Patrol boat', PAY.patrol], ['Corvette', PAY.corvette], ['Submarine', PAY.submarine], ['Battlecruiser', PAY.battlecruiser], ['Carrier', PAY.carrier]];
+export const PAY = { soldier: 25, aircraft: 150, patrol: 100, corvette: 250, submarine: 400, battlecruiser: 800, carrier: 2000, superdestroyer: 2500, assist: 0.5, participation: 300, win: 1000, infantryCap: 1000 };
+export const PAY_TABLE = [['Marine or sailor', PAY.soldier], ['Aircraft (any)', PAY.aircraft], ['Patrol boat', PAY.patrol], ['Corvette', PAY.corvette], ['Submarine', PAY.submarine], ['Battlecruiser', PAY.battlecruiser], ['Carrier', PAY.carrier], ['Super Destroyer', PAY.superdestroyer]];
 
 const hullPay = (u) => (u.kind === 'soldier' ? 0 : u.isAir ? PAY.aircraft : u.kind === 'sub' ? PAY.submarine : PAY[u.type] || 0);
 const heads = (u) => (u.kind === 'soldier' ? 1 : u.def.crew || 0); // people lost with it

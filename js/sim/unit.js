@@ -10,6 +10,7 @@ import { UNITS, WEAPONS, NATIONS, MAP } from '../core/config.js';
 import { save } from '../core/save.js';
 import { V3, clamp, damp, rand, wrapPi, approach, yawToDir, T } from '../core/util.js';
 import { Mount, weapons } from './weapons.js';
+import { setAlert } from '../units/v2/sdinterior.js';
 
 const _a = new V3(), _b = new V3(), _c = new V3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const scorchGeo = new THREE.CircleGeometry(1, 10);
@@ -76,6 +77,7 @@ export class Unit {
   damage(amount, attacker, hitPos, def) {
     if (!this.alive || amount <= 0) return;
     if (this.invuln > world.t) return;
+    if (this.dockedTo && this.dockedTo.model.dock.under) return; // a submarine inside the ship's hull cannot be hit
     if (this.isPlayer && attacker && !attacker.isPlayer) amount *= save.diff.dmgIn;
     this.hp -= amount; if (attacker && attacker !== this) this.lastHitBy = attacker; this.lastHitT = world.t; this.lastHitDef = def || null; this.lastHitAmount = amount;
     if (this.isPlayer) { this.hitFlash = 1; if (amount > 20) audio.play('hit', { vol: 0.9 }); gfx.shake(clamp(amount / (this.maxHp * 0.12 + 40), 0.12, 0.7)); if (attacker && attacker !== this) world.hurt(this, attacker, hitPos); }
@@ -140,11 +142,21 @@ export class Unit {
     for (const m of this.mounts) {
       m.cd -= dt;
       if (m.manned) continue; // a player marine has taken this gun
-      if (this.isPlayer && m.key === this.selKey) { const ok = m.aimAt(this.aimPoint, dt, this.aimLead); if (this.firing && (ok || m.key === 'mg' || m.key === 'chin') && m.inArc) m.fire(); continue; }
+      if (this.isPlayer && m.key === this.selKey) {
+        if (m.def.type === 'missile') { // the player's missile group: lock the aircraft under the reticle, launch on the trigger, one launcher at a time
+          const tg = this.fireTarget && this.fireTarget.alive && this.fireTarget.isAir ? this.fireTarget : null;
+          if (!tg) { this.runAutoMount(m, dt); continue; }                                   // nothing in the sights: the crew keeps working the launchers
+          m.aimAt(tg.pos, dt, null); m.lock = m.target === tg ? m.lock + dt : 0; m.target = tg;
+          if (this.firing && m.lock >= m.def.lockTime && m.inArc && m.cd <= 0 && (this.salvoT || 0) <= world.t && m.fire(tg)) this.salvoT = world.t + 0.45;
+          continue;
+        }
+        const ok = m.aimAt(this.aimPoint, dt, this.aimLead); if (this.firing && (ok || m.key === 'mg' || m.key === 'chin') && m.inArc) m.fire(); continue;
+      }
       if (this.ai || this.isPlayer || this.crewed) this.runAutoMount(m, dt);
     }
   }
-  weaponKeys() { const s = []; for (const m of this.mounts) if (!s.includes(m.key) && m.key !== 'ciws' && m.key !== 'sam') s.push(m.key); return s; }
+  // the weapon groups the player can select: guns always; the air-defence groups too on a ship that lets them be fired by hand
+  weaponKeys() { const s = [], all = !!this.def.manualAA; for (const m of this.mounts) if (!s.includes(m.key) && (all || (m.key !== 'ciws' && m.key !== 'sam'))) s.push(m.key); return s; }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -158,7 +170,9 @@ export class Ship extends Unit {
     this.throttle = 0; this.rudder = 0; this.rudderA = 0; this.ctl = { throttle: 0, rudder: 0 };
     this.pitchA = 0; this.rollA = 0; this.heave = 0; this.flood = 0; this.list = 0; this.sinkT = 0; this.sunk = 0;
     this.selKey = this.weaponKeys()[0] || null; this.crewed = true; this.smokeT = 0; this.resp = clamp(60 / d.length, 0.35, 3.2);
-    this.docked = null; // battlecruiser: the sub in the stern dock
+    this.docked = null;   // the submarine in the dock (battlecruiser: stern dock; super destroyer: under the waterline)
+    this.dockBusy = null; // a submarine on its way in or out through the hull doors
+    this.doorA = 0; this.interiorOn = false;
   }
   update(dt) {
     this.t += dt;
@@ -183,6 +197,30 @@ export class Ship extends Unit {
     this.float(dt, yawRate);
     this.updateMounts(dt);
     this.effects(dt, hpF);
+    if (this.model.dockDoors) this.updateDoors(dt);
+    if (this.model.interior) this.updateInterior(dt);
+  }
+  // the hull doors open for a submarine coming or going
+  updateDoors(dt) {
+    const dk = this.model.dock; let open = !!this.dockBusy;
+    if (!open && !this.docked) { this.toWorld(dk.exit, _a); for (const o of world.units) if (o.kind === 'sub' && o.alive && o.nation === this.nation && o.type === dk.only && (o.returnTo === this || o.isPlayer) && o.pos.distanceToSquared(_a) < 240 * 240) { open = true; break; } }
+    this.doorA = approach(this.doorA, open ? 1 : 0, dt * 0.45);
+    for (const g of this.model.dockDoors) g.rotation.y = g.userData.side * this.doorA * 1.75;
+  }
+  // inside: white lighting normally, red at battle stations (hit in the last 40 s, or an enemy in sight within 4 km)
+  updateInterior(dt) {
+    const inn = this.model.interior; if (!this.interiorOn) return;
+    this._alT = (this._alT || 0) - dt;
+    if (this._alT <= 0) { this._alT = 1; this._alert = world.t - (this.lastHitT ?? -99) < 40 || world.units.some((e) => e.alive && e.nation !== this.nation && e.seen && e.pos.distanceToSquared(this.pos) < 4000 * 4000); }
+    setAlert(inn.mats, approach(inn.mats.alert, this._alert ? 1 : 0, dt * 0.8));
+  }
+  // the interior is drawn only while the camera is on or in the ship
+  updateLod(cam) {
+    super.updateLod(cam);
+    const inn = this.model.interior; if (!inn) return;
+    let on = false;
+    if (this.lod0.visible && this.camDist < this.radius + 80) { this.toLocal(cam, _c); const b = this.bounds; on = _c.x > b.min.x - 4 && _c.x < b.max.x + 4 && _c.z > b.min.z - 4 && _c.z < b.max.z + 4 && _c.y > b.min.y - 2 && _c.y < b.max.y + 4; }
+    if (inn.group.visible !== on) inn.group.visible = on; this.interiorOn = on;
   }
   depthNow() { return 0; }
   float(dt, yawRate) {
@@ -219,7 +257,9 @@ export class Ship extends Unit {
     fx.explosion(_a.copy(this.pos).setY(this.pos.y + 6), 12 + this.dims.length * 0.08);
     this.sinkDir = Math.random() < 0.5 ? -1 : 1; this.sinkPitch = rand(-1, 1) > 0 ? 1 : -1;
     for (let i = this.fires.length; i < 3; i++) this.fires.push({ p: new V3(rand(-0.2, 0.2) * this.dims.beam, this.box.y1 * 0.4, rand(-0.3, 0.3) * this.dims.length), s: 3 + this.dims.length * 0.02 });
-    if (this.docked) { this.docked.dockedTo = null; this.docked = null; }
+    if (this.docked) { const o = this.docked; o.dockedTo = null; this.docked = null; if (this.model.dock.under) o.depthT = o.depth; } // the submarine in the dock is on its own now
+    if (this.dockedTo) { this.dockedTo.docked = null; this.dockedTo = null; }
+    if (this.transit) { if (this.transit.ship.dockBusy === this) this.transit.ship.dockBusy = null; this.transit = null; }
   }
   updateSinking(dt) {
     this.sinkT += dt; const d = this.dims, dur = 14 + d.length * 0.09;
@@ -265,6 +305,7 @@ export class Sub extends Ship {
   update(dt) {
     if (this.alive) {
       const tb = this.tubes; if (tb) { tb.cd -= dt; if (tb.ready < tb.def.tubes) { tb.loadT += dt; if (tb.loadT >= tb.def.reload) { tb.loadT = 0; tb.ready++; } } }
+      if (this.transit) return this.updateTransit(dt);
       if (this.dockedTo) return this.updateDocked(dt);
       const rate = 2.2 + Math.abs(this.speed) * 0.12;
       this.depthT = clamp(this.depthT, 0, this.maxDepth);
@@ -282,13 +323,50 @@ export class Sub extends Ship {
   }
   updateDocked(dt) {
     const s = this.dockedTo, dk = s.model.dock;
-    this.yaw = s.yaw; this.depth = 0; this.speed = s.speed; this.vel.copy(s.vel); this.throttle = 0; this.ctl.throttle = 0;
-    s.toWorld(dk.pos, this.pos); this.pos.y = s.pos.y * 0.5; this.quat.copy(s.quat);
+    this.yaw = s.yaw; this.speed = s.speed; this.vel.copy(s.vel); this.throttle = 0; this.ctl.throttle = 0;
+    s.toWorld(dk.pos, this.pos); this.quat.copy(s.quat);
+    if (dk.under) this.depth = this.depthT = dk.depth; else { this.depth = 0; this.pos.y = s.pos.y * 0.5; }
   }
-  dock(ship) { this.dockedTo = ship; ship.docked = this; this.ctl.throttle = 0; this.ctl.rudder = 0; this.depthT = 0; }
-  undock() { const s = this.dockedTo; if (!s) return; s.docked = null; this.dockedTo = null; this.speed = s.speed - 3; this.throttle = -0.3; this.ctl.throttle = -0.35; this.undockT = world.t + 9; }
+  // A dock under the waterline is entered and left through the hull doors on a guided run: the submarine follows a
+  // path fixed in the ship's own frame (so it cannot touch the hull however the ship is moving), then is let go.
+  updateTransit(dt) {
+    const tr = this.transit, s = tr.ship;
+    if (!s.alive) { this.transit = null; if (s.dockBusy === this) s.dockBusy = null; this.depthT = this.depth; this.undockT = 0; return; } // the ship went down around us: carry on alone
+    tr.t += dt; const k = Math.min(1, tr.t / tr.dur), dist = k * k * (3 - 2 * k) * tr.len, n = tr.pts.length; let acc = 0;
+    for (let i = 0; i < n - 1; i++) { const p = tr.pts[i], q = tr.pts[i + 1], l = p.distanceTo(q); if (dist <= acc + l || i === n - 2) { _c.copy(p).lerp(q, l > 0 ? clamp((dist - acc) / l, 0, 1) : 1); break; } acc += l; }
+    this.depth = this.depthT = -_c.y; s.toWorld(_c, this.pos); this.yaw = s.yaw; this.quat.copy(s.quat); this.speed = s.speed; this.vel.copy(s.vel); this.throttle = 0; this.ctl.throttle = 0; this.ctl.rudder = 0;
+    if (k < 1) return;
+    this.transit = null; s.dockBusy = null;
+    if (tr.dock) { this.dockedTo = s; s.docked = this; if (this.isPlayer) world.say(`Docked inside ${s.name}`, 'good'); }
+    else { this.speed = s.speed - 4; this.throttle = -0.3; this.ctl.throttle = -0.3; this.undockT = world.t + 4; this.awayFrom = s; if (this.isPlayer) world.say('Clear of the hull doors', 'info'); }
+  }
+  // put the submarine straight into a dock (battle setup)
+  berth(ship) { const dk = ship.model.dock; this.transit = null; this.dockedTo = ship; ship.docked = this; this.ctl.throttle = 0; this.ctl.rudder = 0; this.depth = this.depthT = dk.under ? dk.depth : 0; this.updateDocked(0); }
+  dock(ship) {
+    const dk = ship.model.dock; this.ctl.throttle = 0; this.ctl.rudder = 0; this.returnTo = null; if (this.ai) this.ai.returnTo = null;
+    if (dk.under) {
+      const from = ship.toLocal(this.pos, new V3()), pts = [from, dk.exit.clone(), dk.pos.clone()], len = from.distanceTo(pts[1]) + pts[1].distanceTo(pts[2]);
+      this.transit = { ship, pts, len, t: 0, dur: Math.max(12, len / 6.5), dock: true }; ship.dockBusy = this; return;
+    }
+    this.dockedTo = ship; ship.docked = this; this.depthT = 0;
+  }
+  undock() {
+    const s = this.dockedTo; if (!s) return; const dk = s.model.dock; s.docked = null; this.dockedTo = null;
+    if (dk.under) { this.transit = { ship: s, pts: [dk.pos.clone(), dk.exit.clone()], len: dk.pos.distanceTo(dk.exit), t: 0, dur: 24, dock: false }; s.dockBusy = this; return; }
+    this.speed = s.speed - 3; this.throttle = -0.3; this.ctl.throttle = -0.35; this.undockT = world.t + 9;
+  }
+  // close enough, deep enough and pointing the right way to dock with this ship
   canDock(ship) {
-    if (!ship || !ship.alive || ship.docked || !ship.model.dock || this.depth > 1.5) return false;
-    ship.toWorld(ship.model.dock.pos, _a); return Math.hypot(_a.x - this.pos.x, _a.z - this.pos.z) < 45 && Math.abs(wrapPi(this.yaw - ship.yaw)) < 0.6 && Math.abs(this.speed - ship.speed) < 7;
+    const dk = ship && ship.model.dock;
+    if (!dk || !ship.alive || ship.docked || ship.dockBusy || this.transit || this.dockedTo || (dk.only && dk.only !== this.type)) return false;
+    if (dk.under) { ship.toLocal(this.pos, _a); return Math.abs(_a.x) < 16 && _a.z > dk.exit.z - 45 && _a.z < dk.exit.z + 80 && Math.abs(this.depth - dk.depth) < 8 && Math.abs(wrapPi(this.yaw - ship.yaw)) < 0.6 && Math.abs(this.speed - ship.speed) < 9; }
+    if (this.depth > 1.5) return false;
+    ship.toWorld(dk.pos, _a); return Math.hypot(_a.x - this.pos.x, _a.z - this.pos.z) < 45 && Math.abs(wrapPi(this.yaw - ship.yaw)) < 0.6 && Math.abs(this.speed - ship.speed) < 7;
+  }
+  // lined up well enough that the dock takes the submarine in by itself
+  lined(ship) {
+    const dk = ship.model.dock; if (Math.abs(wrapPi(this.yaw - ship.yaw)) > 0.25) return false;
+    if (dk.under) { ship.toLocal(this.pos, _a); return Math.abs(_a.x) < 7 && Math.abs(this.depth - dk.depth) < 4; }
+    ship.toWorld(dk.pos, _a); return Math.hypot(_a.x - this.pos.x, _a.z - this.pos.z) < 22;
   }
 }

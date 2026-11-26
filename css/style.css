@@ -213,3 +213,5 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pack .tag { position: absolute; top: -.75em; padding: .15em .6em; border-radius: .25em; background: #ffcf4a; color: #2b2204; font-size: .68em; font-weight: 800; letter-spacing: .1em; }
 .field { display: flex; flex-direction: column; gap: .3em; margin: .7em 0; color: var(--dim); font-size: .85em; letter-spacing: .08em; text-transform: uppercase; }
 .field input { padding: .6em .7em; font: inherit; font-size: 1.15em; letter-spacing: .04em; text-transform: none; color: #e8f1f7; background: #10273a; border: 1px solid var(--line); border-radius: .3em; }
+
+.lockic { vertical-align: -1px; opacity: .85; color: #ffcf4a; }

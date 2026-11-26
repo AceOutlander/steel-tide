@@ -1,5 +1,55 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.3.0 (the Super Destroyer)
+
+**The ship**
+- A new surface ship for both nations, the largest in the game: the Condor class (Aethia) and the Tempest class (Extro),
+  360 m long, crew 5,000. Twelve triple 380 mm turrets (two superfiring pairs on the centre line, eight in the wings, so
+  eight bear on either beam), ten SAM launchers, eight close-in guns, a helipad aft, hull sonar (2.8 km).
+- The toughest ship there is (60,000 hull points against the carrier's 22,000) and the slowest to answer: 24 knots,
+  about twice the battlecruiser's time to gather way and half its rate of turn.
+- All three weapon groups can be picked with 1, 2 and 3. The SAM group needs an aircraft under the reticle and a lock, and
+  launches one launcher at a time while the button is held; with nothing in the sights the crew keeps working it.
+- Works with every paint scheme. The far-distance model keeps the hull, citadel, funnels, tower and the twelve turrets.
+
+**Inside**
+- A marine can walk through it. The hatch forward of the helipad leads down to the upper deck: a long corridor with the
+  mess, two bunk rooms, the armoury and a briefing room. A stair tower joins the lower deck (engine room, generator
+  room, pump room) to the bridge six levels up, which has real windows. A 58-step stair goes down under the waterline to
+  the submarine dock bay, with walkways either side of the berth.
+- Lit from inside with its own lamps; the lighting turns red at battle stations (the ship hit in the last 40 seconds, or
+  an enemy in sight within 4 km). Crew stand, walk and work in the rooms. Tables, bunks, lockers and machinery are solid.
+- The inside is drawn only while the camera is on or in the ship. Below the waterline the view is dry and the sea is not
+  drawn through the rooms. Inside, the view is always from the marine's eyes.
+
+**The submarine dock**
+- One attack submarine lives in a dock under the waterline. It leaves and returns through two doors in the stern, about
+  9 m down, without surfacing: the ship carries it along a fixed path through the doors and then lets it go.
+- From the ship: U boards the submarine and launches it. From the dock bay on foot: E boards it, E again launches.
+- In the submarine, B hands it to its own crew and puts you back on the ship (slow ahead, so the sub can catch up). The
+  crew brings the submarine home and docks it, or fights first if an enemy ship is close. Sailing it back yourself: come
+  up astern on the ship's heading at dock depth; it docks by itself when lined up, or E from a little further off.
+- If the ship sinks while you are in the submarine you stay in the submarine. If the submarine is lost while its ship is
+  afloat you are back aboard the ship, not on the redeploy screen.
+- The battlecruiser's stern dock works the same way now: B returns to the ship and the submarine comes home.
+
+**Unlocking, battles, pay**
+- The only unit that has to be unlocked: 50,000 Credits, once, for both nations. The unit screen shows it with a lock,
+  its stats and preview, and "Unlock for 50,000" with a confirm step, or "Need X more" when short (with Get Credits, or
+  "Store coming soon" while the store is off). Kept in the save like a cosmetic, and by the account when signed in.
+- Each side brings its Super Destroyer to about four battles in ten, never more than one, and a sunk one is not
+  replaced. Sinking one pays 2,500; its crew counts toward the 1,000 infantry limit like any other.
+- A marine can start on the Super Destroyer when their side has one afloat. It has its own outlined marker on the radar
+  and map, and entries in How to Play and on the Pay page.
+
+**How it was checked**
+- Every unit, both nations, Fast, Low, Medium, High and Ultra, firing and switching cameras: 130 runs, no errors, no
+  camera inside a model. Each weapon group fired; a helicopter landed on the pad and took off; the whole inside walked
+  in both nations (every room, the tower to the bridge, the dock stair, the bay); the submarine launched from the ship
+  and from the bay, returned with B, docked by hand and by itself; the submarine lost while away; the ship lost while the
+  submarine was leaving; two Super Destroyers fought each other.
+- Not checked: none of it has been played with a real mouse, and no sound was listened to (tests run muted).
+
 ## Beta 0.2.1 (fixes found while checking 0.2.0 on the live site)
 
 - Planes: holding A or D no longer lifts the nose. Before, a held turn in the fighter raised the nose about one degree

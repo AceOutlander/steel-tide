@@ -1,7 +1,7 @@
 // Game data: nations, unit classes, weapons. Both nations share identical stats; only looks and names differ.
 import { KTS } from './util.js';
 
-export const VERSION = 'Beta 0.2.1';
+export const VERSION = 'Beta 0.3.0';
 export const MAP = { half: 9000, carrierZ: 6000 };
 
 export const NATIONS = {
@@ -9,9 +9,9 @@ export const NATIONS = {
     key: 'aethia', name: 'Aethia', adj: 'Aethian', color: '#5aa9ff', dark: '#1d4f8f',
     blurb: 'Haze-grey hulls, clean angular stealth lines, and the blue and white roundel. Ships and aircraft carry bird names.',
     shipNames: ['Tern', 'Plover', 'Avocet', 'Sandpiper', 'Lanner', 'Merganser', 'Wheatear', 'Dunlin', 'Godwit', 'Redstart', 'Pipit', 'Whimbrel', 'Lapwing', 'Siskin', 'Brambling', 'Firecrest'],
-    capital: { battlecruiser: 'Shearwater', carrier: 'Lammergeier' },
+    capital: { battlecruiser: 'Shearwater', carrier: 'Lammergeier', superdestroyer: 'Condor' },
     classes: {
-      patrol: 'Tern-class PV-21', corvette: 'Lanner-class KV-30', battlecruiser: 'Shearwater-class BC-7', carrier: 'Lammergeier-class AC-1',
+      patrol: 'Tern-class PV-21', corvette: 'Lanner-class KV-30', battlecruiser: 'Shearwater-class BC-7', carrier: 'Lammergeier-class AC-1', superdestroyer: 'Condor-class SD-1',
       reconsub: 'Dipper-class SR-4', attacksub: 'Murre-class SA-9', fighter: 'AF-31 Saker', bomber: 'AB-8 Bateleur', recon: 'AR-5 Curlew',
       transport: 'AT-2 Shoebill', attackheli: 'AG-6 Shikra', marine: 'Aethian Marine',
     },
@@ -20,9 +20,9 @@ export const NATIONS = {
     key: 'extro', name: 'Extro', adj: 'Extro', color: '#ff6a3d', dark: '#8f2f17',
     blurb: 'Charcoal and sea-green hulls, heavy rugged lines, and the red and orange chevron. Ships and aircraft carry storm names.',
     shipNames: ['Squall', 'Gale', 'Whiteout', 'Thunderclap', 'Downpour', 'Sleet', 'Riptide', 'Headwind', 'Blackfrost', 'Hailstone', 'Cloudburst', 'Crosswind', 'Williwaw', 'Stormglass', 'Surge', 'Northerly'],
-    capital: { battlecruiser: 'Maelstrom', carrier: 'Monsoon' },
+    capital: { battlecruiser: 'Maelstrom', carrier: 'Monsoon', superdestroyer: 'Tempest' },
     classes: {
-      patrol: 'Gust-class P-110', corvette: 'Squall-class K-220', battlecruiser: 'Maelstrom-class B-900', carrier: 'Monsoon-class C-1000',
+      patrol: 'Gust-class P-110', corvette: 'Squall-class K-220', battlecruiser: 'Maelstrom-class B-900', carrier: 'Monsoon-class C-1000', superdestroyer: 'Tempest-class D-2000',
       reconsub: 'Haboob-class S-40', attacksub: 'Derecho-class S-70', fighter: 'XF-50 Thunderhead', bomber: 'XB-90 Supercell', recon: 'XR-20 Stormwatch',
       transport: 'XT-14 Downdraft', attackheli: 'XG-33 Dust Devil', marine: 'Extro Marine',
     },
@@ -40,6 +40,10 @@ export const UNITS = {
     blurb: 'Four triple heavy turrets, close-in AA guns, a SAM launcher, eight machine gun turrets and a stern submarine dock.' },
   carrier: { key: 'carrier', label: 'Aircraft Carrier', cat: 'Surface', kind: 'ship', role: 'Fleet flagship and floating airfield', crew: 800, speed: 29 * KTS, accelT: 32, turn: 0.07, hp: 22000, armor: 2, radar: 14000, sig: 2, weapons: ['ciws', 'sam', 'mg'], score: 20,
     blurb: 'The heart of the fleet: ten jets, two helicopters, AA guns and SAM launchers. Lose it and the battle is lost.' },
+  // The one unit that has to be unlocked (unlock: price in Credits, once, for both nations). manualAA: its SAM and close-in
+  // gun groups can be selected and fired by hand as well as left to the crew.
+  superdestroyer: { key: 'superdestroyer', label: 'Super Destroyer', cat: 'Surface', kind: 'ship', role: 'Fleet killer: massed heavy guns, area air defence, submarine carrier', crew: 5000, speed: 24 * KTS, accelT: 46, turn: 0.05, hp: 60000, armor: 3, radar: 13000, sig: 2.4, weapons: ['heavy', 'sam', 'ciws'], score: 30, unlock: 50000, manualAA: true,
+    blurb: 'The largest warship afloat: twelve triple heavy turrets, ten SAM launchers, eight close-in guns, a helipad, hull sonar, decks you can walk through and an underwater dock for an attack submarine. The toughest ship there is, and the slowest to answer the helm.' },
   reconsub: { key: 'reconsub', label: 'Recon Sub', cat: 'Subsurface', kind: 'sub', role: 'Covert scouting and sonar picket', crew: 22, speed: 26 * KTS, accelT: 8, turn: 0.26, hp: 520, armor: 0, radar: 3000, sonar: 7000, sig: 0.25, quiet: 0.45, weapons: [], score: 3,
     blurb: 'Small, quick and very quiet. Periscope and long-range sonar, no weapons: what it finds, the whole fleet sees.' },
   attacksub: { key: 'attacksub', label: 'Attack Sub', cat: 'Subsurface', kind: 'sub', role: 'Hunter: torpedo attack', crew: 55, speed: 22 * KTS, accelT: 11, turn: 0.2, hp: 950, armor: 1, radar: 3000, sonar: 5500, sig: 0.3, quiet: 0.7, weapons: ['torpedo'], score: 5,
@@ -57,7 +61,7 @@ export const UNITS = {
   marine: { key: 'marine', label: 'Marine', cat: 'On Foot', kind: 'soldier', role: 'Infantry', crew: 1, speed: 6.2, hp: 100, armor: 0, radar: 1500, sig: 0.05, weapons: ['rifle'], score: 1,
     blurb: 'On foot with a rifle. Walk the decks, man a gun mount, board a helicopter and take the fight to the islands.' },
 };
-export const UNIT_ORDER = ['patrol', 'corvette', 'battlecruiser', 'carrier', 'reconsub', 'attacksub', 'fighter', 'bomber', 'recon', 'transport', 'attackheli', 'marine'];
+export const UNIT_ORDER = ['patrol', 'corvette', 'battlecruiser', 'carrier', 'superdestroyer', 'reconsub', 'attacksub', 'fighter', 'bomber', 'recon', 'transport', 'attackheli', 'marine'];
 
 // pen: armour class the round defeats at full damage; below that damage falls off sharply.
 export const WEAPONS = {
@@ -96,7 +100,7 @@ export const DEFAULT_KEYS = {
   rise: ['KeyR', 'Space'], dive: ['KeyF', 'ControlLeft'], periscope: ['KeyP'], ping: ['KeyQ'],
   gear: ['KeyG'], flares: ['KeyX'], cloak: ['KeyC'],
   run: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', 'ControlLeft'], jump: ['Space'],
-  use: ['KeyE'], camera: ['KeyV'], map: ['Tab'], pause: ['Escape'], takeControls: ['KeyT'], launchSub: ['KeyU'], reload: ['KeyR'],
+  use: ['KeyE'], camera: ['KeyV'], map: ['Tab'], pause: ['Escape'], takeControls: ['KeyT'], launchSub: ['KeyU'], returnShip: ['KeyB'], reload: ['KeyR'],
   // fixed-wing aircraft: W/S pitch, A/D a banked turn, Q/E rudder, Shift/Ctrl throttle (the mouse only looks around)
   jetPitchDown: ['KeyW', 'ArrowUp'], jetPitchUp: ['KeyS', 'ArrowDown'], jetLeft: ['KeyA', 'ArrowLeft'], jetRight: ['KeyD', 'ArrowRight'],
   jetRudderLeft: ['KeyQ'], jetRudderRight: ['KeyE'], jetThrottleUp: ['ShiftLeft', 'ShiftRight'], jetThrottleDown: ['ControlLeft', 'ControlRight'],
@@ -109,7 +113,7 @@ export const KEY_LABELS = {
   jetPitchDown: 'Plane: nose down', jetPitchUp: 'Plane: nose up', jetLeft: 'Plane: turn left', jetRight: 'Plane: turn right', jetRudderLeft: 'Plane: rudder left', jetRudderRight: 'Plane: rudder right',
   jetThrottleUp: 'Plane: throttle up (hold past 100% for afterburner)', jetThrottleDown: 'Plane: throttle down', gear: 'Plane: landing gear', flares: 'Aircraft: flares and chaff', cloak: 'Bomber: cloak',
   run: 'Marine: run', crouch: 'Marine: crouch', jump: 'Marine: jump', use: 'Get in or out / take a gun', camera: 'Change camera', map: 'Score and map', pause: 'Pause',
-  takeControls: 'Helicopter passenger: take the controls', launchSub: 'Battlecruiser: board and launch the docked sub', reload: 'Marine: reload',
+  takeControls: 'Helicopter passenger: take the controls', launchSub: 'Battlecruiser, Super Destroyer: board and launch the docked sub', returnShip: 'Submarine: return to the ship (the crew brings the sub home)', reload: 'Marine: reload',
   radarIn: 'Radar: zoom in', radarOut: 'Radar: zoom out',
   weapon1: 'Weapon 1', weapon2: 'Weapon 2', weapon3: 'Weapon 3', weapon4: 'Weapon 4',
 };

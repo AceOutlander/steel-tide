@@ -5,7 +5,7 @@ import { waveHeight } from '../gfx/ocean.js';
 import { audio } from '../audio/audio.js';
 import { world } from '../world/world.js';
 import { WEAPONS } from '../core/config.js';
-import { V3, clamp, wrapPi, rand } from '../core/util.js';
+import { V3, clamp, wrapPi, rand, inZones } from '../core/util.js';
 import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
 import { buildSoldier, animateSoldier } from '../units/human.js';
@@ -54,7 +54,7 @@ export class Soldier extends Unit {
   leaveGun() { if (!this.gun) return; const m = this.gun; m.manned = null; this.gun = null; const u = m.unit; _a.copy(m.t.node.position); _a.z += 1.4; this.local.copy(_a); const d = deckUnder(u, this.local, 2.5); if (d) this.local.y = d.y; this.on = u; }
 
   update(dt) {
-    this.t += dt; this.cd -= dt;
+    this.t += dt; this.cd -= dt; this.inside = false; // inside: within a ship's interior (hidden from the outside world)
     if (!this.alive) {
       this.deadT = (this.deadT || 0) + dt;
       if (V2) { const e = this._ex; e.dead = this.deadT; e.dist = this.camDist || 0; e.fire = 9; e.reload = -1; e.land = 0; animateSoldier(this.lod0, 'dead', this.t, 0, 0, e); this.groundShadow(); } // falls and stays down
@@ -92,10 +92,11 @@ export class Soldier extends Unit {
         this.vy -= 9.81 * dt; this.local.y += this.vy * dt;
         _l.copy(this.local); const d = deckUnder(ship, _l, 0.7);
         if (d && this.local.y <= d.y) { if (!this.grounded) this.landed(-this.vy); this.local.y = d.y; this.vy = 0; this.grounded = true; }
+        else if (d && this.grounded && this.vy <= 0 && this.local.y - d.y < 0.45) { this.local.y = d.y; this.vy = 0; } // walking down stairs: the feet stay on the treads
         else if (!d) { // walked off the edge: now in free fall in the world
           ship.toWorld(this.local, this.pos); this.on = null; this.grounded = false; this.vel.copy(ship.vel);
         } else this.grounded = false;
-        if (this.on) { ship.toWorld(this.local, this.pos); this.vel.copy(ship.vel); }
+        if (this.on) { ship.toWorld(this.local, this.pos); this.vel.copy(ship.vel); if (ship.model.interior) this.inside = inZones(ship.model.interior.zones, this.local, 0.05); }
       }
     }
     if (!this.on) {

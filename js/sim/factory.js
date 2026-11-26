@@ -7,6 +7,7 @@ import { buildPatrolBoat } from '../units/v2/patrolboat.js';
 import { buildCorvette } from '../units/v2/corvette.js';
 import { buildBattlecruiser } from '../units/v2/battlecruiser.js';
 import { buildCarrier } from '../units/v2/carrier.js';
+import { buildSuperDestroyer } from '../units/v2/superdestroyer.js';
 import { buildReconSub, buildAttackSub } from '../units/v2/submarines.js';
 import { buildFighter } from '../units/v2/fighter.js';
 import { buildBomber } from '../units/v2/bomber.js';
@@ -19,14 +20,14 @@ let V2 = {};
 if (/[?&]v2/.test(location.search)) { try { V2 = await import('../units/v2/index.js'); } catch (e) { console.warn('v2 models not loaded: ' + e.message); } }
 
 export const BUILDERS = {
-  patrol: V2.buildPatrolBoat || buildPatrolBoat, corvette: V2.buildCorvette || buildCorvette, battlecruiser: V2.buildBattlecruiser || buildBattlecruiser, carrier: V2.buildCarrier || buildCarrier,
+  patrol: V2.buildPatrolBoat || buildPatrolBoat, corvette: V2.buildCorvette || buildCorvette, battlecruiser: V2.buildBattlecruiser || buildBattlecruiser, carrier: V2.buildCarrier || buildCarrier, superdestroyer: buildSuperDestroyer,
   reconsub: V2.buildReconSub || buildReconSub, attacksub: V2.buildAttackSub || buildAttackSub, fighter: V2.buildFighter || buildFighter, bomber: V2.buildBomber || buildBomber, recon: V2.buildReconPlane || buildReconPlane,
   transport: V2.buildTransportHeli || buildTransportHeli, attackheli: V2.buildAttackHeli || buildAttackHeli,
 };
 
 export function createUnit(type, nation, name = '') {
   switch (type) {
-    case 'patrol': case 'corvette': case 'battlecruiser': case 'carrier': return new Ship(type, nation, name, BUILDERS[type]);
+    case 'patrol': case 'corvette': case 'battlecruiser': case 'carrier': case 'superdestroyer': return new Ship(type, nation, name, BUILDERS[type]);
     case 'reconsub': case 'attacksub': return new Sub(type, nation, name, BUILDERS[type]);
     case 'fighter': case 'bomber': case 'recon': return new Jet(type, nation, name, BUILDERS[type]);
     case 'transport': case 'attackheli': return new Heli(type, nation, name, BUILDERS[type]);

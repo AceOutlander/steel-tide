@@ -68,7 +68,7 @@ precision highp float;
 uniform float uTime; uniform vec3 uSunDir; uniform vec3 uSunColor; uniform samplerCube uSky;
 uniform vec3 uFogColor; uniform float uFogDensity; uniform float uFar; uniform vec3 uDeep; uniform vec3 uScatter; uniform vec3 uShallow; uniform vec3 uHorizon; uniform vec3 uZenith;
 uniform vec4 uWave[NW]; uniform vec3 uWaveB[NW]; uniform float uCw[NW]; uniform vec4 uBend[NW]; uniform vec2 uCap;
-uniform vec4 uShipA[${MAX_SHIPS}]; uniform vec4 uShipB[${MAX_SHIPS}]; uniform int uShipCount;
+uniform vec4 uShipA[${MAX_SHIPS}]; uniform vec4 uShipB[${MAX_SHIPS}]; uniform int uShipCount; uniform vec4 uHoleA; uniform vec4 uHoleB;
 uniform vec4 uIsl[${MAX_ISL}]; uniform int uIslCount; uniform vec4 uSplash[${MAX_SPLASH}]; uniform int uSplashCount; uniform float uUnder;
 varying vec3 vWorld;
 
@@ -94,6 +94,8 @@ float foamTex(vec2 uv, float fw){
   return clamp((n - 0.5) * 1.7 + 0.5, 0.0, 1.0);
 }
 void main(){
+  // no sea inside a ship that has rooms under the waterline: a rectangle in the ship's own frame is left out
+  if (uHoleA.z != 0.0 || uHoleA.w != 0.0) { vec2 hr = vWorld.xz - uHoleA.xy; float hz = -dot(hr, uHoleA.zw), hx = dot(hr, vec2(-uHoleA.w, uHoleA.z)); if (hx > uHoleB.x && hx < uHoleB.y && hz > uHoleB.z && hz < uHoleB.w) discard; }
   vec3 toCam = cameraPosition - vWorld; float dist = length(toCam); vec3 V = toCam / dist;
   vec2 uv = vWorld.xz;
   // how much sea one pixel covers here (m): anything finer than that is averaged out instead of being drawn
@@ -245,7 +247,7 @@ export const ocean = {
       uFogColor: { value: gfx.scene.fog.color }, uFogDensity: { value: 0.0001 }, uFar: { value: 20000 },
       uDeep: { value: new THREE.Color(0.004, 0.044, 0.066) }, uScatter: { value: new THREE.Color(0.012, 0.19, 0.2) }, uShallow: { value: new THREE.Color(0.03, 0.36, 0.34) },
       uHorizon: { value: new THREE.Color(0.55, 0.7, 0.85) }, uZenith: { value: new THREE.Color(0.12, 0.3, 0.62) },
-      uShipA: { value: Array.from({ length: MAX_SHIPS }, () => new THREE.Vector4()) }, uShipB: { value: Array.from({ length: MAX_SHIPS }, () => new THREE.Vector4()) }, uShipCount: { value: 0 },
+      uShipA: { value: Array.from({ length: MAX_SHIPS }, () => new THREE.Vector4()) }, uShipB: { value: Array.from({ length: MAX_SHIPS }, () => new THREE.Vector4()) }, uShipCount: { value: 0 }, uHoleA: { value: new THREE.Vector4() }, uHoleB: { value: new THREE.Vector4() },
       uIsl: { value: Array.from({ length: MAX_ISL }, () => new THREE.Vector4(0, 0, 1, 0)) }, uIslCount: { value: 0 },
       uSplash: { value: Array.from({ length: MAX_SPLASH }, () => new THREE.Vector4(0, 0, 1, 0)) }, uSplashCount: { value: 0 }, uUnder: { value: 0 },
     };
@@ -268,6 +270,8 @@ export const ocean = {
     this.maxWakes = q.wakes;
   },
   setIslands(list) { const u = this.mat.uniforms; list.slice(0, MAX_ISL).forEach((is, i) => u.uIsl.value[i].set(is.x, is.z, is.r, 0)); u.uIslCount.value = Math.min(list.length, MAX_ISL); },
+  // the opening in the sea for a ship with rooms below the waterline: ship = { pos, yaw }, hole = { x0, x1, z0, z1 } in its frame (null = none)
+  setHole(ship, hole) { const u = this.mat.uniforms; if (!ship) { u.uHoleA.value.set(0, 0, 0, 0); return; } u.uHoleA.value.set(ship.pos.x, ship.pos.z, -Math.sin(ship.yaw), -Math.cos(ship.yaw)); u.uHoleB.value.set(hole.x0, hole.x1, hole.z0, hole.z1); },
   // ships: array of { x, z, fx, fz, hl, hb, spd (0..1), wake (m) } nearest first
   setShips(ships) {
     const u = this.mat.uniforms, n = Math.min(ships.length, this.maxWakes, MAX_SHIPS);

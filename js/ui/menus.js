@@ -16,7 +16,9 @@ import { battle } from '../world/battle.js';
 import { buildSoldier, animateSoldier } from '../units/human.js';
 
 let app = null, root = null, cur = null, stack = [];
-let nation = 'aethia', unit = 'patrol', startDock = false, opts = {};
+let nation = 'aethia', unit = 'patrol', startDock = false, startSD = false, opts = {};
+const ul = { confirm: false, msg: '' }; // the Super Destroyer unlock: the confirm step and its message
+const LOCK = '<svg class="lockic" viewBox="0 0 16 16" width="12" height="12" aria-label="locked"><path d="M4 7V5a4 4 0 0 1 8 0v2h1v8H3V7zm2 0h4V5a2 2 0 0 0-4 0z" fill="currentColor"/></svg>';
 const show = { scene: null, cam: null, model: null, angle: 0, t: 0, cache: {} };
 
 const insignia = (n) => n === 'aethia'
@@ -37,12 +39,12 @@ const SCREENS = {
     </div><div class="ver">${VERSION} · PC · keyboard &amp; mouse</div></div>`,
   nation: () => `<div class="screen center"><div><div class="topbar" style="position:static;margin-bottom:1.5em"><h1>Choose your nation</h1><button class="btn small" data-back>Back</button></div>
       <div class="nations">${['aethia', 'extro'].map((n) => `<button class="nation-card" data-nation="${n}">${insignia(n)}<h3 style="color:${NATIONS[n].color}">${NATIONS[n].name}</h3><p>${NATIONS[n].blurb}</p></button>`).join('')}</div>
-      <p style="color:var(--dim);margin-top:1.4em;text-align:center">Both nations field the same twelve unit types with identical performance. Only the look and the names differ.</p></div></div>`,
+      <p style="color:var(--dim);margin-top:1.4em;text-align:center">Both nations field the same unit types with identical performance. Only the look and the names differ.</p></div></div>`,
   units: () => {
     const cats = ['Surface', 'Subsurface', 'Air', 'On Foot'], N = NATIONS[nation];
     return `<div class="screen"><div class="topbar"><h1 style="color:${N.color}">${N.name} · choose your unit</h1><span style="display:flex;gap:.8em;align-items:center">${wallet()}${opts.redeploy ? '' : '<button class="btn small" data-back>Back</button>'}</span></div>
       ${opts.redeploy ? `<div class="redeploy-banner">${opts.change ? 'Change unit' : opts.next ? (battle.lastWinner === nation ? 'Victory! The enemy carrier is sunk. A new battle begins' : battle.lastWinner ? 'Defeat. Our carrier is lost. A new battle begins' : 'New battle') : 'Unit lost. Redeploy'}</div>` : ''}
-      <div class="unitsel"><div class="unitlist">${cats.map((c) => `<h4>${c}</h4>${UNIT_ORDER.filter((k) => UNITS[k].cat === c).map((k) => `<button class="unitbtn${k === unit ? ' on' : ''}" data-unit="${k}">${UNITS[k].label}<small>${N.classes[k]}</small></button>`).join('')}`).join('')}
+      <div class="unitsel"><div class="unitlist">${cats.map((c) => `<h4>${c}</h4>${UNIT_ORDER.filter((k) => UNITS[k].cat === c).map((k) => `<button class="unitbtn${k === unit ? ' on' : ''}" data-unit="${k}">${UNITS[k].label}${cosmetics.unlocked(k) ? '' : ' ' + LOCK}<small>${N.classes[k]}</small></button>`).join('')}`).join('')}
         ${opts.redeploy ? '<button class="btn small" data-menu style="margin-top:1em;width:100%">Main menu</button>' : ''}</div><div></div><div class="unitinfo" id="unitinfo"></div></div></div>`;
   },
   settings: () => {
@@ -75,11 +77,11 @@ const SCREENS = {
   howto: () => `<div class="screen center"><div class="panel"><h2>How to Play</h2><div class="howto">
       <div><h3>The battle</h3><p>Two fleets meet in one sea. <b>Sink the enemy carrier to win</b>; lose yours and the battle is lost. Your side's ships, aircraft, submarines and marines fight alongside you the whole time.</p><p>If your unit is destroyed you pick a new one and go straight back in.</p>
         <h3>Everywhere</h3><p><b>Mouse</b> look and aim · <b>Left click</b> fire · <b>Right click</b> zoom · <b>Wheel / 1-4</b> weapons</p><p><b>E</b> get in or out, take a gun · <b>V</b> camera · <b>Tab</b> score and map · <b>Esc</b> pause</p>
-        <h3>Ships</h3><p><b>W / S</b> throttle (it stays where you set it) · <b>A / D</b> rudder. Ships gather way slowly and turn wide: plan ahead.</p><p>Aim with the mouse and the turrets follow. AA guns and SAM launchers are worked by the crew.</p><p><b>Battlecruiser:</b> <b>U</b> boards the submarine in the stern dock and launches it.</p></div>
-      <div><h3>Submarines</h3><p><b>R / F</b> (or Space / Ctrl) rise and dive · <b>P</b> periscope (works at periscope depth, about 13 m) · <b>Q</b> active sonar ping: shows contacts but gives your position away.</p><p>Attack sub: <b>Left click</b> fires a torpedo along your heading; aim at a ship to give it a target. Surface astern of your battlecruiser and press <b>E</b> to dock.</p>
+        <h3>Ships</h3><p><b>W / S</b> throttle (it stays where you set it) · <b>A / D</b> rudder. Ships gather way slowly and turn wide: plan ahead.</p><p>Aim with the mouse and the turrets follow. AA guns and SAM launchers are worked by the crew.</p><p><b>Battlecruiser and Super Destroyer:</b> <b>U</b> boards the docked submarine and launches it; your crew keeps fighting the ship. In the submarine, <b>B</b> takes you back to the ship and the sub's own crew brings it home to dock.</p><p><b>Super Destroyer</b> (unlocked with Credits): twelve heavy turrets, and its SAM launchers and AA guns can be picked with <b>2</b> and <b>3</b> and fired by hand. It has a helipad, decks a marine can walk through, and a dock under the waterline: the submarine leaves and returns through doors in the stern, about 9 m down.</p></div>
+      <div><h3>Submarines</h3><p><b>R / F</b> (or Space / Ctrl) rise and dive · <b>P</b> periscope (works at periscope depth, about 13 m) · <b>Q</b> active sonar ping: shows contacts but gives your position away.</p><p>Attack sub: <b>Left click</b> fires a torpedo along your heading; aim at a ship to give it a target. To dock, come up astern of the ship on its heading: on the surface for the battlecruiser, about 9 m down for the Super Destroyer. It docks by itself when lined up, or press <b>E</b>.</p>
         <h3>Planes</h3><p>On the catapult hold <b>Shift</b> to full throttle to launch. <b>W</b> nose down · <b>S</b> nose up · <b>A / D</b> bank and turn (let go and the wings level) · <b>Q / E</b> rudder for small corrections · <b>Shift / Ctrl</b> throttle, and on the fighter keep holding Shift past 100% for afterburner. The <b>mouse</b> only looks around. Guns and missiles point where the nose points (the cross marker); the small winged circle shows where the plane is actually going. <b>G</b> gear · <b>X</b> flares and chaff.</p><p>Hard turns bleed speed. Below stall speed the nose drops. To land: gear down, slow to about 130 kn over the stern, and touch down on the deck.</p><p><b>Bomber:</b> <b>C</b> cloak (time limited). The yellow ring shows where bombs will fall.</p></div>
       <div><h3>Helicopters</h3><p><b>W / S</b> collective (up and down) · <b>mouse</b> tilts (pitch and roll) · <b>A / D</b> turn · <b>Space</b> levels out · <b>X</b> flares.</p><p>Land gently on helipads, decks and islands. The transport carries marines; the gunship has a chin gun and guided missiles (hold the target near the centre to lock).</p>
-        <h3>Marine</h3><p><b>WASD</b> move · <b>Shift</b> run · <b>C</b> crouch · <b>Space</b> jump · <b>R</b> reload.</p><p>Walk up to a machine gun and press <b>E</b> to man it. Board a landed helicopter with <b>E</b>; as a passenger press <b>T</b> to take the controls. Overboard you swim slowly: reach a ship and press <b>E</b> to climb back.</p>
+        <h3>Marine</h3><p><b>WASD</b> move · <b>Shift</b> run · <b>C</b> crouch · <b>Space</b> jump · <b>R</b> reload.</p><p>Walk up to a machine gun and press <b>E</b> to man it. Board a landed helicopter with <b>E</b>; as a passenger press <b>T</b> to take the controls. Overboard you swim slowly: reach a ship and press <b>E</b> to climb back.</p><p>On a Super Destroyer the hatch forward of the helipad leads below: corridors, the mess, bunk rooms, the armoury, the engine rooms, a stair tower up to the bridge, and the submarine dock, where <b>E</b> boards the sub.</p>
         <h3>Missiles</h3><p>A <b>RADAR LOCK</b> or <b>MISSILE</b> warning means act now: drop flares (<b>X</b>), turn hard across the missile, or get low.</p></div>
     </div><div class="actions"><button class="btn" data-go="pay">Pay: how Credits are earned</button><button class="btn primary" data-back>Back</button></div></div></div>`,
   pay: () => `<div class="screen center"><div class="panel" style="width:40em"><h2>Pay</h2>
@@ -167,13 +169,21 @@ function unitInfo() {
   const sp = d.kind === 'soldier' ? `${d.speed.toFixed(0)} m/s running` : `${Math.round(d.speed / KTS)} kn`;
   const wl = d.weapons.length ? d.weapons.map((w) => WEAPONS[w].name).join(', ') : 'None';
   const extra = d.kind === 'jet' ? `<div class="stat"><span>Stall speed</span><span>${Math.round(d.stall / KTS)} kn</span></div><div class="stat"><span>G limit</span><span>${d.gLimit} g</span></div>` : d.kind === 'sub' ? `<div class="stat"><span>Sonar range</span><span>${(d.sonar / 1000).toFixed(1)} km</span></div>` : '';
-  const dockOpt = d.kind === 'sub' ? `<div class="startopt seg"><button data-dock="0" class="${startDock ? '' : 'on'}">Start at sea</button><button data-dock="1" class="${startDock ? 'on' : ''}">Start in the battlecruiser dock</button></div>` : '';
-  const where = d.kind === 'jet' ? 'Starts on the carrier catapult.' : d.kind === 'heli' ? 'Starts on the carrier helipad.' : d.kind === 'soldier' ? 'Starts on the carrier flight deck, next to the helipad.' : d.kind === 'ship' ? 'You take command of one of the fleet\'s ships.' : '';
+  const sdAfloat = world.units.some((u) => u.type === 'superdestroyer' && u.nation === nation && u.alive);
+  const dockOpt = d.kind === 'sub' ? `<div class="startopt seg"><button data-dock="0" class="${startDock ? '' : 'on'}">Start at sea</button><button data-dock="1" class="${startDock ? 'on' : ''}">Start in the battlecruiser dock</button></div>`
+    : d.kind === 'soldier' && sdAfloat ? `<div class="startopt seg"><button data-msd="0" class="${startSD ? '' : 'on'}">Start on the carrier</button><button data-msd="1" class="${startSD ? 'on' : ''}">Start on the Super Destroyer</button></div>` : '';
+  const locked = !cosmetics.unlocked(unit), short = locked ? d.unlock - econ.credits : 0;
+  const big = d.manualAA ? '<div class="stat"><span>Armament</span><span>12 triple turrets, 10 SAM launchers, 8 AA guns</span></div><div class="stat"><span>Hull sonar</span><span>2.8 km</span></div><div class="stat"><span>Carries</span><span>1 attack submarine (underwater dock), helipad</span></div>' : '';
+  const action = !locked ? '<button class="btn primary" data-deploy>Deploy</button>'
+    : `<div class="stat"><span>Unlock price</span><span>${fmtCredits(d.unlock)}</span></div><div class="stat"><span>Your Credits</span><span>${fmtCredits(econ.credits)}</span></div><p class="hnote">One purchase unlocks it for both nations, for good.</p>`
+      + (short > 0 ? `<p class="need">Need ${fmtCredits(short)} more</p>${store.enabled ? '<button class="btn" data-store>Get Credits</button>' : '<p class="hnote">Store coming soon. Credits are earned in battle.</p>'}`
+        : `<button class="btn primary" data-unlock>${ul.confirm ? `Confirm: spend ${fmtCredits(d.unlock)}` : `Unlock for ${fmtCredits(d.unlock)}`}</button>`) + `<p class="hmsg">${ul.msg}</p>`;
+  const where = d.kind === 'jet' ? 'Starts on the carrier catapult.' : d.kind === 'heli' ? 'Starts on the carrier helipad.' : d.kind === 'soldier' ? 'Starts on the carrier flight deck, next to the helipad.' : d.manualAA ? 'You take command of your side\'s Super Destroyer, or a new one joins the battle. There is never more than one a side.' : d.kind === 'ship' ? 'You take command of one of the fleet\'s ships.' : '';
   box.innerHTML = `<h2>${d.label}</h2><div class="cls">${N.classes[unit]}</div><p>${d.blurb}</p>
-    <div class="stat"><span>Role</span><span>${d.role}</span></div><div class="stat"><span>Crew</span><span>${d.crew}</span></div><div class="stat"><span>Top speed</span><span>${sp}</span></div>
-    <div class="stat"><span>Weapons</span><span>${wl}</span></div><div class="stat"><span>Radar range</span><span>${(d.radar / 1000).toFixed(1)} km</span></div>${extra}
-    <p style="margin-top:1em;font-size:.88em">${where}</p>${dockOpt}
-    <button class="btn primary" data-deploy>Deploy</button>`;
+    <div class="stat"><span>Role</span><span>${d.role}</span></div><div class="stat"><span>Crew</span><span>${d.crew.toLocaleString('en-US')}</span></div><div class="stat"><span>Top speed</span><span>${sp}</span></div>
+    <div class="stat"><span>Weapons</span><span>${wl}</span></div><div class="stat"><span>Radar range</span><span>${(d.radar / 1000).toFixed(1)} km</span></div>${extra}${big}
+    <p style="margin-top:1em;font-size:.88em">${where}</p>${locked ? '' : dockOpt}
+    ${action}`;
 }
 
 function showroomSet(custom = null) {
@@ -240,9 +250,16 @@ export const menus = {
     if (d.go) { this.show(d.go); return; }
     if (d.back !== undefined) return this.back();
     if (d.nation) { nation = d.nation; this.show('units'); return; }
-    if (d.unit) { unit = d.unit; root.querySelectorAll('.unitbtn').forEach((b) => b.classList.toggle('on', b.dataset.unit === unit)); showroomSet(); unitInfo(); return; }
+    if (d.unit) { unit = d.unit; ul.confirm = false; ul.msg = ''; root.querySelectorAll('.unitbtn').forEach((b) => b.classList.toggle('on', b.dataset.unit === unit)); showroomSet(); unitInfo(); return; }
     if (d.dock !== undefined) { startDock = d.dock === '1'; unitInfo(); return; }
-    if (d.deploy !== undefined) { app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub' }); return; }
+    if (d.msd !== undefined) { startSD = d.msd === '1'; unitInfo(); return; }
+    if (d.unlock !== undefined) { // the Super Destroyer: first press asks, second press buys (through the account when signed in)
+      const id = 'unit.' + unit; if (!ul.confirm) { ul.confirm = true; ul.msg = ''; unitInfo(); return; } ul.confirm = false;
+      const done = (ok, msg) => { ul.msg = ok ? 'Unlocked for both nations.' : msg || 'Could not unlock it.'; if (cur === 'units') this.refresh(); };
+      if (store.signedIn) { ul.msg = 'Unlocking…'; unitInfo(); store.buyCosmetic(id).then((r) => done(r.ok, r.error === 'offline' ? 'The server cannot be reached. Purchases wait until it is back.' : r.message)); return; }
+      done(cosmetics.buy(id).ok); return;
+    }
+    if (d.deploy !== undefined) { if (!cosmetics.unlocked(unit)) return; app.play(nation, unit, { dock: startDock && UNITS[unit].kind === 'sub', sd: startSD && unit === 'marine' }); return; }
     if (d.pack) { st.msg = 'Opening Stripe in a new tab. Waiting for the payment…'; this.refresh(); store.checkout(d.pack, (got) => { st.msg = got ? `Purchase complete: +${fmtCredits(got)}` : 'No payment seen yet. If you paid, your Credits will appear shortly: open Account to check.'; if (cur === 'store') this.refresh(); }).then((r) => { if (!r.ok) { st.msg = r.message || 'Could not start the checkout.'; if (cur === 'store') this.refresh(); } }); return; }
     if (d.sendcode !== undefined) { const em = (el('acct-email') || {}).value || st.email; st.email = em.trim(); st.msg = 'Sending…'; this.refresh(); store.requestCode(st.email).then((r) => { st.sent = !!r.ok; st.msg = r.ok ? 'Code sent. Check your email (it works for 10 minutes).' : r.message || 'Could not send the code.'; if (cur === 'account') this.refresh(); }); return; }
     if (d.verify !== undefined) { const code = ((el('acct-code') || {}).value || '').trim(); st.msg = 'Checking…'; store.verify(st.email, code).then((r) => { st.msg = r.ok ? 'Signed in. Your progress is now kept with your account.' : r.message || 'That code is not right.'; if (r.ok) { st.sent = false; st.fresh = true; } if (cur === 'account') this.refresh(); }); return; }

@@ -3,10 +3,11 @@
 // js/core/economy.js, per nation for the equipped set.
 import { save } from './save.js';
 import { econ, fmtCredits } from './economy.js';
+import { UNITS } from './config.js';
 
 export const TIERS = { free: { label: 'Standard issue', color: '#9aa7b0' }, standard: { label: 'Standard', color: '#b9c2c9' }, rare: { label: 'Rare', color: '#5aa9ff' }, epic: { label: 'Epic', color: '#b57bff' }, elite: { label: 'Elite', color: '#ffcf4a' } };
 export const AIR = ['fighter', 'bomber', 'recon', 'transport', 'attackheli'];
-export const PAINT_UNITS = ['patrol', 'corvette', 'battlecruiser', 'carrier', 'reconsub', 'attacksub', 'fighter', 'bomber', 'recon', 'transport', 'attackheli'];
+export const PAINT_UNITS = ['patrol', 'corvette', 'battlecruiser', 'carrier', 'superdestroyer', 'reconsub', 'attacksub', 'fighter', 'bomber', 'recon', 'transport', 'attackheli'];
 export const SLOTS = { back: 'Back', chest: 'Chest', belt: 'Belt and hip', face: 'Face', neck: 'Neck', limbs: 'Arms and legs', detail: 'Small details' };
 export const MAX_ACCESSORIES = 4;
 
@@ -45,12 +46,16 @@ export const ITEMS = [
   A('padset', 'limbs', 'Shoulder and Knee Pad Set', 'epic', 7000, 'Matching shoulder and knee armour.'),
   A('dogtags', 'detail', 'Dog Tags', 'standard', 1000, 'Tags on a chain.'),
   A('chemlights', 'detail', 'Chemlights and IR Strobe', 'rare', 3000, 'Light sticks and a strobe on the webbing.'),
+  // not a look: the one unit that has to be unlocked. Bought and kept exactly like a cosmetic (id 'unit.' + the unit type).
+  { id: 'unit.superdestroyer', key: 'superdestroyer', kind: 'unlock', name: 'Super Destroyer', tier: 'elite', price: UNITS.superdestroyer.unlock, desc: 'Unlocks the Super Destroyer for both nations, for good.' },
 ];
 export const ITEM = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
 
 export const cosmetics = {
   get owned() { return save.data.econ.owned; },
   owns(id) { const it = ITEM[id]; return !!it && (it.price === 0 || this.owned.includes(id)); },
+  // may this unit type be deployed? Every unit but the Super Destroyer always can.
+  unlocked(type) { const d = UNITS[type]; return !d || !d.unlock || this.owns('unit.' + type); },
   // the equipped set for a nation: { paint: { unitType: schemeKey }, helmet, uniform, acc: [keys] }
   set(nation) { const e = save.data.econ.equip; const s = e[nation] || (e[nation] = {}); s.paint = s.paint || {}; s.acc = s.acc || []; s.helmet = s.helmet || 'standard'; s.uniform = s.uniform || 'standard'; return s; },
 

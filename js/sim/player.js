@@ -39,7 +39,8 @@ export const player = {
     const s = save.settings, sens = 0.0021 * s.sens * (1 - this.zoom * 0.7);
     this.prompt = ''; this.showBomb = false; this.lockDef = null;
     if (!u.alive) return;
-    if (input.tap('camera')) { const l = MODES[u.kind]; this.mode = l[(l.indexOf(this.mode) + 1) % l.length]; if (this.mode === 'gunner' && !u.mounts.some((m) => m.key === u.selKey)) this.mode = 'chase'; this.scope = false; }
+    if (u.kind === 'soldier' && u.inside) this.mode = 'first';
+    else if (input.tap('camera')) { const l = MODES[u.kind]; this.mode = l[(l.indexOf(this.mode) + 1) % l.length]; if (this.mode === 'gunner' && !u.mounts.some((m) => m.key === u.selKey)) this.mode = 'chase'; this.scope = false; }
     this.zoom = damp(this.zoom, input.rmb ? 1 : 0, 10, dt);
     const heli = u.kind === 'heli' && u.state === 'fly';
     if (u.kind === 'jet' && u.state === 'fly') {
@@ -67,25 +68,47 @@ export const player = {
   },
   ship(u, dt) {
     this.helm(u, dt);
-    if (u.docked) { this.prompt = `<kbd>U</kbd> Board the docked ${u.docked.def.label} and launch`; if (input.tap('launchSub')) { const sub = u.docked; battle.releasePlayer(u); sub.ai = null; this.setUnit(sub); sub.undock(); world.say(`${sub.label} away from the dock`, 'info'); } }
-    this.hint = 'W/S throttle  A/D rudder  Mouse aim  LMB fire  RMB zoom  1-3 weapons  V camera';
+    if (u.docked) { this.prompt = `<kbd>U</kbd> Board the docked ${u.docked.def.label} and launch`; if (input.tap('launchSub')) { const sub = u.docked, under = u.model.dock.under; battle.releasePlayer(u); sub.ai = null; sub.homeShip = u; this.setUnit(sub); sub.undock(); world.say(under ? `Hull doors open. ${sub.label} is leaving the dock.` : `${sub.label} away from the dock`, 'info'); return; } }
+    else if (u.dockBusy) this.prompt = u.dockBusy.transit && u.dockBusy.transit.dock ? `${u.dockBusy.name} is coming in through the hull doors` : `${u.dockBusy.name} is leaving through the hull doors`;
+    this.hint = 'W/S throttle  A/D rudder  Mouse aim  LMB fire  RMB zoom  1-3 weapons  V camera' + (u.docked ? '  U submarine' : '');
+  },
+  // Back to the ship the submarine came from: its own crew takes the submarine, brings it home and docks it (or fights on
+  // nearby until it can), and the player has the ship again.
+  backToShip(sub, ship) {
+    const docked = sub.dockedTo === ship;
+    battle.releasePlayer(sub); sub.returnTo = docked ? null : ship; if (sub.ai) sub.ai.returnTo = sub.returnTo;
+    ship.ai = null; this.setUnit(ship);
+    if (!docked) ship.ctl.throttle = Math.min(ship.ctl.throttle, 0.3); // slow ahead, so the submarine can catch up (the throttle is the player's again)
+    world.say(docked ? `Back aboard ${ship.name}` : `Back aboard ${ship.name}, slow ahead. ${sub.name || 'The submarine'} is coming home to dock.`, 'info');
   },
   sub(u, dt) {
+    const home = u.homeShip && u.homeShip.alive ? u.homeShip : (u.homeShip = null);
+    const back = home ? `<kbd>B</kbd> Return to ${home.name}` : '';
+    if (home && input.tap('returnShip')) { this.backToShip(u, home); return; }
+    if (u.transit) { this.prompt = (u.transit.dock ? 'Docking: the ship is taking the submarine in' : 'Leaving through the hull doors') + (back ? '  ' + back : ''); u.aimPoint.copy(this.aimPoint); this.hint = home ? 'B return to the ship' : ''; return; }
     if (u.dockedTo) {
-      this.prompt = '<kbd>E</kbd> Cast off from the dock'; u.aimPoint.copy(this.aimPoint);
-      if (input.tap('use')) { u.undock(); world.say('Cast off. Backing out of the dock.', 'info'); }
+      const under = u.dockedTo.model.dock.under;
+      this.prompt = (under ? '<kbd>E</kbd> Launch through the hull doors' : '<kbd>E</kbd> Cast off from the dock') + (back ? '  ' + back : ''); u.aimPoint.copy(this.aimPoint); this.hint = home ? 'E launch  B return to the ship' : 'E launch';
+      if (input.tap('use')) { if (!u.homeShip) u.homeShip = u.dockedTo; u.undock(); world.say(under ? 'Hull doors open. Leaving the dock.' : 'Cast off. Backing out of the dock.', 'info'); }
       return;
     }
-    if (u.undockT > world.t) { u.ctl.throttle = -0.35; u.ctl.rudder = 0; this.prompt = 'Backing out of the dock'; return; }
+    if (u.undockT > world.t) { u.ctl.throttle = -0.35; u.ctl.rudder = 0; this.prompt = 'Backing out of the dock' + (back ? '  ' + back : ''); return; }
     this.helm(u, dt); u.firing = false;
     u.depthT = clamp(u.depthT + input.axis('rise', 'dive') * dt * 9, 0, u.maxDepth);
     if (input.tap('periscope')) { if (u.depth < 6 || u.depth > 20) { u.depthT = 13; world.say('Coming to periscope depth', 'info'); u.scope = true; this.scope = true; } else { u.scope = !u.scope; this.scope = u.scope; } }
     if (this.scope && (u.depth < 5 || u.depth > 21 || !u.scope)) { if (Math.abs(u.depthT - 13) > 6) { this.scope = false; u.scope = false; } }
     if (input.tap('ping')) { if (u.ping()) world.say('Active sonar ping: contacts revealed, and so are you', 'info'); }
     if (this.lmbHit && u.tubes) { if (u.depth > 40) world.say('Too deep to fire torpedoes', 'bad'); else if (!u.fireTorpedo(this.aimTarget && (this.aimTarget.kind === 'ship' || this.aimTarget.kind === 'sub') ? this.aimTarget : null)) audio.play('click'); }
-    // docking with our battlecruiser
-    for (const s of world.units) { if (s.type === 'battlecruiser' && s.nation === u.nation && u.canDock(s)) { this.prompt = `<kbd>E</kbd> Dock with ${s.name}`; if (input.tap('use')) { u.dock(s); world.say(`Docked with ${s.name}`, 'good'); } } }
-    this.hint = 'W/S throttle  A/D rudder  R/F depth  P periscope  Q sonar ping' + (u.tubes ? '  LMB torpedo' : '');
+    // docking with one of our ships that has a dock: it happens by itself when lined up and close, or on E from a little further off
+    for (const s of world.units) {
+      if (s.kind !== 'ship' || s.nation !== u.nation || !s.model.dock) continue;
+      if (!u.canDock(s)) { if (u.awayFrom === s) u.awayFrom = null; continue; }   // clear of the ship it just left: the dock may take it in again
+      const under = s.model.dock.under, lined = u.awayFrom !== s && u.lined(s);
+      this.prompt = lined ? `Lined up: docking with ${s.name}` : `<kbd>E</kbd> Dock with ${s.name}` + (under ? ' (or line up astern at this depth)' : '');
+      if (lined || input.tap('use')) { u.dock(s); if (!u.homeShip) u.homeShip = s; world.say(under ? `Hull doors open. Docking with ${s.name}.` : `Docked with ${s.name}`, 'good'); return; }
+    }
+    if (!this.prompt && back) this.prompt = back + (home.model.dock.under && Math.abs(u.depth - home.model.dock.depth) > 8 ? `  (its dock is ${Math.round(home.model.dock.depth)} m down)` : '');
+    this.hint = 'W/S throttle  A/D rudder  R/F depth  P periscope  Q sonar ping' + (u.tubes ? '  LMB torpedo' : '') + (home ? '  B return to the ship' : '');
   },
 
   // ---- jets ------------------------------------------------------------------------------------------------------------------
@@ -179,6 +202,10 @@ export const player = {
     if (u.on) {
       for (const m of u.on.mounts) { if (m.manned || (m.key !== 'mg' && m.key !== 'ciws')) continue; _a.copy(m.t.node.position); if (Math.hypot(_a.x - u.local.x, _a.z - u.local.z) < 3 && Math.abs(_a.y - u.local.y) < 2.5) { act = { text: `<kbd>E</kbd> Man the ${m.def.name}`, run: () => u.takeGun(m) }; break; } }
     }
+    if (!act && u.inside && u.on && u.on.docked && u.on.model.dock.under && u.local.y < u.on.model.interior.bay.y + 1) {
+      const ship = u.on, sub = ship.docked;
+      act = { text: `<kbd>E</kbd> Board the ${sub.def.label} ${sub.name}`, run: () => { u.isPlayer = false; world.remove(u); this.soldier = null; sub.ai = null; sub.homeShip = ship; this.setUnit(sub); world.say('Aboard the submarine. E launches through the hull doors.', 'info'); } };
+    }
     if (!act) for (const h of world.units) {
       if (h.kind !== 'heli' || !h.alive || h.nation !== u.nation || h.state !== 'landed' || h.pos.distanceTo(u.pos) > 11) continue;
       if (h.type === 'transport' && h.ai) act = { text: `<kbd>E</kbd> Board the ${h.def.label} as a passenger`, run: () => { u.board(h, false); world.say('Aboard. T takes the controls.', 'info'); } };
@@ -203,14 +230,21 @@ export const player = {
     _d.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp); // look direction from yaw/pitch
     let fov = s.fov, near = 0.5, cockpit = false;
     const scope = u.kind === 'sub' && this.scope && u.scopeA > 0.9;
-    const tag = u.kind + ':' + (u.alive ? this.mode : 'dead') + ':' + (u.gun ? 'gun' : u.aboard ? 'ride' : scope ? 'scope' : '') + (u.kind === 'ship' && this.mode === 'gunner' ? u.selKey : '');
+    // a submarine in (or passing through) a dock under the waterline is watched from the walkway beside the berth
+    const host = u.kind === 'sub' && u.alive ? u.dockedTo || (u.transit && u.transit.ship) : null;
+    const inBay = !!(host && host.model.dock.under && host.model.interior && (u.dockedTo || host.toLocal(u.pos, _a).z < host.dims.length / 2 + 8));
+    const tag = u.kind + ':' + (u.alive ? this.mode : 'dead') + ':' + (u.gun ? 'gun' : u.aboard ? 'ride' : scope ? 'scope' : '') + (u.kind === 'ship' && this.mode === 'gunner' ? u.selKey : '') + (inBay ? 'bay' : '');
     const snap = this._camUnit !== u || this._camTag !== tag;
     if (snap) { if (this._camUnit) cut(); this._camUnit = u; this._camTag = tag; this._pullT = 1; }
     fadeVeil(dt);
     this.scopeView = scope;
     if (u.kind === 'ship' || u.kind === 'sub') {
       const gun = this.mode === 'gunner' && (u.mounts.find((k) => k.key === u.selKey && k.inArc) || u.mounts.find((k) => k.key === u.selKey));
-      if (scope) { u.toWorld(u.model.scopeTop, cam.position); cam.position.y = Math.max(cam.position.y + 1.2, waveHeight(cam.position.x, cam.position.z) + 2.6); fov = 32; }
+      if (inBay) {
+        const bay = host.model.interior.bay; host.toLocal(u.pos, _a);
+        _b.set(7.7, bay.y + 1.75, clamp(_a.z - 36, bay.z0 + 6, bay.z1 - 8)); host.toWorld(_b, cam.position);
+        _a.y += 2.2; _a.z -= 10; host.toWorld(_a, _c); cam.lookAt(_c); near = 0.2;
+      } else if (scope) { u.toWorld(u.model.scopeTop, cam.position); cam.position.y = Math.max(cam.position.y + 1.2, waveHeight(cam.position.x, cam.position.z) + 2.6); fov = 32; }
       else if (this.mode === 'first') { u.toWorld(bridgeEye(u), cam.position); near = 0.25; if (u.kind === 'ship') aboveWater(cam.position, 1); }
       else if (gun) {
         // over the gun and a little behind it; pulled forward if the superstructure is in the way
@@ -227,7 +261,7 @@ export const player = {
         if (deep) cam.position.y = Math.min(cam.position.y, waveHeight(cam.position.x, cam.position.z) - 0.8); // stay cleanly below the surface
         else { aboveWater(cam.position, 1.5); this.lift(cam.position, u); }
       }
-      cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+      if (!inBay) cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     } else if (u.kind === 'jet') {
       if (this.mode === 'first' && u.alive) { u.toWorld(u.model.cockpit, cam.position); cam.quaternion.copy(u.quat); if (u.state === 'fly') { _e.set(this.lookPitch, this.lookYaw, 0, 'YXZ'); cam.quaternion.multiply(_q.setFromEuler(_e)); } near = 0.1; cockpit = true; }
       else {
@@ -255,7 +289,7 @@ export const player = {
       near = 0.1; u.hideBody = false;
       if (u.aboard) { const h = u.aboard, dist = 30; _c.copy(h.pos); _c.y += 2; _a.set(h.pos.x - _d.x * dist, h.pos.y + 6 - _d.y * dist, h.pos.z - _d.z * dist); this.pull(_c, _a, h, dt, snap, 0.2); aboveWater(cam.position, 1); near = 0.5; }
       else if (u.gun) { const m = u.gun; m.pos(cam.position); m.dir(_f); cam.position.y += 0.42; cam.position.addScaledVector(_f, -0.55); u.hideBody = u.alive; }
-      else if (this.mode === 'first' && u.alive) { u.eye(cam.position); cam.position.addScaledVector(_d, 0.1); aboveWater(cam.position, 0.3); u.hideBody = true; }
+      else if ((this.mode === 'first' && u.alive) || u.inside) { u.eye(cam.position); if (!u.alive) cam.position.y -= 1.2; cam.position.addScaledVector(_d, 0.1); if (!u.inside) aboveWater(cam.position, 0.3); u.hideBody = u.alive; }
       else {
         // over the right shoulder; comes in close when a wall or the deck above is behind the marine
         u.eye(_c); _a.copy(_c).addScaledVector(_d, -4.2); _a.y += 0.7; _a.x += Math.cos(this.yaw) * 0.6; _a.z -= Math.sin(this.yaw) * 0.6;

@@ -13,11 +13,11 @@ const TURRET_R = { heavy: 6.5, deckgun: 3.2, sam: 2.6, ciws: 2.1, mg: 1.1, chin:
 // The solid boxes of a ship or submarine in its own coordinates: hull, decks, superstructure and turrets. Built once.
 export function solids(ship) {
   const m = ship.model; if (m._solids) return m._solids;
-  const d = m.dims, bb = ship.bounds, list = [], decks = m.decks || [];
+  const d = m.dims, bb = ship.bounds, list = [], decks = (m.decks || []).filter((k) => !k.in); // rooms inside the hull are not part of the outside shape
   const low = decks.length ? Math.min(...decks.map((k) => k.y)) : Math.min(bb.max.y, d.height * 0.3);
   list.push({ x0: -d.beam / 2, x1: d.beam / 2, y0: bb.min.y, y1: low, z0: bb.min.z, z1: bb.max.z });
   for (const k of decks) list.push({ x0: k.x0, x1: k.x1, y0: k.y - 1.5, y1: k.y, z0: k.z0, z1: k.z1 });
-  for (const b of m.blocks || []) list.push(b);
+  for (const b of m.blocks || []) if (!b.in) list.push(b);
   for (const t of m.turrets || []) { const p = t.node.position, r = TURRET_R[t.kind] || 1.5; list.push({ x0: p.x - r, x1: p.x + r, y0: p.y - 1, y1: p.y + r * 0.8, z0: p.z - r, z1: p.z + r }); }
   m._solids = list; return list;
 }

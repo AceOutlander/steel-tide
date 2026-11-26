@@ -30,8 +30,9 @@ class ShipAI {
   plan() {
     const u = this.u, def = u.def, type = u.type, home = ownCarrier(u), foe = enemyCarrier(u);
     const isSurf = (e) => e.kind === 'ship' || (e.kind === 'sub' && e.depth < 4);
-    let tg = nearestEnemy(u, isSurf, type === 'battlecruiser' ? 12000 : 7000);
-    if (type === 'battlecruiser' && foe && foe.alive && foe.seen && foe.pos.distanceTo(u.pos) < 6500 && (!tg || tg.def.armor < 2)) tg = foe;
+    const big = type === 'battlecruiser' || type === 'superdestroyer';
+    let tg = nearestEnemy(u, isSurf, big ? 12000 : 7000);
+    if (big && foe && foe.alive && foe.seen && foe.pos.distanceTo(u.pos) < 6500 && (!tg || tg.def.armor < 2)) tg = foe;
     this.target = tg; u.aiTarget = tg;
     let gx, gz, thr = 0.7;
     if (type === 'carrier') {
@@ -39,7 +40,7 @@ class ShipAI {
       this.orbit += 0.012; gx = Math.sin(this.orbit) * 1100; gz = sgn(u.nation) * (MAP.carrierZ + Math.cos(this.orbit) * 500); thr = 0.5;
       if (tg && tg.pos.distanceTo(u.pos) < 3200) { gx = u.pos.x + (u.pos.x - tg.pos.x); gz = u.pos.z + (u.pos.z - tg.pos.z); thr = 1; }
     } else if (tg) {
-      const d = tg.pos.distanceTo(u.pos), pref = type === 'battlecruiser' ? 4800 : type === 'corvette' ? 2600 : 800;
+      const d = tg.pos.distanceTo(u.pos), pref = big ? 4800 : type === 'corvette' ? 2600 : 800;
       const brg = Math.atan2(-(tg.pos.x - u.pos.x), -(tg.pos.z - u.pos.z));
       // close to gun range, then turn broadside so every turret bears
       let h; if (d > pref * 1.25) h = brg; else if (d < pref * 0.6) h = brg + this.side * 2.0; else h = brg + this.side * 1.25;
@@ -84,9 +85,15 @@ class SubAI extends ShipAI {
   constructor(u, slot) { super(u, slot); this.evade = 0; this.fireT = rand(4, 10); this.launchT = rand(40, 90); }
   update(dt) {
     const u = this.u;
+    if (u.transit) return;
     if (u.dockedTo) { this.launchT -= dt; if (this.launchT <= 0 && !u.dockedTo.isPlayer) u.undock(); return; }
     if (u.undockT > world.t) { u.ctl.throttle = -0.35; u.ctl.rudder = 0; return; }
+    // sent home by the player: make for the ship's dock unless there is a fight close by, and dock when in position
+    let home = this.returnTo;
+    if (home && (!home.alive || !home.model.dock || (home.docked && home.docked !== u))) { home = this.returnTo = null; u.returnTo = null; }
+    if (home && u.canDock(home)) { u.dock(home); this.homing = false; return; }
     super.update(dt);
+    if (home && this.homing) { const dk = home.model.dock; u.scope = false; u.depthT = dk.under ? dk.depth : 0; return; }
     this.fireT -= dt; this.evade -= dt;
     if (u.lastHitT && world.t - u.lastHitT < 1) this.evade = 30;
     const tg = this.target;
@@ -105,6 +112,14 @@ class SubAI extends ShipAI {
     const isSurf = (e) => e.kind === 'ship' && e.type !== 'patrol';
     let tg = nearestEnemy(u, isSurf, 9000); this.target = tg; u.aiTarget = tg;
     let gx, gz, thr = 0.6;
+    const home = this.returnTo; this.homing = false;
+    if (home && home.alive && !(tg && u.tubes && tg.pos.distanceTo(u.pos) < 2200)) {
+      // come up astern of the ship, then run in along its wake to the dock
+      const dk = home.model.dock, zc = dk.under ? dk.exit.z + 20 : dk.pos.z + 20; home.toWorld(_c.set(0, 0, zc + 230), _a); home.toWorld(_c.set(0, 0, zc), _b);
+      const lx = home.toLocal(u.pos, _d).x, lz = _d.z, onFinal = lz > zc - 10 && Math.abs(lx) < 60 + (lz - zc) * 0.5;
+      if (onFinal) { gx = _b.x; gz = _b.z; thr = lz - zc > 150 ? 1 : 0.7; } else { gx = _a.x; gz = _a.z; thr = 1; }
+      this.homing = true; this.heading = Math.atan2(-(gx - u.pos.x), -(gz - u.pos.z)); if (!onFinal && Math.hypot(home.pos.x - u.pos.x, home.pos.z - u.pos.z) > home.dims.length) this.heading = this.avoid(this.heading); this.thr = thr; return;
+    }
     if (this.evade > 0 && tg) { gx = u.pos.x * 2 - tg.pos.x; gz = u.pos.z * 2 - tg.pos.z; thr = 1; }
     else if (tg) { const d = tg.pos.distanceTo(u.pos); if (u.tubes || d > 2600) { gx = tg.pos.x + tg.vel.x * 20; gz = tg.pos.z + tg.vel.z * 20; } else { gx = u.pos.x; gz = u.pos.z + sgn(u.nation) * 100; thr = 0.2; } thr = d > 2000 ? 0.9 : 0.4; }
     else { gx = (foe && foe.alive ? foe.pos.x : 0) + this.slot.x; gz = (foe && foe.alive ? foe.pos.z : -sgn(u.nation) * MAP.carrierZ) + sgn(u.nation) * 2500; thr = 0.8; }

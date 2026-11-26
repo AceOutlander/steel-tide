@@ -36,3 +36,6 @@ export const RIGHT = new V3(1, 0, 0);
 
 export const el = (id) => document.getElementById(id);
 export function fmt(n, d = 0) { return Number(n).toFixed(d); }
+
+// is point p inside any of the boxes { x0, x1, y0, y1, z0, z1 } (grown by pad)?
+export function inZones(zones, p, pad = 0) { for (let i = 0; i < zones.length; i++) { const b = zones[i]; if (p.x > b.x0 - pad && p.x < b.x1 + pad && p.y > b.y0 - pad && p.y < b.y1 + pad && p.z > b.z0 - pad && p.z < b.z1 + pad) return true; } return false; }
