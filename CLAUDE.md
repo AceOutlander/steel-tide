@@ -45,4 +45,5 @@ transport, attackheli, marine; add `&dock=1` to start a submarine in the battlec
 4. The push starts the `Deploy to GitHub Pages` workflow (`.github/workflows/pages.yml`), which publishes exactly
    that commit. Wait for it: `gh run list -R AceOutlander/steel-tide -L 1` until it says `completed success`.
    (Pages is set to deploy from GitHub Actions, not from a branch: the branch build skipped or mis-built pushes.)
+   If no run appears for the commit, start one by hand: `gh workflow run pages.yml -R AceOutlander/steel-tide`.
 5. Load https://hunteracedev.com/steel-tide/ (add `?v=<something>` to skip caches) and check it starts.
