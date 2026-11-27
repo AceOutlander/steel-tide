@@ -214,9 +214,12 @@ export function addCabins(S) {
   // the walk-in space is cut out of the deckhouse's block (its skin stays solid), with a way in at the door
   const inner = { x0: X0 + 0.02, x1: X1 - 0.02, z0: Z0 + 0.02, z1: Z1 - 0.02 }, way = { x0: Math.min(xw, Xd) - 0.9, x1: Math.max(xw, Xd) + 0.9, z0: zd - 0.44, z1: zd + 0.44 };
   const i = model.blocks.indexOf(B); model.blocks.splice(i, 1, ...minusAll(minus(B, inner), [way]));
+  // only as high as the rooms and the doorway: above them the deckhouse is as solid as before, so people on a deck beside
+  // its upper storeys do not walk into it (auto: 1 like the boxes js/units/v2/solids.js adds: for people on foot, not cameras)
+  if (B.y1 > y + H + 0.1) model.blocks.push({ ...inner, y0: y + H + 0.1, y1: B.y1, auto: 1 }, { x0: Math.max(B.x0, way.x0), x1: Math.min(B.x1, way.x1), z0: way.z0, z1: way.z1, y0: y + 2.1, y1: B.y1, auto: 1 });
   model.decks.push(...decks); model.blocks.push(...blocks); model.posts.push(...posts);
   const zones = [{ x0: X0 - 0.1, x1: X1 + 0.1, z0: Z0 - 0.1, z1: Z1 + 0.1, y0: y - 0.2, y1: y + H + 0.15 }, { x0: Math.min(xw, Xd) - 0.05, x1: Math.max(xw, Xd) + 0.05, z0: zd - 0.5, z1: zd + 0.5, y0: y - 0.2, y1: y + 2.1 }];
-  model.interior = { group: g, mats: M, zones, hole: { x0: X0, x1: X1, z0: Z0, z1: Z1 }, door: { x: xw + s * 0.9, y, z: zd, side: s }, rooms: rooms.length };
+  model.interior = { group: g, mats: M, zones, hole: { x0: X0, x1: X1, z0: Z0, z1: Z1 }, door: { x: xw + s * 0.9, y, z: zd, side: s }, way, rooms: rooms.length }; // way: kept clear by js/units/v2/solids.js
   return model.interior;
 }
 

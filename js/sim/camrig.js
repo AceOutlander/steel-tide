@@ -17,7 +17,7 @@ export function solids(ship) {
   const low = decks.length ? Math.min(...decks.map((k) => k.y)) : Math.min(bb.max.y, d.height * 0.3);
   list.push({ x0: -d.beam / 2, x1: d.beam / 2, y0: bb.min.y, y1: low, z0: bb.min.z, z1: bb.max.z });
   for (const k of decks) list.push({ x0: k.x0, x1: k.x1, y0: k.y - 1.5, y1: k.y, z0: k.z0, z1: k.z1 });
-  for (const b of m.blocks || []) if (!b.in) list.push(b);
+  for (const b of m.blocks || []) if (!b.in && !b.auto) list.push(b); // the small boxes derived for people on foot (js/units/v2/solids.js) are left to them
   for (const t of m.turrets || []) { const p = t.node.position, r = TURRET_R[t.kind] || 1.5; list.push({ x0: p.x - r, x1: p.x + r, y0: p.y - 1, y1: p.y + r * 0.8, z0: p.z - r, z1: p.z + r }); }
   m._solids = list; return list;
 }

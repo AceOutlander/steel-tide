@@ -294,7 +294,7 @@ class HeliAI {
 
 // ---- marines on foot -------------------------------------------------------------------------------------------------------
 class MarineAI {
-  constructor(u) { this.u = u; this.think = rand(0, 1); this.target = null; this.goal = null; this.burst = 0; this.err = 0; }
+  constructor(u) { this.u = u; this.think = rand(0, 1); this.target = null; this.goal = null; this.burst = 0; this.err = 0; this.detour = 0; this.side = 0; this.sideT = -9; this.dT = 0; }
   update(dt) {
     const u = this.u, c = u.ctl; this.think -= dt; this.burst -= dt;
     if (u.aboard || u.gun) { c.fire = false; return; }
@@ -315,6 +315,11 @@ class MarineAI {
       const dx = this.goal.x - u.pos.x, dz = this.goal.z - u.pos.z; if (Math.hypot(dx, dz) > 12) { u.look = Math.atan2(-dx, -dz); c.mz = 1; c.run = !u.swim; }
       u.lookPitch = 0;
     }
+    // walked into something (a bunker, a tree, a wall): sidestep round it for a moment, the other way if that side is shut too
+    const bumped = u.bumpT !== undefined && u.t - u.bumpT < 0.12;
+    if (c.mz > 0 && bumped && this.detour <= 0) { this.detour = rand(0.9, 1.5); if (!this.side || u.t - this.sideT > 4) this.side = Math.random() < 0.5 ? -1 : 1; this.sideT = u.t; this.dT = 0; this.dP = (this.dP || u.pos.clone()).copy(u.pos); }
+    else if (this.detour > 0 && this.dT > 0.5) { if (u.pos.distanceTo(this.dP) < 0.3) { this.side = -this.side; this.detour = rand(1.2, 2); } this.dT = 0; this.dP.copy(u.pos); } // not getting anywhere: try the other way
+    if (this.detour > 0) { this.detour -= dt; this.dT += dt; if (c.mz > 0) { c.mx = this.side; c.mz = 0.3; } }
   }
 }
 

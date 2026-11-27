@@ -9,13 +9,14 @@ import * as THREE from 'three';
 import { gfx } from '../../gfx/renderer.js';
 import { world } from '../../world/world.js';
 import { rand, approachAngle } from '../../core/util.js';
-import { blocked } from '../surface.js';
+import { blocked, slide } from '../surface.js';
 import { buildSoldier, animateSoldier, bakeFigure, JERSEY, JERSEY_KEYS, NATION_KIT } from '../../units/v2/human.js';
 import { kit, blobGeometry } from '../../units/v2/humankit.js';
 
 const MAX = 260, TWO_PI = Math.PI * 2, WALK_FRAMES = 6;
 const _m = new THREE.Matrix4(), _base = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(1, 1, 1), _l = new THREE.Matrix4(), _c = new THREE.Color(), _w = new THREE.Vector3();
 const YA = new THREE.Vector3(0, 1, 0);
+const _mv = { x: 0, z: 0 }, _bt = { ship: null, fn: (x, y, z, pad) => blocked(_bt.ship, x, y, z, pad) };
 const COUNT = { patrol: 5, corvette: 9, battlecruiser: 16, carrier: 30, reconsub: 0, attacksub: 0 };
 // flight-deck jobs: who directs aircraft, who kneels at the gear, how common each colour is
 const JOBS = ['yellow', 'yellow', 'green', 'green', 'blue', 'blue', 'red', 'brown', 'purple', 'white'];
@@ -121,7 +122,9 @@ export const crew = {
           const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
           if (d > 0.3) {
             const want = Math.atan2(-dx, -dz); c.yaw = approachAngle(c.yaw, want, dt * 4); const sp = 1.5 * dt, nx = c.x + (dx / d) * sp, nz = c.z + (dz / d) * sp;
-            if (blocked(s, nx, c.y, nz, 0)) { c.tx = c.x; c.tz = c.z; this.settle(c); } else { c.x = nx; c.z = nz; c.walk = true; c.ph += dt * 8.3; if (d - sp <= 0.3) this.settle(c); }
+            let ok = !blocked(s, nx, c.y, nz, 0), mx = nx, mz = nz;
+            if (!ok) { _bt.ship = s; slide(_bt.fn, c.x, c.z, nx, nz, c.y, _mv); mx = _mv.x; mz = _mv.z; ok = Math.hypot(mx - c.x, mz - c.z) > sp * 0.3; } // slide along a turret or a wall; stop if that gets nowhere
+            if (!ok) { c.tx = c.x; c.tz = c.z; this.settle(c); } else { c.x = mx; c.z = mz; c.walk = true; c.ph += dt * 8.3; if (d - sp <= 0.3) this.settle(c); }
           } else {
             c.wait -= dt;
             if (c.wait <= 0) {

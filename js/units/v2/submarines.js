@@ -10,6 +10,7 @@
 //   decks (casing strip), blocks (sail), posts, view { bridge, chase, chaseH }.
 import * as THREE from 'three';
 import { ShipKit, shipMats, rail, wingGeo, latheZ, cached, fineDetail, C, tone, metal, navlight, capstan } from './shipkit.js';
+import { addSolids } from './solids.js';
 
 const TAU = Math.PI * 2, HP = Math.PI / 2, BRONZE = tone(metal, 0x6a5630);
 
@@ -120,6 +121,7 @@ function buildSub(nation, lod, fine, P) {
   model.blocks.push({ x0: -sw / 2, x1: sw / 2, z0: sz, z1: sz + sl, y0: top, y1: sailTop });
   model.posts.push({ x: 0, y: deckY, z: sz - 4, yaw: 0, kind: 'lookout' }, { x: 0.3, y: deckY, z: sz + sl + 3, yaw: 3.14, kind: 'deck' });
   k.build(g); dk.build(g, { cast: false });
+  if (!lod) addSolids({ model, g }); // what people on the casing cannot walk through (js/units/v2/solids.js)
   g.userData.model = model;
   return g;
 }

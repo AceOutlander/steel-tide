@@ -18,6 +18,7 @@ import { Kit, C, tone, trim, metal, lamp, rng, fineDetail, cboxGeo, latheZ, wing
 
 export { C, tone, trim, metal, lamp, rng, fineDetail, cboxGeo, latheZ, wingGeo, cached, stats };
 import { addCabins } from './cabins.js';
+import { addSolids } from './solids.js';
 
 const TAU = Math.PI * 2, HP = Math.PI / 2, V3 = THREE.Vector3;
 const YA = new V3(0, 1, 0), ONE = new V3(1, 1, 1);
@@ -668,7 +669,12 @@ export function startShip(nation, lod, fine, ho, hk = 1) {
   const model = { dims: null, turrets: [], spinners: [], decks: [], blocks: [], posts: [], smoke: [], view: {} };
   return { M, A: M.A, nation, lod, fine, g, k, dk, hull, HC, model };
 }
-export function finishShip(S) { if (!S.lod && !S.model.interior && S.cabins !== false) { try { addCabins(S); } catch (e) { console.warn('cabins: ' + e.message); } } S.k.build(S.g); S.dk.build(S.g, { cast: false }); S.g.userData.model = S.model; return S.g; }
+export function finishShip(S) {
+  if (!S.lod && !S.model.interior && S.cabins !== false) { try { addCabins(S); } catch (e) { console.warn('cabins: ' + e.message); } }
+  S.k.build(S.g); S.dk.build(S.g, { cast: false });
+  if (!S.lod) addSolids(S); // what people on foot cannot walk through, from the built geometry (js/units/v2/solids.js)
+  S.g.userData.model = S.model; return S.g;
+}
 /** Add a spinner (radar set) to the ship. */
 export function spin(S, node, x, y, z, speed) { node.position.set(x, y, z); S.g.add(node); S.model.spinners.push({ node, axis: 'y', speed }); return node; }
 /** Walkable rectangles stepping up the sheer of the bow from zFlat forward to zBow. */

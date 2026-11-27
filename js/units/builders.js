@@ -10,6 +10,8 @@
 //   spinners: [ { node, axis: 'x'|'y'|'z', speed } ]      radars, rotors, propellers (speed in rad/s at full power)
 //   decks:    [ { x0, x1, z0, z1, y } ]                    walkable rectangles (local coords); highest one under a point wins
 //   blocks:   [ { x0, x1, z0, z1, y0, y1 } ]               solid superstructure boxes people cannot walk through
+//             (v2 ships and submarines also get { ..., auto: 1 } boxes and `rings` worked out from the geometry when they are
+//             built: see js/units/v2/solids.js. Only the big boxes a model needs for itself have to be typed in.)
 //   posts:    [ { x, y, z, yaw, kind } ]                   crew stations: kind 'bridge'|'deck'|'flight'|'lookout'
 //   smoke:    [ Vector3 ]                                  funnel exhaust points
 //   view:     { bridge: Vector3, chase: metres, chaseH: metres }

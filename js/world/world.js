@@ -75,6 +75,7 @@ export const world = {
     const treeGeo = new THREE.ConeGeometry(2.6, 9, 6); treeGeo.translate(0, 5.5, 0);
     const trunks = []; const dummy = new THREE.Object3D();
     for (const is of ISLANDS) {
+      is.solids = []; // what people on foot cannot walk through (js/sim/surface.js blockedWorld): { x, z, r, y0, y1 } or { x0, x1, z0, z1, y0, y1 }
       const RINGS = 30, SEG = 84, pos = [], col = [], uv = [], idx = [];
       const c = new THREE.Color();
       for (let i = 0; i <= RINGS; i++) for (let j = 0; j <= SEG; j++) {
@@ -96,6 +97,7 @@ export const world = {
         if (y < 4 || y > is.h * 0.7) continue;
         if (is === ISLANDS[0] && PADS.some((p) => Math.hypot(x - p.x, z - p.z) < p.r * 1.8)) continue;
         dummy.position.set(x, y - 0.5, z); dummy.scale.setScalar(0.7 + rnd() * 0.9); dummy.rotation.y = rnd() * 6; dummy.updateMatrix(); trunks.push(dummy.matrix.clone());
+        const sc = dummy.scale.x; is.solids.push({ x, z, r: 2.2 * sc, y0: y - 1, y1: y - 0.5 + 10 * sc }); // the foliage reaches the ground: people walk round a tree
       }
     }
     const trees = new THREE.InstancedMesh(treeGeo, MAT.foliage, trunks.length);
@@ -104,6 +106,7 @@ export const world = {
       const pad = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 0.7, p.r * 0.74, 0.5, 28), MAT.concrete); pad.position.set(p.x, p.y - 0.1, p.z); pad.receiveShadow = true; grp.add(pad);
       const hmark = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), MAT.helipad); hmark.rotation.x = -Math.PI / 2; hmark.position.set(p.x, p.y + 0.2, p.z); grp.add(hmark);
       const bunker = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 8), MAT.concrete); bunker.position.set(p.x + 40, p.y + 1.4, p.z + Math.sign(p.z) * 10); bunker.castShadow = true; grp.add(bunker);
+      const bb = new THREE.Box3().setFromObject(bunker); (this.nearIsland(p.x, p.z) || ISLANDS[0]).solids.push({ x0: bb.min.x, x1: bb.max.x, z0: bb.min.z, z1: bb.max.z, y0: -50, y1: bb.max.y }); // from below the ground (it sits on a slope) to its roof
     }
     gfx.scene.add(grp); this.group = grp;
     ocean.setIslands(ISLANDS);

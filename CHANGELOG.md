@@ -1,5 +1,24 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.7.1 (marines no longer walk through turrets, walls and bunkers)
+
+- Marines can no longer walk, run or jump through gun turrets, machine-gun mounts, launchers, deckhouse walls,
+  funnels or masts on any ship or submarine. On the islands they now walk round the bunkers and trees instead of
+  through them. You slide along anything you walk into, so you don't get stuck on it. The sailors and marines of
+  both sides find their way round the same obstacles. Every door, hatch and gun seat still works as before.
+- How it works: a model still types in only its big boxes (`blocks`) and `decks`. When a ship or submarine is
+  built, `js/units/v2/solids.js` adds a circle for every turret and mount (`model.rings`, right at every bearing)
+  and cuts the model at chest and head height above each deck to find everything else that stands still (boxes
+  marked `auto: 1`). Moving parts, interiors, doorways and stairs are left out. Islands list their own solids
+  (bunkers as boxes, trees as circles). New models get this without extra work.
+- Also fixed: carving the walk-in rooms out of a deckhouse had hollowed its collision up to the roof, so on the
+  carrier you could step from the bridge wing into the island. The upper storeys are solid again.
+- Test: `tools/tests/clipcheck.js` walks a marine at every obstacle from several directions. Walks that went
+  through, before and after: patrol boat 5 of 23 to 0, corvette 15 of 81 to 0, battlecruiser 139 of 496 to 0,
+  carrier 142 of 288 to 0, Super Destroyer 58 of 581 to 0, island bunkers 16 to 0, island trees 40 to 0 per island.
+- Not solid yet: gun barrels that stick out past a turret, things lower than 1.3 m (bitts, lockers), and overhead
+  structure met with the head in mid-jump.
+
 ## Beta 0.7.0 (helmets and uniforms rebuilt in Blender: the Elite Diver helmet first)
 
 - The paid helmets and uniforms are being rebuilt one at a time as real models: shaped in Blender by script

@@ -9,9 +9,10 @@ import { V3, clamp, wrapPi, rand, inZones } from '../core/util.js';
 import { Unit } from './unit.js';
 import { weapons } from './weapons.js';
 import { buildSoldier, animateSoldier } from '../units/human.js';
-import { surfaceBelow, deckUnder, blocked } from './surface.js';
+import { surfaceBelow, deckUnder, blocked, blockedWorld, slide } from './surface.js';
 
 const _a = new V3(), _b = new V3(), _l = new V3(), _q = new THREE.Quaternion(), YA = new V3(0, 1, 0);
+const _mv = { x: 0, z: 0 }, _test = { ship: null, fn: (x, y, z, pad) => blocked(_test.ship, x, y, z, pad) };
 const surf = { y: 0, ship: null, type: 'water', localY: 0 };
 // With ?v2 the new figure is in use: it has its own death, jump and reload animations, sprinting lowers the rifle, and the
 // first-person view (js/sim/v2/fpview.js) reads shots / landN / landV / sprintT from here. Without it nothing below changes.
@@ -51,7 +52,17 @@ export class Soldier extends Unit {
     this.vy = 0;
   }
   takeGun(m) { this.gun = m; m.manned = this; this.on = m.unit; }
-  leaveGun() { if (!this.gun) return; const m = this.gun; m.manned = null; this.gun = null; const u = m.unit; _a.copy(m.t.node.position); _a.z += 1.4; this.local.copy(_a); const d = deckUnder(u, this.local, 2.5); if (d) this.local.y = d.y; this.on = u; }
+  leaveGun() {
+    if (!this.gun) return; const m = this.gun; m.manned = null; this.gun = null; const u = m.unit; _a.copy(m.t.node.position); _a.z += 1.4; this.local.copy(_a); const d = deckUnder(u, this.local, 2.5); if (d) this.local.y = d.y; this.on = u;
+    if (!blocked(u, this.local.x, this.local.y, this.local.z)) return;
+    // that spot is inside the mount or something beside it: step off on the first clear side, a body's width outside the mount
+    const p = m.t.node.position, ring = (u.model.rings || []).find((r) => u.model.turrets[r.ti] === m.t), r0 = (ring ? ring.r : 1) + 0.5;
+    for (let r = r0; r < r0 + 2.5; r += 0.5) for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2 + m.t.rest + m.t.yaw; _b.set(p.x + Math.sin(a) * r, p.y, p.z + Math.cos(a) * r);
+      const dk = deckUnder(u, _b, 2.5); if (!dk || Math.abs(dk.y - p.y) > 2.5) continue; _b.y = dk.y;
+      if (!blocked(u, _b.x, _b.y, _b.z)) { this.local.copy(_b); return; }
+    }
+  }
 
   update(dt) {
     this.t += dt; this.cd -= dt; this.inside = false; // inside: within a ship's interior (hidden from the outside world)
@@ -84,10 +95,9 @@ export class Soldier extends Unit {
       if (!ship.alive && ship.sinkT > 6) { this.on = null; } else {
         // move in the ship's frame so the deck carries us along
         const sy = Math.sin(-ship.yaw), cy = Math.cos(-ship.yaw), lx = wx * cy + wz * sy, lz = -wx * sy + wz * cy;
-        let nx = this.local.x + lx * dt, nz = this.local.z + lz * dt;
-        const pad = blocked(ship, this.local.x, this.local.y, this.local.z) ? 0 : 0.35; // already against a wall (placed there): do not trap them
-        if (blocked(ship, nx, this.local.y, nz, pad)) { if (!blocked(ship, nx, this.local.y, this.local.z, pad)) nz = this.local.z; else if (!blocked(ship, this.local.x, this.local.y, nz, pad)) nx = this.local.x; else { nx = this.local.x; nz = this.local.z; } }
-        this.local.x = nx; this.local.z = nz;
+        // walls, turrets and the rest (js/sim/surface.js): slide along them; bumped = the step was cut short (marines steer round)
+        _test.ship = ship;
+        if (lx || lz) { if (!slide(_test.fn, this.local.x, this.local.z, this.local.x + lx * dt, this.local.z + lz * dt, this.local.y, _mv)) this.bumpT = this.t; this.local.x = _mv.x; this.local.z = _mv.z; }
         if (c.jump && this.grounded) { this.vy = 4.6; this.grounded = false; }
         this.vy -= 9.81 * dt; this.local.y += this.vy * dt;
         _l.copy(this.local); const d = deckUnder(ship, _l, 0.7);
@@ -100,7 +110,9 @@ export class Soldier extends Unit {
       }
     }
     if (!this.on) {
-      this.pos.x += wx * dt; this.pos.z += wz * dt;
+      // on an island: bunkers and trees stop people too (swimmers and those standing still need no test)
+      if (this.swim || (!wx && !wz)) { this.pos.x += wx * dt; this.pos.z += wz * dt; }
+      else { if (!slide(blockedWorld, this.pos.x, this.pos.z, this.pos.x + wx * dt, this.pos.z + wz * dt, this.pos.y, _mv)) this.bumpT = this.t; this.pos.x = _mv.x; this.pos.z = _mv.z; }
       if (c.jump && this.grounded && !this.swim) { this.vy = 4.6; this.grounded = false; }
       this.vy -= 9.81 * dt; this.pos.y += this.vy * dt;
       surfaceBelow(this.pos, surf, 0.7);

@@ -73,4 +73,8 @@ The Super Destroyer builds its own (`js/units/v2/sdinterior.js`, which also hold
 their steel and deck textures). Every other ship gets compartments from `js/units/v2/cabins.js`, called by
 `finishShip()`: it finds the biggest deckhouse block on the main deck, puts a door on the side with more deck, lays
 out a passage and rooms from the block's size, and carves the walk-in space out of that block. A builder can opt out
-with `S.cabins = false`. To look: `dev.cabins(type, nation)` saves six views to `C:\dev\steel-tide-covers\interiors\`.
+with `S.cabins = false`. What people on foot cannot walk through is worked out at build time by
+`js/units/v2/solids.js` (`addSolids(S)`, called by `finishShip()` and the submarines): `model.rings` (one circle per
+turret or mount) and `auto: 1` boxes cut from the model above each deck; islands carry `solids` in
+`js/world/world.js`. `js/sim/surface.js` (`blocked`, `blockedWorld`, `slide`) uses them; the test is
+`tools/tests/clipcheck.js`. To look: `dev.cabins(type, nation)` saves six views to `C:\dev\steel-tide-covers\interiors\`.
