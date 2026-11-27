@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { gfx } from '../../gfx/renderer.js';
 import { people, ridges } from './people.js';
+import { gear, GEAR_ITEMS } from './gear.js';
 import { kit, uniformDef, helmetColor, ROLES, SKIN, hairline, blobGeometry, UNIFORM_ALIAS, HELMET_ALIAS, HELMETS, UNIFORMS, ACCESSORIES } from './humankit.js';
 
 const PI = Math.PI, clamp = (v, a, b) => (v < a ? a : v > b ? b : v), sm = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }, lerp = (a, b, t) => a + (b - a) * t;
@@ -32,7 +33,7 @@ const BASE = 0.955, L1 = 0.295, L2 = 0.264, SOLE = 0.085;
 const armBase = (s) => (s > 0 ? ARM_R : ARM_L), legBase = (s) => (s > 0 ? LEG_R : LEG_L);
 
 /* =============================================================== geometry */
-const SLOTS = ['cloth', 'gear', 'skin', 'glass'], WHITE = [1, 1, 1], SKINUV = [0.5, 0.045];
+const SLOTS = ['cloth', 'gear', 'skin', 'glass', 'hel', 'helglass'], WHITE = [1, 1, 1], SKINUV = [0.5, 0.045];
 const CC = new Map(), _c = new THREE.Color();
 const C = (hex, k = 1) => { const key = hex + ':' + k; let v = CC.get(key); if (!v) { _c.setHex(hex); v = [_c.r * k, _c.g * k, _c.b * k]; CC.set(key, v); } return v; };
 class Acc { constructor() { this.parts = {}; this.fixed = []; this.s = {}; for (const k of SLOTS) this.s[k] = { p: [], n: [], uv: [], c: [], si: [], sw: [], t: [], idx: [] }; } }
@@ -136,6 +137,21 @@ function finish(A, skinned, oneGroup) {
   g.setIndex(idx); g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 2.4); g.boundingBox = new THREE.Box3(new THREE.Vector3(-1.6, -1.3, -1.6), new THREE.Vector3(1.6, 2.6, 1.6));
   return { geo: g, slots: used, tris: idx.length / 3 };
 }
+
+// A Blender-built item (js/units/v2/gear.js) added as it is: it was modelled round the new head, so no headFix. Its own
+// slots carry its materials; the vertex colours are only used by baked crowds.
+function addItem(A, it, L, slots = ['hel', 'helglass']) {
+  const lod = it.lods[clamp(L, 0, it.lods.length - 1)];
+  ['shell', 'glass'].forEach((part, k) => {
+    const P = lod[part]; if (!P) return; const S = A.s[slots[k]], base = S.p.length / 3;
+    for (let i = 0; i < P.n; i++) {
+      S.p.push(P.pos[i * 3], P.pos[i * 3 + 1], P.pos[i * 3 + 2]); S.n.push(P.nrm[i * 3], P.nrm[i * 3 + 1], P.nrm[i * 3 + 2]); S.uv.push(P.uv[i * 2], P.uv[i * 2 + 1]);
+      S.c.push(P.col[i * 3], P.col[i * 3 + 1], P.col[i * 3 + 2]); S.t.push(0); S.si.push(P.si[i * 2], P.si[i * 2 + 1], 0, 0); S.sw.push(1 - P.sw[i], P.sw[i], 0, 0);
+    }
+    for (let i = 0; i < P.idx.length; i++) S.idx.push(base + P.idx[i]);
+  });
+}
+const itemFor = (S) => (people.ready && S.parts !== 'arms' ? gear.get(S.helmet) : null);
 
 /* ------------------------------------------------------------------- body */
 const HC = [0, 1.685, 0], CHIN = 1.567, HEADH = 0.233;
@@ -579,7 +595,9 @@ function buildFigure(S) {
   /* ---- headgear ---- */
   const H = S.helmet, sideRim = (front, side, back) => (th) => { const a = Math.abs(th) / (PI / 2); return a < 1 ? lerp(front, side, sm(a)) : lerp(side, back, sm(a - 1)); };
   const hrows = L <= 0 ? 8 : L === 1 ? 5 : 3, hseg = L <= 0 ? 20 : L === 1 ? 12 : 8;
-  if (NEW && H === 'combat') { const camo = U.cloth === 'camo'; combatHelmet(A, camo ? 'cloth' : 'gear', camo ? WHITE : C(helmetColor(S.nation, 'combat')), L); }
+  const IT = itemFor(S);
+  if (IT) addItem(A, IT, PL);
+  else if (NEW && H === 'combat') { const camo = U.cloth === 'camo'; combatHelmet(A, camo ? 'cloth' : 'gear', camo ? WHITE : C(helmetColor(S.nation, 'combat')), L); }
   else if (H === 'combat') {
     const camo = U.cloth === 'camo', hc = camo ? WHITE : C(helmetColor(S.nation, 'combat'));
     shell(A, camo ? 'cloth' : 'gear', [0, 1.705, 0.006], [0.103, 0.108, 0.127], { rows: hrows, seg: hseg, rim: sideRim(1.73, 1.676, 1.65), lip: 0.9, b: HEAD, c: hc, ur: 2, vr: 1.2 });
@@ -779,13 +797,30 @@ export function buildRifle(lod = 0) {
 /* ============================================================ the figure */
 const GEO = new Map();
 function figureGeo(S) {
-  const key = [S.nation, S.ukey, S.helmet, S.jersey || '', S.vest ? 1 : 0, S.prop || '', S.lod, S.parts || '', S.tintable ? 1 : 0, S.acc.join('+'), people.ready ? 's' + S.skin : ''].join('|');
+  const key = [S.nation, S.ukey, S.helmet + (itemFor(S) ? '*' : ''), S.jersey || '', S.vest ? 1 : 0, S.prop || '', S.lod, S.parts || '', S.tintable ? 1 : 0, S.acc.join('+'), people.ready ? 's' + S.skin : ''].join('|');
   let g = GEO.get(key); if (!g) { g = finish(buildFigure(S), true); GEO.set(key, g); }
   return g;
 }
-function materialsFor(S, slots) { return slots.map((k) => (k === 'cloth' ? kit.cloth(S.nation, S.U.cloth) : k === 'gear' ? kit.gear() : k === 'skin' ? kit.skin(S.skin) : kit.glass('visor'))); }
+function materialsFor(S, slots) { return slots.map((k) => (k === 'hel' ? gear.material(S.helmet, 'shell') : k === 'helglass' ? gear.material(S.helmet, 'glass') : k === 'cloth' ? kit.cloth(S.nation, S.U.cloth) : k === 'gear' ? kit.gear() : k === 'skin' ? kit.skin(S.skin) : kit.glass('visor'))); }
 const ATTACH = { head: [HEAD, 0, 1.705, 0.005], face: [HEAD, 0, 1.675, -0.1], back: [CHEST, 0, 1.3, 0.13], chest: [CHEST, 0, 1.3, -0.15], belt: [HIPS, 0, 1.02, 0], neck: [CHEST, 0, 1.47, -0.07], shoulderL: [ARM_L, -0.208, 1.468, 0], shoulderR: [ARM_R, 0.208, 1.468, 0], kneeL: [LEG_L + 1, -0.092, 0.505, -0.075], kneeR: [LEG_R + 1, 0.092, 0.505, -0.075] };
 let SEED = 1;
+
+// Figures built while one of their items was still loading wear the code-built look; they get the item when it arrives.
+const WAITING = new Set(), GEAR_KEYS = new Set(Object.keys(GEAR_ITEMS));
+gear.onLoad((key) => {
+  for (const ref of WAITING) {
+    const root = ref.deref(); if (!root) { WAITING.delete(ref); continue; }
+    const rig = root.userData.rig2; if (!rig || rig.S.helmet !== key) continue;
+    WAITING.delete(ref); refit(root);
+  }
+});
+function refit(root) {
+  const rig = root.userData.rig2;
+  rig.lods.forEach((lod, i) => {
+    const S = { ...rig.S, lod }, g = figureGeo(S), m = rig.meshes[i];
+    m.geometry = g.geo; m.material = materialsFor(S, g.slots); rig.tris[i] = g.tris;
+  });
+}
 
 export function buildSoldier(nation, opts = {}) {
   const role = ROLES[opts.role] ? opts.role : 'marine', RD = ROLES[role];
@@ -812,7 +847,8 @@ export function buildSoldier(nation, opts = {}) {
   let shadow = null;
   if (!arms && opts.shadow !== false) { shadow = new THREE.Mesh(blobGeometry(), kit.blob()); shadow.scale.set(0.95, 1, 0.95); shadow.position.y = 0.015; shadow.renderOrder = 2; root.add(shadow); }
   const rig = { bones, skeleton, meshes, lods, tris, rifle, rifles, shadow, hasRifle: !!rifle, role, M: bones.map(() => new THREE.Matrix4()), w: {}, poses: {}, out: newPose(), t: -1e9, ph: (SEED * 0.37) % 6.28, seed: ((SEED * 0.618034) % 1), lod: 0, cur: '' };
-  SEED++;
+  SEED++; rig.S = base;
+  if (!arms && people.ready && !gear.has(helmet) && GEAR_KEYS.has(helmet)) WAITING.add(new WeakRef(root));
   root.userData.rig2 = rig; root.userData.attach = attach; root.userData.rifle = rifle; root.userData.shadow = shadow; root.userData.uniform = opts.uniform || ukey; root.userData.helmet = opts.helmet || helmet; root.userData.acc = base.acc;
   root.userData.tris = tris; root.userData.size = 2.6;
   if (!arms) animateSoldier(root, rifle ? 'idle' : 'stand', 0, 0, 0, { snap: true });

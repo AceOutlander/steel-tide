@@ -39,3 +39,9 @@ on the developer's computer; nothing of it is in the game.
 The skin files are the head and hands cut out of those textures and laid out again; the eyebrows, the darker cropped
 hair, the lash line and the eyes are painted in by the build script. Uniforms, helmets, vests, boots and all other
 kit are built by the game's own code. Only CC0 material may be added here.
+
+## Helmets and uniforms
+
+The models in `assets/cosmetics/` are made for this game by the scripts in `tools/cosmetics/` (Blender 5.1): shapes,
+textures and baked maps are all generated there. Nothing in them is downloaded, and they carry no real maker's logos
+or markings.

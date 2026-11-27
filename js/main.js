@@ -22,6 +22,7 @@ import { BUILDERS } from './sim/factory.js';
 import { hud } from './ui/hud.js';
 import { menus } from './ui/menus.js';
 import { loadPeople } from './units/v2/people.js';
+import { loadGear } from './units/v2/gear.js';
 
 const STEP = 1 / 60, _a = new V3(), _b = new V3();
 let last = 0, acc = 0, fpsT = 0, fpsN = 0, fpsWatch = 0, orbit = 0, deadT = 0;
@@ -38,6 +39,7 @@ export const app = {
     const canvas = el('game');
     prog(15, 'Mustering the crew');
     loadPeople().then(() => {
+      loadGear(); // Blender-built cosmetics: in the background; figures wear the code-built look until they arrive
       prog(25, 'Painting hulls');
       try {
         gfx.init(canvas); prog(45, 'Filling the sea');

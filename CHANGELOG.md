@@ -1,5 +1,18 @@
 # Steel Tide: changelog and decisions
 
+## Beta 0.7.0 (helmets and uniforms rebuilt in Blender: the Elite Diver helmet first)
+
+- The paid helmets and uniforms are being rebuilt one at a time as real models: shaped in Blender by script
+  (`tools/cosmetics/`), with baked normal, roughness, metalness and shading maps, exported as compressed `.glb`
+  files in `assets/cosmetics/` with three detail levels, and loaded by `js/units/v2/gear.js`. An item that has not
+  loaded yet (or is missing) shows the old code-built one, and the figure is rebuilt when the file arrives.
+- **Elite Diver helmet:** a commercial-style dive helmet instead of a yellow ball: gloss yellow fibreglass shell
+  with a liner, a framed faceplate held by twelve hex screws with tinted glass, a demand regulator, side block with a
+  red emergency handwheel, valves, a rear gas block and ribbed hose, a side lamp, carry handle, reflective tape, and
+  a neck clamp with latch over a rubber neck dam. It clears all six heads by at least 13 mm.
+- three.js's own GLTF and Draco loaders are now included (same MIT licence as three.js).
+- Still code-built for now: the other seven helmets and all eight uniforms.
+
 ## Beta 0.6.11 (finer camouflage)
 
 - Looking at the cloth close up, the camouflage's shapes were still too big and too contrasty. The clusters are now
